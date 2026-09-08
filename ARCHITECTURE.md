@@ -62,6 +62,16 @@ Serverless **importa** o handler e chama por requisição — não existe `liste
 Se o módulo escutasse porta no import, o deploy subiria e travaria. Separar
 evita um fork do código só por causa do destino.
 
+### Fallback do SPA na Vercel
+
+O `vercel.json` tem dois rewrites. O segundo manda tudo que **não** começa com
+`/api` para o `index.html`: sem ele, dar F5 em `/jogadores/123` cai no 404 da
+plataforma, porque não existe arquivo com esse nome e quem conhece a rota é o
+React Router, que só roda depois do HTML carregar.
+
+Rewrites são avaliados **depois** da checagem de arquivo estático, então
+`/assets/*.js` continua sendo servido pela CDN normalmente.
+
 ---
 
 ## Três caminhos de importação, um de gravação
