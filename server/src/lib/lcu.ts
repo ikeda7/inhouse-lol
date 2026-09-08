@@ -271,21 +271,22 @@ export function resolveTeamRoles(
 }
 
 /**
- * A ORDEM DO SAGUAO -- o melhor sinal, e o mais simples.
+ * A ORDEM DOS PARTICIPANTES -- o melhor sinal, e o mais simples.
  *
- * Em custom com draft de torneio o time ocupa 5 vagas fixas, na ordem
- * TOP, JUNGLE, MID, ADC, SUPPORT. Essa ordem sobrevive no array de
- * participantes da partida. Ou seja: a posicao ja vem PRONTA, e as versoes
- * anteriores estavam deduzindo um dado que nao precisava ser deduzido.
+ * A Riot devolve os participantes de cada time JA ORDENADOS POR POSICAO:
+ * TOP, JUNGLE, MID, ADC, SUPPORT. Nao depende de como o saguao foi montado --
+ * o grupo confirmou que nao organiza as vagas -- nem do `timeline.lane`, que em
+ * custom vem errado (chega a marcar dois JUNGLE no mesmo time).
  *
- * Isso e uma convencao de como o grupo monta o saguao, nao uma garantia da
- * Riot. Entao nao confiamos as cegas: validamos com um sinal independente.
+ * Ou seja: a posicao ja vem PRONTA e deterministica da fonte. As versoes
+ * anteriores deduziam pelo pool declarado e depois por Smite/CS, adivinhando um
+ * dado que nunca precisou ser adivinhado.
  *
- * A VALIDACAO: se a ordem estiver correta, quem levou Smite tem que ser o
- * SEGUNDO do time. Medido nas 4 partidas reais do grupo -- 8 times, 8 acertos.
- * Quando nao bate, a premissa nao vale para aquele jogo (saguao montado fora de
- * ordem, alguem trocou de lane) e devolvemos null para cair na pontuacao por
- * sinais.
+ * A ordem nao vem documentada como contrato, entao nao confiamos as cegas:
+ * validamos com um sinal independente. Se a ordem estiver correta, quem levou
+ * Smite tem que ser o SEGUNDO do time. Medido nas 4 partidas reais do grupo:
+ * 8 times, 8 acertos. Quando nao bate, devolvemos null e caimos na pontuacao
+ * por sinais.
  */
 function atribuirPorOrdemDoSaguao(
   participants: SinaisDoParticipante[]
