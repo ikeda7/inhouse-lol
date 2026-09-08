@@ -42,7 +42,7 @@ export function SeriesPage() {
 
   if (!series.data) {
     return (
-      <Card title="Noite de jogos">
+      <Card title="Série em andamento">
         <EmptyState label="Nenhuma MD3 em andamento." />
         <div className="flex justify-center">
           <Button

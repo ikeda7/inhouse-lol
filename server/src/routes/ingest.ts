@@ -4,7 +4,12 @@ import { prisma } from '../lib/prisma.js';
 import { mapLcuGame, type LcuGame } from '../lib/lcu.js';
 import { roflToLcuGame, type RoflMetadata } from '../lib/rofl.js';
 import { resolveChampion } from '../lib/ddragon.js';
-import { recordMatch, type MatchPlayerInput } from '../services/series.js';
+import {
+  recordMatch,
+  refreshMatchStats,
+  SeriesError,
+  type MatchPlayerInput,
+} from '../services/series.js';
 import type { DraftablePlayer } from '../lib/autoBalance.js';
 import type { RoleInput } from '../lib/roles.js';
 import { asyncHandler } from './helpers.js';
@@ -71,6 +76,14 @@ const commonOptions = {
    * costuma ser erro de vinculo, e ai avisar e melhor que inventar gente.
    */
   autoCreatePlayers: z.boolean().optional().default(false),
+  /**
+   * Quando a partida ja existe, reescreve a scoreboard em vez de so avisar.
+   *
+   * Serve para preencher coluna nova (destaques) ou corrigir role depois de
+   * melhorar a inferencia, sem apagar a partida -- apagar levaria com ela o
+   * placar da MD3 e os campeoes queimados.
+   */
+  refreshStats: z.boolean().optional().default(false),
 };
 
 const lcuIngestSchema = z.object({ game: lcuGameSchema, ...commonOptions });
@@ -126,6 +139,7 @@ interface IngestOptions {
   dryRun?: boolean;
   autoLink: boolean;
   autoCreatePlayers?: boolean;
+  refreshStats?: boolean;
   /** Rotulo da origem, so para a resposta. */
   source: 'LCU' | 'ROFL';
 }
@@ -250,6 +264,13 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
       goldEarned: participant.goldEarned,
       visionScore: participant.visionScore,
       cs: participant.cs,
+      doubleKills: participant.doubleKills,
+      tripleKills: participant.tripleKills,
+      quadraKills: participant.quadraKills,
+      pentaKills: participant.pentaKills,
+      largestKillingSpree: participant.largestKillingSpree,
+      largestMultiKill: participant.largestMultiKill,
+      firstBloodKill: participant.firstBloodKill,
     });
   }
 
@@ -277,7 +298,7 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     if (!ongoing) {
       res.status(409).json({
         success: false,
-        error: 'Nenhuma MD3 em andamento. Abra uma na tela "Noite de jogos" antes de importar.',
+        error: 'Nenhuma MD3 em andamento. Abra uma na aba Serie antes de importar.',
         code: 'NO_ONGOING_SERIES',
       });
       return;
@@ -291,13 +312,37 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     select: { id: true, matchNumber: true, seriesId: true },
   });
   if (already) {
+    // Reenviar o mesmo jogo com refreshStats atualiza a scoreboard no lugar --
+    // caminho para preencher colunas novas (destaques) e corrigir roles sem
+    // apagar a partida e perder placar da MD3 e campeoes queimados.
+    if (options.refreshStats && !options.dryRun) {
+      try {
+        const { updated } = await refreshMatchStats(already.id, imported.winner, matched);
+        res.json({
+          success: true,
+          data: {
+            saved: true,
+            refreshed: true,
+            match: already,
+            message: `Estatisticas do jogo ${already.matchNumber} atualizadas (${updated} jogadores).`,
+          },
+        });
+      } catch (erro) {
+        if (!(erro instanceof SeriesError)) throw erro;
+        res.status(409).json({ success: false, error: erro.message, code: erro.code });
+      }
+      return;
+    }
+
     res.json({
       success: true,
       data: {
         saved: false,
         alreadyImported: true,
         match: already,
-        message: `A partida ${imported.riotMatchId} ja tinha sido registrada (jogo ${already.matchNumber}).`,
+        message:
+          `A partida ${imported.riotMatchId} ja tinha sido registrada (jogo ${already.matchNumber}).` +
+          ' Use refreshStats para reescrever a scoreboard com os dados atuais.',
       },
     });
     return;

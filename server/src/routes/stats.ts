@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { getLeaderboard } from '../services/stats.js';
+import { getDestaques } from '../services/highlights.js';
 import { asyncHandler } from './helpers.js';
 
 export const statsRouter = Router();
@@ -16,5 +17,13 @@ statsRouter.get(
   asyncHandler(async (req, res) => {
     const { sortBy, minGames } = querySchema.parse(req.query);
     res.json({ success: true, data: await getLeaderboard({ sortBy, minGames }) });
+  })
+);
+
+/** GET /api/stats/highlights -- recordes e momentos das noites. */
+statsRouter.get(
+  '/highlights',
+  asyncHandler(async (_req, res) => {
+    res.json({ success: true, data: await getDestaques() });
   })
 );
