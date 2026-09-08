@@ -1,14 +1,12 @@
 # InHouse LoL
 
-[![CI](https://github.com/lucasikeda/inhouse-lol/actions/workflows/ci.yml/badge.svg)](https://github.com/lucasikeda/inhouse-lol/actions/workflows/ci.yml)
+[![CI](https://github.com/ikeda7/inhouse-lol/actions/workflows/ci.yml/badge.svg)](https://github.com/ikeda7/inhouse-lol/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Gerenciador das noites de custom game 5x5 de League of Legends de um grupo de
 amigos. Sorteia os times respeitando o pool de posições de cada um, controla o
 **Fearless Draft** ao longo da MD3 e guarda as estatísticas de todo mundo.
 
-> **Nota:** o caminho do badge de CI assume o repositório em
-> `lucasikeda/inhouse-lol`. Ajuste se o seu for outro.
 
 Nasceu de um problema chato de resolver na mão: com 10 pessoas e pools de role
 diferentes, montar dois times válidos (Top/Jungle/Mid/ADC/Support dos dois
