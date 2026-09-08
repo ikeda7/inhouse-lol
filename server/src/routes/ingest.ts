@@ -58,6 +58,19 @@ const commonOptions = {
    * um cadastro que ainda nao tem PUUID. Evita configuracao manual dos 10.
    */
   autoLink: z.boolean().optional().default(true),
+  /**
+   * Cria automaticamente quem nao esta cadastrado, usando o nick do Riot ID
+   * como nome provisorio.
+   *
+   * Existe para o caso "quero importar o historico e nao sei de quem e esse
+   * nick". Sem isso, um unico desconhecido impede a partida inteira de entrar.
+   * Como a identidade de verdade e o PUUID, renomear depois pela tela de
+   * Jogadores conserta o rotulo sem mexer em nenhuma estatistica.
+   *
+   * Fica desligado por padrao: numa noite normal, participante desconhecido
+   * costuma ser erro de vinculo, e ai avisar e melhor que inventar gente.
+   */
+  autoCreatePlayers: z.boolean().optional().default(false),
 };
 
 const lcuIngestSchema = z.object({ game: lcuGameSchema, ...commonOptions });
@@ -112,6 +125,7 @@ interface IngestOptions {
   matchNumber?: number;
   dryRun?: boolean;
   autoLink: boolean;
+  autoCreatePlayers?: boolean;
   /** Rotulo da origem, so para a resposta. */
   source: 'LCU' | 'ROFL';
 }
@@ -151,8 +165,49 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     }
   }
 
+  // --- cria os desconhecidos, quando pedido ---
+  const created: string[] = [];
+  if (options.autoCreatePlayers) {
+    for (const participant of imported.participants) {
+      if (!participant.puuid || byPuuid.has(participant.puuid)) continue;
+
+      // Nome provisorio = nick do Riot ID. Fica obvio na tela que precisa
+      // renomear, e a unicidade vem do proprio nick.
+      const nome =
+        participant.riotId?.split('#')[0]?.trim() ||
+        participant.summonerName?.trim() ||
+        `Jogador ${participant.puuid.slice(0, 6)}`;
+
+      const jaExiste = await prisma.player.findFirst({
+        where: { OR: [{ name: nome }, { puuid: participant.puuid }] },
+        select: { id: true },
+      });
+      if (jaExiste) {
+        // Nome batido mas PUUID novo: liga os dois em vez de duplicar a pessoa.
+        await prisma.player.update({
+          where: { id: jaExiste.id },
+          data: { puuid: participant.puuid },
+        });
+        continue;
+      }
+
+      await prisma.player.create({
+        data: {
+          name: nome,
+          riotId: participant.riotId,
+          puuid: participant.puuid,
+          // Sem saber o pool real, FILL e o palpite honesto: nao inventa
+          // preferencia que a pessoa nunca declarou.
+          roles: { create: [{ role: 'FILL', priority: 0 }] },
+        },
+      });
+      created.push(nome);
+    }
+  }
+
   // Recarrega se algo mudou, para o casamento abaixo enxergar os novos vinculos.
-  const known = linked.length > 0 ? (await loadKnownPlayers()).byPuuid : byPuuid;
+  const known =
+    linked.length > 0 || created.length > 0 ? (await loadKnownPlayers()).byPuuid : byPuuid;
 
   const matched: MatchPlayerInput[] = [];
   const unmatched: {
@@ -203,7 +258,9 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     // dizer exatamente quem falta vincular.
     res.status(409).json({
       success: false,
-      error: `${unmatched.length} participante(s) nao estao vinculados a nenhum jogador cadastrado.`,
+      error:
+        `${unmatched.length} participante(s) nao estao vinculados a nenhum jogador cadastrado.` +
+        ` Se nao souber de quem sao, importe com autoCreatePlayers para cadastra-los com o nick e renomear depois.`,
       code: 'UNMATCHED_PARTICIPANTS',
       details: { unmatched, autoLinked: linked },
     });
@@ -255,6 +312,7 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
         preview: { ...imported, players: matched },
         rolesFullyInferred: imported.rolesFullyInferred,
         autoLinked: linked,
+        autoCreated: created,
         seriesId: targetSeriesId,
       },
     });
@@ -277,6 +335,7 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
       saved: true,
       source: options.source,
       autoLinked: linked,
+      autoCreated: created,
       // A UI usa isso para pedir conferencia das posicoes quando a origem nao
       // soube inferir todas.
       rolesFullyInferred: imported.rolesFullyInferred,

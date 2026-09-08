@@ -63,6 +63,9 @@ const CONFIG = {
     .replace(/\/$/, ''),
   seriesId: getOption('--series') ?? process.env.INHOUSE_SERIES_ID ?? null,
   dryRun: hasFlag('--dry-run'),
+  // Cadastra quem nao esta na base usando o nick, para uma partida antiga nao
+  // ficar de fora so porque ninguem lembra de quem e aquele nick.
+  autoCreate: hasFlag('--criar-faltantes'),
   pollIntervalMs: Number(getOption('--interval', '15')) * 1000,
 };
 
@@ -409,6 +412,7 @@ const sendGame = (game) =>
     game,
     seriesId: CONFIG.seriesId ?? undefined,
     dryRun: CONFIG.dryRun,
+    autoCreatePlayers: CONFIG.autoCreate,
   });
 
 const sendReplay = (entry) =>
@@ -419,6 +423,7 @@ const sendReplay = (entry) =>
     playedAtMs: entry.mtime,
     seriesId: CONFIG.seriesId ?? undefined,
     dryRun: CONFIG.dryRun,
+    autoCreatePlayers: CONFIG.autoCreate,
   });
 
 function describeResult({ ok, payload }) {
@@ -447,6 +452,9 @@ function describeResult({ ok, payload }) {
     log.ok(
       `Partida gravada! Placar da serie: ${data.series.blueScore}-${data.series.redScore}`
     );
+    if (data.autoCreated?.length) {
+      log.warn(`Cadastrei com o nick (renomeie depois): ${data.autoCreated.join(', ')}`);
+    }
     if (data.autoLinked?.length) {
       log.info(`      Vinculei automaticamente: ${data.autoLinked.join(', ')}`);
     }
