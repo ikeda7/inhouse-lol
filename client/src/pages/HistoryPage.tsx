@@ -4,6 +4,7 @@ import { seriesApi } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { Card, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon, ordenarPorLane } from '../components/ChampionIcon';
+import { Highlights } from '../components/Highlights';
 import { ROLE_LABEL, type SeriesDetail } from '../types';
 
 /** Historico de MD3 com placar agregado e detalhe expandivel de cada jogo. */
@@ -138,6 +139,7 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
                         <span className="min-w-0 flex-1 truncate font-medium">
                           {stat.player.name}
                         </span>
+                        <Highlights stat={stat} />
                         <span className="tabular shrink-0 text-ink-muted">
                           {stat.kills}/{stat.deaths}/{stat.assists}
                         </span>

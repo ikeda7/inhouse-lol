@@ -11,6 +11,7 @@ import type {
   AutoBalanceResult,
   BurnedChampion,
   ChampionManifest,
+  Highlights,
   LeaderboardEntry,
   Player,
   PlayerProfile,
@@ -172,6 +173,8 @@ export const seriesApi = {
 export const statsApi = {
   leaderboard: (sortBy: 'wins' | 'winRate' | 'avgKda' | 'points' = 'wins', minGames = 0) =>
     request<LeaderboardEntry[]>(`/stats/leaderboard?sortBy=${sortBy}&minGames=${minGames}`),
+
+  highlights: () => request<Highlights>('/stats/highlights'),
 };
 
 export const riotApi = {

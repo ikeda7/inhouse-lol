@@ -68,7 +68,7 @@ export function DashboardPage() {
           </div>
         )}
         {data && data.length === 0 && (
-          <EmptyState label="Nenhuma partida registrada. Abra uma MD3 na Noite de jogos para começar." />
+          <EmptyState label="Nenhuma partida registrada. Abra uma MD3 na aba Série para começar." />
         )}
 
         {data && data.length > 0 && (

@@ -102,6 +102,14 @@ export interface MatchStat {
   visionScore: number;
   cs: number;
   win: boolean;
+  // --- destaques, prontos do cliente do LoL (ver components/Highlights.tsx) ---
+  doubleKills: number;
+  tripleKills: number;
+  quadraKills: number;
+  pentaKills: number;
+  largestKillingSpree: number;
+  largestMultiKill: number;
+  firstBloodKill: boolean;
   player: { id: string; name: string };
 }
 
@@ -162,4 +170,44 @@ export interface ChampionManifest {
   locale: string;
   baseUrl: string;
   champions: { id: string; key: number; name: string; squareUrl: string }[];
+}
+
+// ---------------------------------------------------------------------------
+// Destaques (issue #14)
+// ---------------------------------------------------------------------------
+
+/** De onde o destaque veio -- para linkar o jogador e datar o feito. */
+export interface HighlightContext {
+  playerId: string;
+  playerName: string;
+  championName: string;
+  ddragonId: string | null;
+  rolePlayed: Role;
+  matchId: string;
+  matchNumber: number;
+  seriesId: string;
+  seriesName: string | null;
+  playedAt: string;
+}
+
+export interface RecordEntry extends HighlightContext {
+  categoria: string;
+  valor: number;
+  /** Numero ja formatado pelo servidor ("41k", "8.50"). */
+  exibicao: string;
+}
+
+export interface MomentEntry extends HighlightContext {
+  tipo: 'PENTA' | 'QUADRA' | 'SPREE';
+  valor: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  win: boolean;
+}
+
+export interface Highlights {
+  recordes: RecordEntry[];
+  momentos: MomentEntry[];
+  partidas: number;
 }

@@ -160,6 +160,13 @@ Outros comandos:
 Extras: `--dry-run` (confere sem gravar), `--criar-faltantes` (cadastra
 desconhecidos com o nick, para renomear depois), `--api <url>`, `--series <id>`.
 
+`--refresh` reescreve a scoreboard de uma partida **já importada** em vez de
+avisar que ela existe. É o caminho para quando o projeto passa a guardar um dado
+novo (destaques, por exemplo) ou a inferência de role melhora: reenvie o mesmo
+jogo e só a scoreboard muda — placar da MD3, campeões queimados e número do jogo
+ficam intactos. Ele recusa a atualização se vencedor ou elenco não baterem, para
+não gravar os números de um jogo em cima de outro.
+
 Requisitos: **Node 18+**. O cliente do LoL precisa estar aberto para os comandos
 de histórico; os de replay leem arquivo em disco e funcionam com o jogo fechado.
 Nada para instalar.

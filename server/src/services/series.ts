@@ -106,6 +106,13 @@ export interface MatchPlayerInput {
   goldEarned?: number;
   visionScore?: number;
   cs?: number;
+  doubleKills?: number;
+  tripleKills?: number;
+  quadraKills?: number;
+  pentaKills?: number;
+  largestKillingSpree?: number;
+  largestMultiKill?: number;
+  firstBloodKill?: boolean;
 }
 
 export interface RecordMatchInput {
@@ -264,6 +271,13 @@ export async function recordMatch(input: RecordMatchInput) {
             goldEarned: player.goldEarned ?? 0,
             visionScore: player.visionScore ?? 0,
             cs: player.cs ?? 0,
+            doubleKills: player.doubleKills ?? 0,
+            tripleKills: player.tripleKills ?? 0,
+            quadraKills: player.quadraKills ?? 0,
+            pentaKills: player.pentaKills ?? 0,
+            largestKillingSpree: player.largestKillingSpree ?? 0,
+            largestMultiKill: player.largestMultiKill ?? 0,
+            firstBloodKill: player.firstBloodKill ?? false,
             win: player.teamSide === input.winner,
           })),
         },
@@ -362,6 +376,115 @@ export async function finishSeries(seriesId: string) {
     where: { id: seriesId },
     data: { status: 'FINISHED', winnerTeam },
   });
+}
+
+/** O que ja esta gravado na partida que se pretende atualizar. */
+export interface PartidaRegistrada {
+  winner: string | null;
+  playerIds: string[];
+}
+
+/**
+ * Confirma que a origem e a MESMA partida antes de deixar reescrever a
+ * scoreboard.
+ *
+ * Vale a paranoia: `refreshMatchStats` sobrescreve dado real e a unica coisa
+ * entre ele e um estrago silencioso e esta checagem. Basta um riotMatchId
+ * reaproveitado, ou um `--series` apontado para a serie errada, para os numeros
+ * de um jogo caírem em cima de outro. Vencedor e elenco identicos sao evidencia
+ * suficiente; qualquer divergencia aborta em vez de "corrigir".
+ */
+export function assertMesmaPartida(
+  registrada: PartidaRegistrada,
+  winner: TeamSide,
+  playerIds: string[]
+): void {
+  if (registrada.winner !== winner) {
+    throw new SeriesError(
+      `A partida registrada foi vencida pelo time ${registrada.winner}, mas a origem diz ${winner}.` +
+        ' Isso indica partida trocada -- nada foi alterado.',
+      'WINNER_MISMATCH'
+    );
+  }
+
+  const gravados = new Set(registrada.playerIds);
+  const chegando = new Set(playerIds);
+  const iguais =
+    gravados.size === chegando.size && [...chegando].every((id) => gravados.has(id));
+
+  if (!iguais) {
+    throw new SeriesError(
+      'O elenco da origem nao bate com o que esta registrado nessa partida.',
+      'ROSTER_MISMATCH'
+    );
+  }
+}
+
+/**
+ * Reescreve as estatisticas de uma partida que ja esta no banco.
+ *
+ * Existe porque o schema cresce depois dos jogos acontecerem: quando a
+ * importacao passou a guardar multikill e killing spree, as partidas antigas
+ * ficaram com zero em colunas que a origem sempre soube responder. A alternativa
+ * era apagar e reimportar -- que destroi o placar da MD3 e os campeoes queimados
+ * por um dado cosmetico.
+ *
+ * Mexe SO na scoreboard. Nao toca em vencedor, numero do jogo, serie nem
+ * Fearless, e recusa o trabalho se o elenco nao for exatamente o mesmo: dai nao
+ * e a mesma partida, e sobrescrever seria pior que nao fazer nada.
+ */
+export async function refreshMatchStats(
+  matchId: string,
+  winner: TeamSide,
+  players: MatchPlayerInput[]
+) {
+  validateMatchPlayers(players);
+
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: { winner: true, stats: { select: { playerId: true } } },
+  });
+  if (!match) throw new SeriesError('Partida nao encontrada.', 'MATCH_NOT_FOUND');
+
+  assertMesmaPartida(
+    { winner: match.winner, playerIds: match.stats.map((stat) => stat.playerId) },
+    winner,
+    players.map((player) => player.playerId)
+  );
+
+  await prisma.$transaction(
+    players.map((player) =>
+      prisma.matchPlayerStat.update({
+        where: { matchId_playerId: { matchId, playerId: player.playerId } },
+        data: {
+          // A role tambem entra: a inferencia melhorou depois das primeiras
+          // importacoes, e este e o caminho para corrigir sem apagar nada.
+          rolePlayed: player.rolePlayed,
+          teamSide: player.teamSide,
+          championName: player.championName,
+          championId: player.championId ?? null,
+          kills: player.kills ?? 0,
+          deaths: player.deaths ?? 0,
+          assists: player.assists ?? 0,
+          damage: player.damage ?? 0,
+          damageTaken: player.damageTaken ?? 0,
+          goldEarned: player.goldEarned ?? 0,
+          visionScore: player.visionScore ?? 0,
+          cs: player.cs ?? 0,
+          doubleKills: player.doubleKills ?? 0,
+          tripleKills: player.tripleKills ?? 0,
+          quadraKills: player.quadraKills ?? 0,
+          pentaKills: player.pentaKills ?? 0,
+          largestKillingSpree: player.largestKillingSpree ?? 0,
+          largestMultiKill: player.largestMultiKill ?? 0,
+          firstBloodKill: player.firstBloodKill ?? false,
+          win: player.teamSide === winner,
+        },
+      })
+    )
+  );
+
+  return { updated: players.length };
 }
 
 export async function getSeriesDetail(seriesId: string) {
