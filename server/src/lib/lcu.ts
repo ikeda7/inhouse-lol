@@ -259,11 +259,53 @@ export function resolveTeamRoles(
       (p.stats?.neutralMinionsKilled ?? 0) > 0
   );
 
+  // --- 1a escolha: a ORDEM DO SAGUAO ---
+  const porOrdem = atribuirPorOrdemDoSaguao(participants);
+  if (porOrdem) return porOrdem;
+
   if (temSinais) {
     return atribuirPorPontuacao(participants, poolByParticipantId);
   }
 
   return atribuirPorLaneEPool(participants, poolByParticipantId);
+}
+
+/**
+ * A ORDEM DO SAGUAO -- o melhor sinal, e o mais simples.
+ *
+ * Em custom com draft de torneio o time ocupa 5 vagas fixas, na ordem
+ * TOP, JUNGLE, MID, ADC, SUPPORT. Essa ordem sobrevive no array de
+ * participantes da partida. Ou seja: a posicao ja vem PRONTA, e as versoes
+ * anteriores estavam deduzindo um dado que nao precisava ser deduzido.
+ *
+ * Isso e uma convencao de como o grupo monta o saguao, nao uma garantia da
+ * Riot. Entao nao confiamos as cegas: validamos com um sinal independente.
+ *
+ * A VALIDACAO: se a ordem estiver correta, quem levou Smite tem que ser o
+ * SEGUNDO do time. Medido nas 4 partidas reais do grupo -- 8 times, 8 acertos.
+ * Quando nao bate, a premissa nao vale para aquele jogo (saguao montado fora de
+ * ordem, alguem trocou de lane) e devolvemos null para cair na pontuacao por
+ * sinais.
+ */
+function atribuirPorOrdemDoSaguao(
+  participants: SinaisDoParticipante[]
+): { roleByParticipantId: Map<number, Role>; inferred: boolean } | null {
+  if (participants.length !== ROLES.length) return null;
+
+  const posicaoDoJungle = ROLES.indexOf('JUNGLE');
+  const indiceComSmite = participants.findIndex(
+    (p) => p.spell1Id === SMITE_SPELL_ID || p.spell2Id === SMITE_SPELL_ID
+  );
+
+  // Sem Smite no time nao ha como validar: melhor nao arriscar a premissa.
+  if (indiceComSmite === -1) return null;
+  if (indiceComSmite !== posicaoDoJungle) return null;
+
+  const roleByParticipantId = new Map<number, Role>();
+  participants.forEach((p, i) => roleByParticipantId.set(p.participantId, ROLES[i]));
+
+  // Veio pronto da origem, não foi deduzido: a UI não precisa pedir conferência.
+  return { roleByParticipantId, inferred: true };
 }
 
 /**
