@@ -112,14 +112,7 @@ export function DashboardPage() {
                         >
                           {entry.name}
                         </Link>
-                        {entry.wonLastSeries && (
-                          <span
-                            className="ml-1.5 text-[11px]"
-                            title="Venceu a MD3 mais recente"
-                          >
-                            🏆
-                          </span>
-                        )}
+                        <Trofeus quantidade={entry.seriesWon} recente={entry.wonLastSeries} />
                       </td>
                       <td className="tabular py-2.5 pr-2 text-right font-bold text-gold">
                         {entry.wins}–{entry.losses}
@@ -154,10 +147,33 @@ export function DashboardPage() {
 
       {data && data.length > 0 && (
         <p className="px-1 text-center text-[11px] text-ink-faint">
-          Empate se resolve por KDA, depois winrate, depois nº de jogos · 🏆 venceu a última MD3
+          Empate se resolve por KDA, depois winrate, depois nº de jogos · 🏆 = MD3 vencida
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Um troféu por MD3 vencida -- mesmo formato que o grupo já usa no zap
+ * ("VINI 🏆🏆"). Acima de 4 vira "🏆xN" para não estourar a linha.
+ */
+function Trofeus({ quantidade, recente }: { quantidade: number; recente: boolean }) {
+  if (quantidade <= 0) return null;
+
+  const titulo =
+    `${quantidade} MD3 vencida${quantidade > 1 ? 's' : ''}` +
+    (recente ? ' · venceu a mais recente' : '');
+
+  return (
+    <span
+      // Quem não venceu a mais recente aparece mais apagado: o troféu vira
+      // histórico em vez de competir com quem ganhou na última noite.
+      className={`ml-1.5 shrink-0 text-[11px] ${recente ? '' : 'opacity-50'}`}
+      title={titulo}
+    >
+      {quantidade > 4 ? `🏆x${quantidade}` : '🏆'.repeat(quantidade)}
+    </span>
   );
 }
 
@@ -177,7 +193,7 @@ function LinhaCelular({ entry, posicao }: { entry: LeaderboardEntry; posicao: nu
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium text-ink">
             {entry.name}
-            {entry.wonLastSeries && <span className="ml-1" title="Venceu a MD3 mais recente">🏆</span>}
+            <Trofeus quantidade={entry.seriesWon} recente={entry.wonLastSeries} />
           </p>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-ink-faint">
             <span className="tabular">

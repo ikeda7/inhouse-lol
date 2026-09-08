@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { Trophy, Dices, Swords, Users, History } from 'lucide-react';
 import { DashboardPage } from './pages/DashboardPage';
 import { DraftPage } from './pages/DraftPage';
@@ -10,7 +10,7 @@ import { HistoryPage } from './pages/HistoryPage';
 const NAV = [
   { to: '/', label: 'Ranking', short: 'Ranking', icon: Trophy, end: true },
   { to: '/sorteio', label: 'Sorteio', short: 'Sorteio', icon: Dices, end: false },
-  { to: '/noite', label: 'Noite de jogos', short: 'Noite', icon: Swords, end: false },
+  { to: '/serie', label: 'Série', short: 'Série', icon: Swords, end: false },
   { to: '/historico', label: 'Histórico', short: 'Histórico', icon: History, end: false },
   { to: '/jogadores', label: 'Jogadores', short: 'Jogadores', icon: Users, end: true },
 ];
@@ -66,7 +66,9 @@ export function App() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/sorteio" element={<DraftPage />} />
-          <Route path="/noite" element={<SeriesPage />} />
+          <Route path="/serie" element={<SeriesPage />} />
+          {/* Rota antiga: quem tiver o link salvo continua chegando. */}
+          <Route path="/noite" element={<Navigate to="/serie" replace />} />
           <Route path="/historico" element={<HistoryPage />} />
           <Route path="/jogadores" element={<PlayersPage />} />
           <Route path="/jogadores/:playerId" element={<PlayerProfilePage />} />
