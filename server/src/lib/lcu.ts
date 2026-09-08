@@ -64,6 +64,37 @@ export interface LcuParticipantStats {
   largestKillingSpree?: number;
   largestMultiKill?: number;
   firstBloodKill?: boolean;
+  firstBloodAssist?: boolean;
+  killingSprees?: number;
+  largestCriticalStrike?: number;
+  champLevel?: number;
+  goldSpent?: number;
+  totalDamageDealt?: number;
+  damageDealtToObjectives?: number;
+  damageDealtToTurrets?: number;
+  damageSelfMitigated?: number;
+  totalHeal?: number;
+  physicalDamageDealtToChampions?: number;
+  magicDamageDealtToChampions?: number;
+  trueDamageDealtToChampions?: number;
+  timeCCingOthers?: number;
+  longestTimeSpentLiving?: number;
+  turretKills?: number;
+  inhibitorKills?: number;
+  wardsPlaced?: number;
+  wardsKilled?: number;
+  visionWardsBoughtInGame?: number;
+  item0?: number;
+  item1?: number;
+  item2?: number;
+  item3?: number;
+  item4?: number;
+  item5?: number;
+  item6?: number;
+  perk0?: number;
+  perkPrimaryStyle?: number;
+  perkSubStyle?: number;
+  gameEndedInSurrender?: boolean;
 }
 
 export interface LcuParticipant {
@@ -104,7 +135,26 @@ export interface LcuGame {
   mapId?: number;
   participants?: LcuParticipant[];
   participantIdentities?: LcuParticipantIdentity[];
-  teams?: { teamId: number; win?: string | boolean }[];
+  gameVersion?: string;
+  teams?: {
+    teamId: number;
+    win?: string | boolean;
+    towerKills?: number;
+    inhibitorKills?: number;
+    dragonKills?: number;
+    baronKills?: number;
+    riftHeraldKills?: number;
+    /** Larvas do Vazio. O nome no payload e esse mesmo. */
+    hordeKills?: number;
+    firstBlood?: boolean;
+    firstTower?: boolean;
+    firstInhibitor?: boolean;
+    firstBaron?: boolean;
+    /** Sim, com erro de digitacao. E como o LCU manda. */
+    firstDargon?: boolean;
+    firstDragon?: boolean;
+    bans?: { championId?: number; pickTurn?: number }[];
+  }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -468,6 +518,36 @@ export interface LcuImportedParticipant {
   largestKillingSpree: number;
   largestMultiKill: number;
   firstBloodKill: boolean;
+  firstBloodAssist: boolean;
+  killingSprees: number;
+  largestCriticalStrike: number;
+  /** Scoreboard completo -- ver o modelo MatchPlayerStat. */
+  champLevel: number;
+  goldSpent: number;
+  totalDamageDealt: number;
+  damageToObjectives: number;
+  damageToTurrets: number;
+  damageSelfMitigated: number;
+  totalHeal: number;
+  physicalDamageToChampions: number;
+  magicDamageToChampions: number;
+  trueDamageToChampions: number;
+  timeCCingOthers: number;
+  longestTimeSpentLiving: number;
+  turretKills: number;
+  inhibitorKills: number;
+  wardsPlaced: number;
+  wardsKilled: number;
+  controlWardsBought: number;
+  laneMinionsKilled: number;
+  neutralMinionsKilled: number;
+  /** Os 7 slots em ordem, CSV. Null quando a origem nao traz item. */
+  items: string | null;
+  spell1Id: number | null;
+  spell2Id: number | null;
+  keystoneId: number | null;
+  primaryStyleId: number | null;
+  subStyleId: number | null;
 }
 
 export interface LcuImportedMatch {
@@ -483,7 +563,63 @@ export interface LcuImportedMatch {
   winner: TeamSide;
   /** false quando alguma role veio do pool declarado em vez do cliente. */
   rolesFullyInferred: boolean;
+  /** Patch da partida, para a UI pedir os assets da versao certa. */
+  gameVersion: string | null;
+  /** Rendicao: o jogo acabou antes da hora, e os por-minuto ficam inflados. */
+  surrendered: boolean;
   participants: LcuImportedParticipant[];
+  teams: LcuImportedTeam[];
+  bans: LcuImportedBan[];
+}
+
+/** Objetivos de um dos lados. */
+export interface LcuImportedTeam {
+  teamSide: TeamSide;
+  win: boolean;
+  towerKills: number;
+  inhibitorKills: number;
+  dragonKills: number;
+  baronKills: number;
+  riftHeraldKills: number;
+  voidgrubKills: number;
+  firstBlood: boolean;
+  firstTower: boolean;
+  firstInhibitor: boolean;
+  firstBaron: boolean;
+  firstDragon: boolean;
+}
+
+export interface LcuImportedBan {
+  teamSide: TeamSide;
+  championId: number;
+  pickTurn: number;
+}
+
+/** Quantos slots de item o scoreboard tem: 6 de build + 1 de trinket. */
+const ITEM_SLOTS = 7;
+
+/**
+ * Os 7 slots de item em CSV, na ordem em que aparecem no jogo.
+ *
+ * Devolve null quando a origem nao traz item nenhum (caso do .rofl), para a
+ * tela poder mostrar "build indisponivel" em vez de 7 slots vazios -- que
+ * pareceria alguem que jogou a partida inteira sem comprar nada.
+ */
+function itemsCsv(stats: LcuParticipantStats): string | null {
+  const slots = [
+    stats.item0,
+    stats.item1,
+    stats.item2,
+    stats.item3,
+    stats.item4,
+    stats.item5,
+    stats.item6,
+  ];
+  if (slots.every((slot) => slot === undefined)) return null;
+  return slots
+    .slice(0, ITEM_SLOTS)
+    .map((slot) => slot ?? 0)
+    .join(',');
 }
 
 function teamWon(team: { win?: string | boolean } | undefined): boolean {
@@ -611,6 +747,37 @@ export function mapLcuGame(
       largestKillingSpree: stats.largestKillingSpree ?? 0,
       largestMultiKill: stats.largestMultiKill ?? 0,
       firstBloodKill: stats.firstBloodKill === true,
+      firstBloodAssist: stats.firstBloodAssist === true,
+      killingSprees: stats.killingSprees ?? 0,
+      largestCriticalStrike: stats.largestCriticalStrike ?? 0,
+      champLevel: stats.champLevel ?? 0,
+      goldSpent: stats.goldSpent ?? 0,
+      totalDamageDealt: stats.totalDamageDealt ?? 0,
+      damageToObjectives: stats.damageDealtToObjectives ?? 0,
+      damageToTurrets: stats.damageDealtToTurrets ?? 0,
+      damageSelfMitigated: stats.damageSelfMitigated ?? 0,
+      totalHeal: stats.totalHeal ?? 0,
+      physicalDamageToChampions: stats.physicalDamageDealtToChampions ?? 0,
+      magicDamageToChampions: stats.magicDamageDealtToChampions ?? 0,
+      trueDamageToChampions: stats.trueDamageDealtToChampions ?? 0,
+      timeCCingOthers: stats.timeCCingOthers ?? 0,
+      longestTimeSpentLiving: stats.longestTimeSpentLiving ?? 0,
+      turretKills: stats.turretKills ?? 0,
+      inhibitorKills: stats.inhibitorKills ?? 0,
+      wardsPlaced: stats.wardsPlaced ?? 0,
+      wardsKilled: stats.wardsKilled ?? 0,
+      controlWardsBought: stats.visionWardsBoughtInGame ?? 0,
+      laneMinionsKilled: stats.totalMinionsKilled ?? 0,
+      neutralMinionsKilled: stats.neutralMinionsKilled ?? 0,
+      items: itemsCsv(stats),
+      // Feiticos ficam no participante, nao em stats. O .rofl nao traz build
+      // nenhuma, e ai vira null em vez de zero: zero significaria "slot vazio",
+      // null significa "a origem nao sabe", e a tela precisa distinguir.
+      spell1Id: participant.spell1Id ?? null,
+      spell2Id: participant.spell2Id ?? null,
+      keystoneId: stats.perk0 ?? null,
+      primaryStyleId: stats.perkPrimaryStyle ?? null,
+      subStyleId: stats.perkSubStyle ?? null,
       win: participant.teamId === 100 ? blueWon : !blueWon,
     };
   });
@@ -629,8 +796,70 @@ export function mapLcuGame(
     queueId: game.queueId ?? null,
     winner: blueWon ? 'BLUE' : 'RED',
     rolesFullyInferred,
+    gameVersion: game.gameVersion ?? null,
+    // A rendicao e do jogo, mas o LCU repete a flag em cada participante.
+    // Basta um dizer que sim.
+    surrendered: (game.participants ?? []).some(
+      (participant) => participant.stats?.gameEndedInSurrender === true
+    ),
     participants: mapped,
+    teams: mapTeams(game),
+    bans: mapBans(game),
   };
+}
+
+/** Azul e 100, vermelho e 200. Fora disso, o payload esta corrompido. */
+function ladoDoTeamId(teamId: number): TeamSide | null {
+  if (teamId === 100) return 'BLUE';
+  if (teamId === 200) return 'RED';
+  return null;
+}
+
+function mapTeams(game: LcuGame): LcuImportedTeam[] {
+  const times: LcuImportedTeam[] = [];
+
+  for (const team of game.teams ?? []) {
+    const teamSide = ladoDoTeamId(team.teamId);
+    if (!teamSide) continue;
+
+    times.push({
+      teamSide,
+      win: teamWon(team),
+      towerKills: team.towerKills ?? 0,
+      inhibitorKills: team.inhibitorKills ?? 0,
+      dragonKills: team.dragonKills ?? 0,
+      baronKills: team.baronKills ?? 0,
+      riftHeraldKills: team.riftHeraldKills ?? 0,
+      voidgrubKills: team.hordeKills ?? 0,
+      firstBlood: team.firstBlood === true,
+      firstTower: team.firstTower === true,
+      firstInhibitor: team.firstInhibitor === true,
+      firstBaron: team.firstBaron === true,
+      // O payload escreve "firstDargon". Aceitamos os dois: se a Riot corrigir
+      // o typo num patch, a leitura continua funcionando sem release nossa.
+      firstDragon: team.firstDragon === true || team.firstDargon === true,
+    });
+  }
+
+  return times;
+}
+
+function mapBans(game: LcuGame): LcuImportedBan[] {
+  const bans: LcuImportedBan[] = [];
+
+  for (const team of game.teams ?? []) {
+    const teamSide = ladoDoTeamId(team.teamId);
+    if (!teamSide) continue;
+
+    for (const ban of team.bans ?? []) {
+      // championId -1 e o ban vazio (alguem deixou o tempo estourar). Guardar
+      // isso poluiria a tela de Fearless com um campeao que nao existe.
+      if (!ban.championId || ban.championId < 0 || !ban.pickTurn) continue;
+      bans.push({ teamSide, championId: ban.championId, pickTurn: ban.pickTurn });
+    }
+  }
+
+  return bans;
 }
 
 /** Reexportado para as rotas tratarem os dois erros de dominio juntos. */

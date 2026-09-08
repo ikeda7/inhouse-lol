@@ -111,14 +111,79 @@ model Match {
   /// RIOT_API | MANUAL
   source      String   @default("MANUAL")
 
+  /// Patch em que a partida foi jogada (ex: "16.17.810.4348"). Serve para a UI
+  /// pedir os icones do Data Dragon da versao certa, e nao da mais recente.
+  gameVersion String?
+  /// Rendicao encerra o jogo antes da hora e distorce dano/farm por minuto.
+  /// Guardado para a tela poder avisar em vez de comparar numeros incomparaveis.
+  surrendered Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   series Series            @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   stats  MatchPlayerStat[]
+  teams  MatchTeamStat[]
+  bans   MatchBan[]
 
   @@unique([seriesId, matchNumber])
   @@index([seriesId])
+}
+
+/**
+ * Objetivos por time.
+ *
+ * Sao dados de TIME, nao de jogador: dragao nao pertence a quem deu o last hit.
+ * Ficam em tabela separada em vez de virarem blueDragons/redDragons no Match,
+ * porque assim a consulta e a UI tratam os dois lados pelo mesmo caminho.
+ */
+model MatchTeamStat {
+  id      String @id @default(cuid())
+  matchId String
+  /// BLUE | RED
+  teamSide String
+  win      Boolean
+
+  towerKills      Int @default(0)
+  inhibitorKills  Int @default(0)
+  dragonKills     Int @default(0)
+  baronKills      Int @default(0)
+  riftHeraldKills Int @default(0)
+  /// Larvas do Vazio (o LCU chama de hordeKills).
+  voidgrubKills   Int @default(0)
+
+  firstBlood     Boolean @default(false)
+  firstTower     Boolean @default(false)
+  firstInhibitor Boolean @default(false)
+  firstBaron     Boolean @default(false)
+  firstDragon    Boolean @default(false)
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, teamSide])
+}
+
+/**
+ * Bans do draft de torneio (issue #8).
+ *
+ * O grupo joga com bans, e eles vinham no payload do cliente desde sempre --
+ * so ninguem estava guardando. Sao diferentes do Fearless: ban e escolha de
+ * quem draftou naquele jogo, campeao queimado e consequencia de ter sido usado.
+ */
+model MatchBan {
+  id      String @id @default(cuid())
+  matchId String
+  /// BLUE | RED -- o time que baniu.
+  teamSide String
+  championId   Int
+  championName String?
+  /// Ordem do ban no draft (1 a 10).
+  pickTurn Int
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, teamSide, pickTurn])
+  @@index([matchId])
 }
 
 /// Linha da tabela de scoreboard: um jogador em um jogo.
@@ -161,6 +226,53 @@ model MatchPlayerStat {
   /// 2 = double, 3 = triple, 4 = quadra, 5 = penta.
   largestMultiKill    Int @default(0)
   firstBloodKill      Boolean @default(false)
+  firstBloodAssist    Boolean @default(false)
+  /// Quantas sequencias de abate, nao o tamanho da maior.
+  killingSprees       Int @default(0)
+  largestCriticalStrike Int @default(0)
+
+  // --- o resto do scoreboard ---
+  // Tudo isso vem pronto do cliente do LoL. Guardar aqui e o que permite montar
+  // a tela de fim de partida sem o cliente aberto -- que e a razao de existir
+  // destas colunas: dado de custom game so existe na maquina de quem jogou, e
+  // depende do cliente ainda ter a partida em cache.
+  champLevel          Int @default(0)
+  goldSpent           Int @default(0)
+  /// Dano a TODOS os alvos (o `damage` acima e so a campeoes).
+  totalDamageDealt    Int @default(0)
+  damageToObjectives  Int @default(0)
+  damageToTurrets     Int @default(0)
+  /// Dano absorvido por escudo, armadura e resistencia.
+  damageSelfMitigated Int @default(0)
+  totalHeal           Int @default(0)
+  /// Quebra do dano a campeoes -- da para desenhar a proporcao AD/AP/verdadeiro.
+  physicalDamageToChampions Int @default(0)
+  magicDamageToChampions    Int @default(0)
+  trueDamageToChampions     Int @default(0)
+  /// Segundos de controle de grupo aplicados.
+  timeCCingOthers     Int @default(0)
+  /// Segundos vivo na maior sobrevida da partida.
+  longestTimeSpentLiving Int @default(0)
+  turretKills         Int @default(0)
+  inhibitorKills      Int @default(0)
+  wardsPlaced         Int @default(0)
+  wardsKilled         Int @default(0)
+  controlWardsBought  Int @default(0)
+  /// `cs` acima soma os dois; separados dizem se o farm veio de rota ou selva.
+  laneMinionsKilled    Int @default(0)
+  neutralMinionsKilled Int @default(0)
+
+  // --- build ---
+  /// Os 7 slots de item em ordem, separados por virgula ("3084,1056,0,...").
+  /// Zero = slot vazio. CSV em vez de tabela porque item e posicao fixa, nao
+  /// entidade -- normalizar 7 inteiros ordenados nao compra nada.
+  items         String?
+  spell1Id      Int?
+  spell2Id      Int?
+  /// Runa principal (keystone) e as duas arvores.
+  keystoneId    Int?
+  primaryStyleId Int?
+  subStyleId    Int?
 
   match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
