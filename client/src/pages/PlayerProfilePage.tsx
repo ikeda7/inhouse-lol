@@ -20,7 +20,7 @@ export function PlayerProfilePage() {
   return (
     <div className="space-y-6">
       <Card>
-        <h1 className="text-2xl font-bold text-gold-400">{data.name}</h1>
+        <h1 className="text-2xl font-bold text-gold">{data.name}</h1>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Metric label="Partidas" value={String(data.games)} />
           <Metric
@@ -41,9 +41,9 @@ export function PlayerProfilePage() {
             {data.championPodium.map((champion, index) => (
               <li
                 key={champion.championName}
-                className="flex flex-col items-center gap-2 rounded-lg border border-hextech-700/50 bg-hextech-800/40 p-4"
+                className="flex flex-col items-center gap-2 rounded-lg border border-line/50 bg-raised/40 p-4"
               >
-                <span className="text-[11px] font-bold uppercase tracking-widest text-gold-400/60">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-ink-faint">
                   {index + 1}o
                 </span>
                 {champion.ddragonId && version ? (
@@ -53,15 +53,15 @@ export function PlayerProfilePage() {
                     width={72}
                     height={72}
                     loading="lazy"
-                    className="h-18 w-18 rounded-full border-2 border-gold-400/40"
+                    className="h-18 w-18 rounded-full border-2 border-gold/40"
                   />
                 ) : (
-                  <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-hextech-700 bg-hextech-800 text-xs">
+                  <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-line bg-raised text-xs">
                     {champion.championName.slice(0, 8)}
                   </div>
                 )}
                 <p className="text-center text-sm font-semibold">{champion.championName}</p>
-                <p className="text-xs text-gold-400/60">
+                <p className="text-xs text-ink-faint">
                   {champion.games} jogo{champion.games === 1 ? '' : 's'} · {champion.winRate}% WR ·{' '}
                   {champion.avgKda.toFixed(2)} KDA
                 </p>
@@ -75,12 +75,12 @@ export function PlayerProfilePage() {
         <ul className="space-y-2">
           {data.byRole.map((role) => (
             <li key={role.role} className="flex items-center gap-3 text-sm">
-              <span className="w-20 shrink-0 text-xs font-semibold uppercase tracking-wider text-gold-400/70">
+              <span className="w-20 shrink-0 text-xs font-semibold uppercase tracking-wider text-ink-faint">
                 {ROLE_LABEL[role.role]}
               </span>
               {/* Barra proporcional ao winrate; o numero ao lado mantem a
                   informacao acessivel sem depender da largura da barra. */}
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-hextech-800">
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-raised">
                 <div
                   className={`h-full rounded-full ${
                     role.winRate >= 50 ? 'bg-emerald-500/70' : 'bg-rose-500/70'
@@ -88,7 +88,7 @@ export function PlayerProfilePage() {
                   style={{ width: `${role.games > 0 ? role.winRate : 0}%` }}
                 />
               </div>
-              <span className="w-28 shrink-0 text-right text-xs text-gold-400/60">
+              <span className="w-28 shrink-0 text-right text-xs text-ink-faint">
                 {role.games === 0
                   ? 'sem jogos'
                   : `${role.wins}/${role.games} · ${role.winRate}%`}
@@ -111,10 +111,10 @@ function Metric({
   tone?: 'good' | 'bad';
 }) {
   const toneClass =
-    tone === 'good' ? 'text-emerald-400' : tone === 'bad' ? 'text-rose-400' : 'text-gold-300';
+    tone === 'good' ? 'text-emerald-400' : tone === 'bad' ? 'text-rose-400' : 'text-ink';
   return (
-    <div className="rounded-lg border border-hextech-700/50 bg-hextech-800/40 p-3">
-      <p className="text-[11px] uppercase tracking-wider text-gold-400/60">{label}</p>
+    <div className="rounded-lg border border-line/50 bg-raised/40 p-3">
+      <p className="text-[11px] uppercase tracking-wider text-ink-faint">{label}</p>
       <p className={`mt-1 text-xl font-bold ${toneClass}`}>{value}</p>
     </div>
   );

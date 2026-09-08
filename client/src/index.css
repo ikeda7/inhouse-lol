@@ -1,21 +1,133 @@
 @import 'tailwindcss';
 
-/* Paleta inspirada na UI do cliente do LoL: azul-petroleo escuro + dourado. */
+/* ---------------------------------------------------------------------------
+   Sistema visual
+   ---------------------------------------------------------------------------
+   Direção: escuro editorial, não "dashboard corporativo". O contraste vem da
+   ESCALA e do espaço, não de encher tudo de borda e negrito -- que era o que
+   deixava a versão anterior com cara de painel antigo.
+
+   Regras que valem em todo lugar:
+   - superfície em camadas (base -> elevada -> flutuante), nunca borda em tudo
+   - o dourado é acento, não cor de texto corrido
+   - azul e vermelho SÓ identificam time; não usar para outra coisa
+   --------------------------------------------------------------------------- */
+
 @theme {
-  --color-hextech-950: #050d16;
-  --color-hextech-900: #0a1428;
-  --color-hextech-800: #0f2137;
-  --color-hextech-700: #1a3454;
-  --color-gold-400: #c8aa6e;
-  --color-gold-300: #f0e6d2;
-  --color-blueside: #2a7fd4;
-  --color-redside: #d43a3a;
+  /* Superfícies, do fundo para a frente */
+  --color-base: #080c14;
+  --color-surface: #0d1420;
+  --color-raised: #131c2b;
+  --color-overlay: #1a2536;
+  --color-line: #22304a;
+
+  /* Texto: três níveis bastam. Mais que isso vira sopa. */
+  --color-ink: #e9eef7;
+  --color-ink-muted: #93a3bd;
+  --color-ink-faint: #5c6b85;
+
+  /* Acento */
+  --color-gold: #d4b26a;
+  --color-gold-soft: #8a7440;
+
+  /* Times */
+  --color-blue: #4a9eff;
+  --color-red: #ff5c5c;
+
+  /* Semânticos */
+  --color-win: #3ddc97;
+  --color-loss: #ff6b6b;
+  --color-warn: #ffc46b;
+
+  /* Tipografia */
+  --font-display: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* Raios: um valor por tamanho de elemento, não um por componente */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
 }
 
 :root {
   color-scheme: dark;
 }
 
+html {
+  /* Rolagem suave ao navegar por âncora, mas respeitando quem pediu menos
+     movimento no sistema (ver bloco de reduced-motion abaixo). */
+  scroll-behavior: smooth;
+}
+
 body {
-  @apply bg-hextech-950 text-gold-300 antialiased;
+  @apply bg-base text-ink antialiased;
+  font-family: var(--font-sans);
+  /* Brilho sutil no topo: dá profundidade sem custar um elemento na árvore. */
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(212, 178, 106, 0.06), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(74, 158, 255, 0.04), transparent);
+  background-attachment: fixed;
+}
+
+/* Foco visível e consistente. O default do browser some em fundo escuro. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Barra de rolagem discreta -- a padrão do Windows destoa demais no escuro. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* Número tabular em qualquer lugar que compare valores em coluna. Sem isso o
+   placar "dança" conforme os dígitos mudam. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+/* Entrada suave de conteúdo carregado. Curto de propósito: animação longa em
+   coisa que aparece toda hora cansa. */
+@keyframes surgir {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.surgir {
+  animation: surgir 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Quem configurou "reduzir movimento" no sistema não deve ver nada disso. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

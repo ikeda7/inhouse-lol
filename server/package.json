@@ -18,6 +18,8 @@
     "db:recompute": "tsx scripts/recompute-series.ts"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "@prisma/adapter-libsql": "^6.19.3",
     "@prisma/client": "^6.3.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

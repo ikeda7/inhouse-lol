@@ -52,35 +52,35 @@ export function PlayersPage() {
     <div className="space-y-6">
       <Card
         title={
-          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-gold-400">
+          <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
             <UserPlus size={16} />
             Novo jogador
           </h2>
         }
       >
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-xs text-gold-400/70">
+          <label className="text-xs text-ink-faint">
             Nome
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Como a galera chama"
-              className="mt-1 w-full rounded-lg border border-hextech-700 bg-hextech-800/60 px-3 py-2 text-sm text-gold-300 placeholder:text-gold-400/30 focus:border-gold-400 focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-line bg-raised px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
             />
           </label>
-          <label className="text-xs text-gold-400/70">
+          <label className="text-xs text-ink-faint">
             Riot ID (opcional)
             <input
               value={riotId}
               onChange={(event) => setRiotId(event.target.value)}
               placeholder="Nick#BR1"
-              className="mt-1 w-full rounded-lg border border-hextech-700 bg-hextech-800/60 px-3 py-2 text-sm text-gold-300 placeholder:text-gold-400/30 focus:border-gold-400 focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-line bg-raised px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
             />
           </label>
         </div>
 
         <fieldset className="mt-4">
-          <legend className="text-xs text-gold-400/70">
+          <legend className="text-xs text-ink-faint">
             Roles (clique na ordem de preferencia -- a primeira e a main)
           </legend>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -95,11 +95,11 @@ export function PlayersPage() {
                   aria-pressed={selected}
                   className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
                     selected
-                      ? 'border-gold-400 bg-gold-400/15 text-gold-300'
-                      : 'border-hextech-700 text-gold-400/60 hover:border-gold-400/50'
+                      ? 'border-gold bg-gold/15 text-ink'
+                      : 'border-line text-ink-faint hover:border-gold/50'
                   }`}
                 >
-                  {selected && <span className="mr-1 text-gold-400">{position + 1}.</span>}
+                  {selected && <span className="mr-1 text-gold">{position + 1}.</span>}
                   {ROLE_LABEL[role]}
                 </button>
               );
@@ -136,7 +136,7 @@ export function PlayersPage() {
         {loading && <LoadingState />}
         {error && <ErrorState error={error} onRetry={reload} />}
         {players && (
-          <ul className="divide-y divide-hextech-700/40">
+          <ul className="divide-y divide-line/40">
             {players.map((player) => (
               <PlayerRow key={player.id} player={player} onChanged={reload} />
             ))}

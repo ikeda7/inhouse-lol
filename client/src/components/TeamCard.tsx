@@ -14,35 +14,35 @@ export function TeamCard({ team, averageRating }: { team: BalancedTeam; averageR
   return (
     <div
       className={`overflow-hidden rounded-xl border shadow-lg ${
-        isBlue ? 'border-blueside/50 bg-blueside/5' : 'border-redside/50 bg-redside/5'
+        isBlue ? 'border-blue/50 bg-blue/5' : 'border-red/50 bg-red/5'
       }`}
     >
       <header
         className={`flex items-center justify-between px-4 py-2 ${
-          isBlue ? 'bg-blueside/20' : 'bg-redside/20'
+          isBlue ? 'bg-blue/20' : 'bg-red/20'
         }`}
       >
         <h3 className="text-sm font-bold uppercase tracking-widest">
           {isBlue ? 'Time Azul' : 'Time Vermelho'}
         </h3>
         {averageRating && (
-          <span className="text-xs text-gold-400/70" title="Rating medio do time">
+          <span className="text-xs text-ink-faint" title="Rating medio do time">
             {team.averageRating}
           </span>
         )}
       </header>
 
-      <ul className="divide-y divide-hextech-700/40">
+      <ul className="divide-y divide-line/40">
         {team.players.map((entry) => (
           <li key={entry.player.id} className="flex items-center gap-3 px-4 py-2.5">
-            <span className="w-16 shrink-0 text-[11px] font-semibold uppercase tracking-wider text-gold-400/70">
+            <span className="w-16 shrink-0 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
               {ROLE_LABEL[entry.role]}
             </span>
 
             <span className="flex-1 truncate font-medium">{entry.player.name}</span>
 
             {entry.preferenceIndex === 0 && !entry.isAutofill && (
-              <Crown size={14} className="text-gold-400" aria-label="Role principal" />
+              <Crown size={14} className="text-gold" aria-label="Role principal" />
             )}
             {entry.isAutofill && (
               <Shuffle

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Trophy, Medal } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import { statsApi } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
-import { Card, EmptyState, ErrorState, LoadingState } from '../components/ui';
+import { Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../components/ui';
+import type { LeaderboardEntry } from '../types';
 
 type SortKey = 'points' | 'winRate' | 'avgKda';
 
@@ -13,7 +14,17 @@ const SORT_LABELS: Record<SortKey, string> = {
   avgKda: 'KDA',
 };
 
-/** Leaderboard geral: +3 por mapa vencido, +1 de bonus por MD3 vencida. */
+/** Ouro, prata e bronze nos três primeiros; o resto só o número. */
+const MEDAL = ['text-gold', 'text-slate-300', 'text-amber-700'];
+
+/**
+ * Ranking geral. +3 por mapa vencido, +1 de bônus por vencer a MD3.
+ *
+ * Duas apresentações do mesmo dado: tabela no desktop, cartão no celular.
+ * A tabela tem 8 colunas -- no celular ela virava rolagem horizontal, que é
+ * exatamente o que ninguém faz. No cartão, o que importa (posição, nome,
+ * pontos) fica na primeira linha e o detalhe vai embaixo.
+ */
 export function DashboardPage() {
   const [sortBy, setSortBy] = useState<SortKey>('points');
   const { data, loading, error, reload } = useAsync(
@@ -22,105 +33,155 @@ export function DashboardPage() {
   );
 
   return (
-    <Card
-      title={
-        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-gold-400">
-          <Trophy size={16} />
-          Classificacao geral
-        </h2>
-      }
-      action={
-        <div className="flex gap-1" role="group" aria-label="Ordenar por">
-          {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
-            <button
-              key={key}
-              onClick={() => setSortBy(key)}
-              aria-pressed={sortBy === key}
-              className={`rounded px-2 py-1 text-xs font-semibold transition ${
-                sortBy === key
-                  ? 'bg-gold-400 text-hextech-950'
-                  : 'text-gold-400/60 hover:text-gold-400'
-              }`}
-            >
-              {SORT_LABELS[key]}
-            </button>
-          ))}
-        </div>
-      }
-    >
-      {loading && <LoadingState />}
-      {error && <ErrorState error={error} onRetry={reload} />}
-      {data && data.length === 0 && (
-        <EmptyState label="Nenhuma partida registrada ainda. Abra uma MD3 para comecar." />
-      )}
+    <div className="space-y-5">
+      <Card
+        padding={false}
+        title={<CardTitle icon={Trophy}>Classificação geral</CardTitle>}
+        action={
+          <div
+            className="flex gap-0.5 rounded-md bg-raised p-0.5"
+            role="group"
+            aria-label="Ordenar por"
+          >
+            {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => setSortBy(key)}
+                aria-pressed={sortBy === key}
+                className={`rounded px-2.5 py-1 text-[11px] font-semibold transition ${
+                  sortBy === key
+                    ? 'bg-overlay text-ink shadow-sm'
+                    : 'text-ink-faint hover:text-ink-muted'
+                }`}
+              >
+                {SORT_LABELS[key]}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        {loading && <LoadingState />}
+        {error && (
+          <div className="p-4">
+            <ErrorState error={error} onRetry={reload} />
+          </div>
+        )}
+        {data && data.length === 0 && (
+          <EmptyState label="Nenhuma partida registrada. Abra uma MD3 na Noite de jogos para começar." />
+        )}
+
+        {data && data.length > 0 && (
+          <>
+            {/* --- celular --- */}
+            <ul className="divide-y divide-line/40 sm:hidden">
+              {data.map((entry, index) => (
+                <LinhaCelular key={entry.playerId} entry={entry} posicao={index} />
+              ))}
+            </ul>
+
+            {/* --- desktop --- */}
+            <div className="hidden sm:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-line/40 text-left text-[10px] uppercase tracking-wider text-ink-faint">
+                    <th className="py-2.5 pl-5 pr-2 font-medium">#</th>
+                    <th className="py-2.5 pr-2 font-medium">Jogador</th>
+                    <th className="py-2.5 pr-2 text-right font-medium">Pts</th>
+                    <th className="py-2.5 pr-2 text-right font-medium">V–D</th>
+                    <th className="py-2.5 pr-2 text-right font-medium">Winrate</th>
+                    <th className="py-2.5 pr-2 text-right font-medium">KDA</th>
+                    <th className="py-2.5 pr-2 text-right font-medium" title="Dano por minuto">
+                      DPM
+                    </th>
+                    <th className="py-2.5 pr-5 text-right font-medium" title="Visão média">
+                      Visão
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line/25">
+                  {data.map((entry, index) => (
+                    <tr key={entry.playerId} className="group transition hover:bg-raised/50">
+                      <td className={`py-2.5 pl-5 pr-2 tabular text-xs ${MEDAL[index] ?? 'text-ink-faint'}`}>
+                        {index + 1}
+                      </td>
+                      <td className="py-2.5 pr-2">
+                        <Link
+                          to={`/jogadores/${entry.playerId}`}
+                          className="font-medium text-ink transition group-hover:text-gold"
+                        >
+                          {entry.name}
+                        </Link>
+                      </td>
+                      <td className="tabular py-2.5 pr-2 text-right font-bold text-gold">
+                        {entry.points}
+                      </td>
+                      <td className="tabular py-2.5 pr-2 text-right text-ink-muted">
+                        {entry.wins}–{entry.losses}
+                      </td>
+                      <td
+                        className={`tabular py-2.5 pr-2 text-right font-medium ${
+                          entry.winRate >= 50 ? 'text-win' : 'text-loss'
+                        }`}
+                      >
+                        {entry.winRate}%
+                      </td>
+                      <td className="tabular py-2.5 pr-2 text-right text-ink">
+                        {entry.avgKda.toFixed(2)}
+                      </td>
+                      <td className="tabular py-2.5 pr-2 text-right text-ink-muted">
+                        {entry.avgDamagePerMinute}
+                      </td>
+                      <td className="tabular py-2.5 pr-5 text-right text-ink-muted">
+                        {entry.avgVisionScore}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </Card>
 
       {data && data.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead>
-              <tr className="border-b border-hextech-700/60 text-left text-[11px] uppercase tracking-wider text-gold-400/60">
-                <th className="py-2 pr-2 font-medium">#</th>
-                <th className="py-2 pr-2 font-medium">Jogador</th>
-                <th className="py-2 pr-2 text-right font-medium">Pts</th>
-                <th className="py-2 pr-2 text-right font-medium">V-D</th>
-                <th className="py-2 pr-2 text-right font-medium">Winrate</th>
-                <th className="py-2 pr-2 text-right font-medium">KDA</th>
-                <th className="py-2 pr-2 text-right font-medium" title="Dano por minuto">
-                  DPM
-                </th>
-                <th className="py-2 text-right font-medium" title="Placar de visao medio">
-                  Visao
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-hextech-700/30">
-              {data.map((entry, index) => (
-                <tr key={entry.playerId} className="hover:bg-hextech-800/40">
-                  <td className="py-2 pr-2 text-gold-400/50">
-                    {index < 3 ? (
-                      <Medal
-                        size={15}
-                        className={
-                          ['text-yellow-400', 'text-slate-300', 'text-amber-700'][index]
-                        }
-                        aria-label={`${index + 1}o lugar`}
-                      />
-                    ) : (
-                      index + 1
-                    )}
-                  </td>
-                  <td className="py-2 pr-2">
-                    <Link
-                      to={`/jogadores/${entry.playerId}`}
-                      className="font-medium hover:text-gold-400 hover:underline"
-                    >
-                      {entry.name}
-                    </Link>
-                  </td>
-                  <td className="py-2 pr-2 text-right font-bold text-gold-400">
-                    {entry.points}
-                  </td>
-                  <td className="py-2 pr-2 text-right text-gold-300/70">
-                    {entry.wins}-{entry.losses}
-                  </td>
-                  <td
-                    className={`py-2 pr-2 text-right font-medium ${
-                      entry.winRate >= 50 ? 'text-emerald-400' : 'text-rose-400'
-                    }`}
-                  >
-                    {entry.winRate}%
-                  </td>
-                  <td className="py-2 pr-2 text-right">{entry.avgKda.toFixed(2)}</td>
-                  <td className="py-2 pr-2 text-right text-gold-300/70">
-                    {entry.avgDamagePerMinute}
-                  </td>
-                  <td className="py-2 text-right text-gold-300/70">{entry.avgVisionScore}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <p className="px-1 text-center text-[11px] text-ink-faint">
+          +3 pontos por mapa vencido · +1 por vencer a MD3
+        </p>
       )}
-    </Card>
+    </div>
+  );
+}
+
+function LinhaCelular({ entry, posicao }: { entry: LeaderboardEntry; posicao: number }) {
+  return (
+    <li>
+      <Link
+        to={`/jogadores/${entry.playerId}`}
+        className="flex items-center gap-3 px-4 py-3 transition active:bg-raised"
+      >
+        <span
+          className={`tabular w-5 shrink-0 text-center text-sm font-bold ${MEDAL[posicao] ?? 'text-ink-faint'}`}
+        >
+          {posicao + 1}
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-ink">{entry.name}</p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-ink-faint">
+            <span className="tabular">
+              {entry.wins}–{entry.losses}
+            </span>
+            <span
+              className={`tabular font-medium ${entry.winRate >= 50 ? 'text-win' : 'text-loss'}`}
+            >
+              {entry.winRate}%
+            </span>
+            <span className="tabular">KDA {entry.avgKda.toFixed(2)}</span>
+          </p>
+        </div>
+
+        <span className="tabular shrink-0 text-lg font-bold text-gold">{entry.points}</span>
+      </Link>
+    </li>
   );
 }

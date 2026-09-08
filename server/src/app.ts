@@ -1,0 +1,93 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
+import express, { type Express } from 'express';
+import cors from 'cors';
+import { env } from './lib/env.js';
+import { errorHandler } from './routes/helpers.js';
+import { playersRouter } from './routes/players.js';
+import { draftRouter } from './routes/draft.js';
+import { seriesRouter } from './routes/series.js';
+import { statsRouter } from './routes/stats.js';
+import { riotRouter } from './routes/riot.js';
+import { ingestRouter } from './routes/ingest.js';
+
+/**
+ * Monta o app SEM escutar porta.
+ *
+ * Separado de `index.ts` porque em serverless (Vercel) não existe
+ * `app.listen()`: a plataforma importa o handler e chama por invocação. Se o
+ * módulo chamasse `listen` no import, o deploy subiria e travaria.
+ *
+ * Então:
+ *   - `app.ts`    monta e exporta        -> usado pelos dois
+ *   - `index.ts`  chama listen           -> local, VPS, Docker
+ *   - `api/index.ts` exporta o handler   -> Vercel
+ */
+export function createApp(): Express {
+  const app = express();
+
+  app.use(cors({ origin: env.corsOrigin }));
+  // O payload de um jogo do LCU/replay passa de 100 KB. 1 MB seria apertado.
+  app.use(express.json({ limit: '4mb' }));
+
+  app.get('/api/health', (_req, res) => {
+    res.json({ success: true, data: { status: 'ok', uptime: process.uptime() } });
+  });
+
+  app.use('/api/players', playersRouter);
+  app.use('/api/draft', draftRouter);
+  app.use('/api/series', seriesRouter);
+  app.use('/api/stats', statsRouter);
+  app.use('/api/riot', riotRouter);
+  app.use('/api/ingest', ingestRouter);
+
+  montarFrontend(app);
+
+  app.use((_req, res) => {
+    res.status(404).json({ success: false, error: 'Rota nao encontrada.' });
+  });
+
+  // Precisa vir depois de todas as rotas: o Express identifica o error handler
+  // pela aridade de 4 parâmetros.
+  app.use(errorHandler);
+
+  return app;
+}
+
+/**
+ * Serve o build do Vite pelo próprio Express, quando ele existe.
+ *
+ * Deixa o deploy com UM alvo só: um container, uma URL, sem CORS. Em
+ * desenvolvimento não roda -- o Vite serve o front com HMR na :5173 e faz
+ * proxy do /api para cá.
+ *
+ * Na Vercel o front é servido pela CDN dela (ver vercel.json), então esta
+ * função simplesmente não encontra a pasta e sai de fininho.
+ */
+function montarFrontend(app: Express): void {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+
+  // A profundidade muda conforme a origem: compilado roda de server/dist/src/,
+  // o tsx em dev roda de server/src/. Em vez de fixar um número de "..",
+  // testamos os candidatos.
+  const clientDist = [
+    path.resolve(here, '..', '..', '..', 'client', 'dist'),
+    path.resolve(here, '..', '..', 'client', 'dist'),
+  ].find(existsSync);
+
+  if (!clientDist) {
+    if (env.nodeEnv === 'production' && !process.env.VERCEL) {
+      console.warn('[aviso] build do frontend nao encontrado. Rode "npm run build".');
+    }
+    return;
+  }
+
+  app.use(express.static(clientDist));
+
+  // Fallback do SPA: qualquer rota que não seja /api devolve o index.html,
+  // senão dar F5 em /jogadores/123 retornaria 404.
+  app.get(/^(?!\/api).*/, (_req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
