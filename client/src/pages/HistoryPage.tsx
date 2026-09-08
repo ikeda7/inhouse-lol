@@ -88,23 +88,38 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
           key={match.id}
           className="rounded-lg border border-line/50 bg-raised/30 p-3"
         >
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-faint">
-            Jogo {match.matchNumber} ·{' '}
-            {match.winner === 'BLUE' ? 'vitoria azul' : 'vitoria vermelha'}
-            {match.gameDurationSec
-              ? ` · ${Math.round(match.gameDurationSec / 60)} min`
-              : ''}
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-faint">
+            <span>Jogo {match.matchNumber}</span>
+            {match.gameDurationSec && (
+              <span className="tabular font-normal normal-case tracking-normal">
+                {Math.round(match.gameDurationSec / 60)} min
+              </span>
+            )}
           </p>
 
           <div className="grid gap-3 md:grid-cols-2">
             {(['BLUE', 'RED'] as const).map((side) => (
-              <div key={side}>
+              <div
+                key={side}
+                className={`rounded-lg p-2 transition ${
+                  match.winner === side
+                    ? 'bg-win/[0.06] ring-1 ring-win/25'
+                    : 'opacity-70'
+                }`}
+              >
                 <p
-                  className={`mb-1 text-[11px] font-bold uppercase ${
+                  className={`mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase ${
                     side === 'BLUE' ? 'text-blue' : 'text-red'
                   }`}
                 >
                   {side === 'BLUE' ? 'Azul' : 'Vermelho'}
+                  {/* Vitória marcada no time, não numa frase separada: o olho
+                      acha o vencedor na hora, sem ler. */}
+                  {match.winner === side && (
+                    <span className="rounded bg-win/15 px-1.5 py-px text-[9px] font-bold tracking-wide text-win">
+                      VENCEU
+                    </span>
+                  )}
                 </p>
                 {/* Ordem da Fenda: Top em cima, Support embaixo -- como em
                     transmissão de campeonato. Sem isso a ordem vem do banco e

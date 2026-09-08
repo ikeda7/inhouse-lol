@@ -145,7 +145,9 @@ export interface LeaderboardEntry {
   avgDamagePerMinute: number;
   avgVisionScore: number;
   avgCsPerMinute: number;
-  /** Venceu a MD3 mais recente que já terminou. */
+  /** Quantas MD3 a pessoa venceu. Vira 🏆 por troféu, como o grupo já faz. */
+  seriesWon: number;
+  /** Venceu a MD3 mais recente. */
   wonLastSeries: boolean;
 }
 
@@ -222,6 +224,7 @@ export async function getLeaderboard(
       avgDamagePerMinute: Math.round(safeDivide(acc.damage, acc.minutes)),
       avgVisionScore: round(safeDivide(acc.vision, acc.games), 1),
       avgCsPerMinute: round(safeDivide(acc.cs, acc.minutes), 1),
+      seriesWon: (seriesBonus.get(playerId) ?? 0) / POINTS_PER_SERIES_WIN,
       wonLastSeries: ultimosCampeoes.has(playerId),
     }))
     .filter((entry) => entry.games >= minGames);
