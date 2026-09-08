@@ -32,7 +32,7 @@ corrige um comportamento observado na prática, cite o caso real.
 ## Antes de abrir o PR
 
 ```bash
-npm test           # 53 testes
+npm test           # 68 testes
 npm run typecheck  # os dois workspaces
 npm run build
 ```

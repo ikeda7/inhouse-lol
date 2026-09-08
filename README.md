@@ -27,7 +27,7 @@ perdeu o último mapa, ou aleatório) e conduz o snake draft `1-2-2-2-2-1`. No
 fim, distribui as roles dentro de cada time.
 
 **Fearless Draft** — os campeões usados no Jogo 1 e no Jogo 2 ficam travados
-para o resto da MD3. A tela da noite de jogos mostra os "queimados" com os
+para o resto da MD3. A aba Série mostra os "queimados" com os
 ícones oficiais do Data Dragon.
 
 **Registro de partida** — um agente local lê o histórico do cliente do LoL (que,
@@ -37,6 +37,25 @@ Também dá para colar o Match ID ou preencher o formulário manual. Ver
 
 **Estatísticas** — classificação geral (pontos, winrate, KDA), perfil individual
 com dano por minuto, winrate por role e pódio dos 3 campeões mais jogados.
+
+**Destaques** — 11 recordes de todos os tempos (mais abates, melhor KDA, mais
+dano, maior sequência… e "mais mortes", que é piada e não mérito), cada um
+apontando para a partida exata em que aconteceu. Mais uma linha do tempo de
+quadras, pentas e sequências longas.
+
+**Histórico com scoreboard completo** — três níveis, cada um atrás de um clique:
+
+```
+série   →  placar e vencedor
+jogo    →  os dois times, objetivos (dragão/barão/torre) e os bans do draft
+jogador →  build, feitiços, runa, quebra AD/AP/verdadeiro, farm de rota x selva,
+           visão, CC, abates
+```
+
+O nível do jogador existe para **não depender do cliente do LoL aberto**: tudo
+que a tela de fim de partida mostrava fica gravado e consultável. Cada número
+grande vem com uma barra comparando com o melhor da partida — "37k de dano" não
+diz nada sozinho, 37k *sendo o maior do jogo* diz tudo.
 
 Pontuação: **+3** por mapa vencido, **+1** de bônus para quem vence a MD3.
 
@@ -70,7 +89,7 @@ npm run db:recompute                # aplica
 |---|---|
 | Frontend | React 19 + Vite + TypeScript + Tailwind CSS v4 + Lucide Icons |
 | Backend | Node.js + Express + TypeScript |
-| Banco | SQLite via Prisma ORM |
+| Banco | SQLite via Prisma ORM — arquivo em dev, Turso em produção |
 | Externo | Riot Games API · LCU (cliente do LoL) · Data Dragon (ícones) |
 | Testes | Vitest |
 
@@ -156,12 +175,27 @@ Outros comandos:
 | `--games <id,id>` | importa várias de uma vez |
 | `--who [ids]` | lista os Riot IDs de quem joga os customs |
 | `--replays` / `--replay <id>` | importa de arquivo de replay |
+| `--refresh-all` | atualiza a scoreboard de tudo que já está registrado |
 
 Extras: `--dry-run` (confere sem gravar), `--criar-faltantes` (cadastra
-desconhecidos com o nick, para renomear depois), `--api <url>`, `--series <id>`.
+desconhecidos com o nick, para renomear depois), `--refresh`, `--api <url>`,
+`--series <id>`.
 
-`--refresh-all` faz isso de uma vez para tudo que já está registrado — é o
-comando para rodar depois de um deploy que passou a guardar um dado novo:
+#### Atualizando partidas já importadas
+
+Dado de custom game só existe na máquina de quem jogou, e só enquanto o cliente
+ainda tem a partida em cache. Quando o projeto passa a guardar um dado novo
+(destaques, itens, objetivos), as partidas antigas ficam com zero em colunas que
+a origem sempre soube responder.
+
+`--refresh` resolve isso reenviando o mesmo jogo: **só a scoreboard muda** —
+placar da MD3, campeões queimados e número do jogo ficam intactos. Serve também
+para corrigir role depois de a inferência melhorar. Ele recusa a atualização se
+vencedor ou elenco não baterem, para não gravar os números de um jogo em cima de
+outro.
+
+`--refresh-all` faz isso para tudo de uma vez. É o comando para rodar depois de
+um deploy que passou a guardar mais coisa:
 
 ```bash
 node companion/inhouse-companion.mjs --refresh-all --api https://inhouse-lol.vercel.app/api
@@ -170,13 +204,6 @@ node companion/inhouse-companion.mjs --refresh-all --api https://inhouse-lol.ver
 Varrer é seguro: nesse modo o servidor **recusa criar partida nova**, então um
 custom de um ano atrás que apareça no histórico é pulado em vez de entrar de
 carona na MD3 em andamento.
-
-`--refresh` reescreve a scoreboard de uma partida **já importada** em vez de
-avisar que ela existe. É o caminho para quando o projeto passa a guardar um dado
-novo (destaques, por exemplo) ou a inferência de role melhora: reenvie o mesmo
-jogo e só a scoreboard muda — placar da MD3, campeões queimados e número do jogo
-ficam intactos. Ele recusa a atualização se vencedor ou elenco não baterem, para
-não gravar os números de um jogo em cima de outro.
 
 Requisitos: **Node 18+**. O cliente do LoL precisa estar aberto para os comandos
 de histórico; os de replay leem arquivo em disco e funcionam com o jogo fechado.
@@ -318,10 +345,12 @@ inhouse-lol/
 ├─ companion/                 agente que lê o cliente do LoL
 ├─ server/
 │  ├─ prisma/
-│  │  ├─ schema.prisma        Player, Series, Match, BurnedChampion
+│  │  ├─ schema.prisma        Player, Series, Match, MatchPlayerStat,
+│  │  │                       MatchTeamStat, MatchBan, BurnedChampion
 │  │  └─ seed.ts              base inicial (apelidos genéricos)
 │  ├─ scripts/
-│  │  └─ recompute-series.ts  recalcula os placares das MD3
+│  │  ├─ recompute-series.ts  recalcula os placares das MD3
+│  │  └─ migrate-to-turso.ts  aplica o schema no banco hospedado
 │  └─ src/
 │     ├─ app.ts               monta o Express, sem escutar porta
 │     ├─ index.ts             escuta porta (local, VPS, Docker)
@@ -331,14 +360,20 @@ inhouse-lol/
 │     │  ├─ lcu.ts               histórico do cliente do LoL
 │     │  ├─ rofl.ts              arquivos de replay
 │     │  ├─ riot.ts              API pública da Riot
-│     │  ├─ ddragon.ts           ícones oficiais
+│     │  ├─ ddragon.ts           ícones de campeão
+│     │  ├─ ddragonBuild.ts      itens, feitiços e runas
 │     │  └─ roles.ts             roles canônicas
 │     ├─ services/            regras de negócio
+│     │  ├─ series.ts            MD3, Fearless, gravar e atualizar partida
+│     │  ├─ stats.ts             classificação e perfil
+│     │  └─ highlights.ts        recordes e momentos
 │     ├─ routes/              endpoints Express
-│     └─ __tests__/           53 testes
+│     └─ __tests__/           68 testes
 └─ client/src/
-   ├─ pages/                  Ranking, Sorteio, Noite, Histórico, Perfil
-   ├─ components/             Select, ChampionPicker, MatchForm, TeamCard...
+   ├─ pages/                  Ranking, Sorteio, Série, Destaques, Histórico,
+   │                          Jogadores, Perfil
+   ├─ components/             Select, ChampionPicker, MatchForm, TeamCard,
+   │                          MatchPlayerDetail, MatchObjectives, BuildIcons...
    ├─ hooks/
    ├─ index.css               tokens do sistema visual
    └─ api/client.ts           cliente HTTP tipado
@@ -384,10 +419,15 @@ exatamente os mesmos times — útil quando alguém contesta o resultado.
 | `POST` | `/api/series` | Abre uma MD3 |
 | `POST` | `/api/series/:id/matches` | Registra jogo (manual) |
 | `GET` | `/api/series/:id/burned` | Campeões queimados (Fearless) |
+| `GET` | `/api/series/:id` | Detalhe: scoreboard, objetivos por time e bans |
 | `GET` | `/api/stats/leaderboard` | Classificação geral |
+| `GET` | `/api/stats/highlights` | Recordes e momentos (aba Destaques) |
 | `POST` | `/api/riot/link` | Vincula Riot ID → PUUID |
 | `POST` | `/api/riot/import` | Importa partida por Match ID |
+| `GET` | `/api/riot/champions` | Manifesto de campeões do Data Dragon |
+| `GET` | `/api/riot/build` | Itens, feitiços e runas (só o histórico usa) |
 | `POST` | `/api/ingest/lcu` | Recebe um custom game do agente local |
+| `POST` | `/api/ingest/rofl` | Recebe uma partida vinda de replay |
 | `GET` | `/api/ingest/status` | Estado da MD3 e contagem de vínculos |
 
 Todas respondem no envelope `{ success, data }` ou `{ success, error, code }`.
