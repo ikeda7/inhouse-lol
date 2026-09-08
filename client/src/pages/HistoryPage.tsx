@@ -1,13 +1,27 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, History } from 'lucide-react';
+import { ChevronDown, ChevronRight, History, TriangleAlert } from 'lucide-react';
 import { seriesApi } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { Card, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon, ordenarPorLane } from '../components/ChampionIcon';
 import { Highlights } from '../components/Highlights';
-import { ROLE_LABEL, type SeriesDetail } from '../types';
+import { MatchBans, MatchObjectives } from '../components/MatchObjectives';
+import { calcularMaximos, MatchPlayerDetail, type Maximos } from '../components/MatchPlayerDetail';
+import { ROLE_LABEL, type MatchStat, type SeriesDetail, type TeamSide } from '../types';
 
-/** Historico de MD3 com placar agregado e detalhe expandivel de cada jogo. */
+/**
+ * Histórico de MD3.
+ *
+ * Três níveis de detalhe, cada um atrás de um clique, porque a tela inteira
+ * aberta de uma vez seriam ~40 blocos de números:
+ *
+ *   série  ->  placar e vencedor
+ *   jogo   ->  scoreboard dos dois times, objetivos e bans
+ *   jogador -> build, quebra de dano, farm, visão, abates
+ *
+ * O nível do jogador existe para não dependermos do cliente do LoL aberto: tudo
+ * que a tela de fim de partida mostrava está gravado e consultável aqui.
+ */
 export function HistoryPage() {
   const { data, loading, error, reload } = useAsync(() => seriesApi.list(30));
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -23,7 +37,7 @@ export function HistoryPage() {
       title={
         <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
           <History size={16} />
-          Historico de series
+          Histórico de séries
         </h2>
       }
     >
@@ -41,21 +55,13 @@ export function HistoryPage() {
                 <span className="flex-1 text-sm font-medium">
                   {series.name ?? new Date(series.date).toLocaleDateString('pt-BR')}
                 </span>
-                <span className="font-mono text-sm font-bold text-gold">
-                  {series.scoreline}
-                </span>
+                <span className="tabular text-sm font-bold text-gold">{series.scoreline}</span>
                 <span
                   className={`w-24 text-right text-xs ${
                     series.status === 'ONGOING' ? 'text-amber-400' : 'text-ink-faint'
                   }`}
                 >
-                  {series.status === 'ONGOING'
-                    ? 'em andamento'
-                    : series.winnerTeam === 'BLUE'
-                      ? 'Azul venceu'
-                      : series.winnerTeam === 'RED'
-                        ? 'Vermelho venceu'
-                        : 'sem vencedor'}
+                  {series.status === 'ONGOING' ? 'em andamento' : 'encerrada'}
                 </span>
               </button>
 
@@ -69,8 +75,8 @@ export function HistoryPage() {
 }
 
 /**
- * Carrega o detalhe sob demanda: a lista traz so o resumo, e puxar as
- * scoreboards de 30 series de uma vez seria desperdicio.
+ * Carrega o detalhe sob demanda: a lista traz só o resumo, e puxar as
+ * scoreboards de 30 séries de uma vez seria desperdício.
  */
 function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
   const { data, loading, error } = useAsync<SeriesDetail>(
@@ -83,74 +89,9 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
   if (!data) return null;
 
   return (
-    <div className="space-y-4 pb-4 pl-7">
+    <div className="space-y-4 pb-4 sm:pl-7">
       {data.matches.map((match) => (
-        <div
-          key={match.id}
-          className="rounded-lg border border-line/50 bg-raised/30 p-3"
-        >
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-faint">
-            <span>Jogo {match.matchNumber}</span>
-            {match.gameDurationSec && (
-              <span className="tabular font-normal normal-case tracking-normal">
-                {Math.round(match.gameDurationSec / 60)} min
-              </span>
-            )}
-          </p>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            {(['BLUE', 'RED'] as const).map((side) => (
-              <div
-                key={side}
-                className={`rounded-lg p-2 transition ${
-                  match.winner === side
-                    ? 'bg-win/[0.06] ring-1 ring-win/25'
-                    : 'opacity-70'
-                }`}
-              >
-                <p
-                  className={`mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase ${
-                    side === 'BLUE' ? 'text-blue' : 'text-red'
-                  }`}
-                >
-                  {side === 'BLUE' ? 'Azul' : 'Vermelho'}
-                  {/* Vitória marcada no time, não numa frase separada: o olho
-                      acha o vencedor na hora, sem ler. */}
-                  {match.winner === side && (
-                    <span className="rounded bg-win/15 px-1.5 py-px text-[9px] font-bold tracking-wide text-win">
-                      VENCEU
-                    </span>
-                  )}
-                </p>
-                {/* Ordem da Fenda: Top em cima, Support embaixo -- como em
-                    transmissão de campeonato. Sem isso a ordem vem do banco e
-                    embaralha a cada partida. */}
-                <ul className="space-y-0.5 text-xs">
-                  {ordenarPorLane(match.stats.filter((stat) => stat.teamSide === side)).map(
-                    (stat) => (
-                      <li
-                        key={stat.id}
-                        className="flex items-center gap-2 rounded px-1 py-1 transition hover:bg-raised/50"
-                      >
-                        <ChampionIcon championName={stat.championName} size={22} />
-                        <span className="w-11 shrink-0 text-[10px] font-medium uppercase tracking-wide text-ink-faint">
-                          {ROLE_LABEL[stat.rolePlayed]}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate font-medium">
-                          {stat.player.name}
-                        </span>
-                        <Highlights stat={stat} />
-                        <span className="tabular shrink-0 text-ink-muted">
-                          {stat.kills}/{stat.deaths}/{stat.assists}
-                        </span>
-                      </li>
-                    )
-                  )}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
+        <MatchCard key={match.id} match={match} />
       ))}
 
       {data.burnedChampions.length > 0 && (
@@ -159,5 +100,161 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
         </p>
       )}
     </div>
+  );
+}
+
+type Match = SeriesDetail['matches'][number];
+
+function MatchCard({ match }: { match: Match }) {
+  // Um jogador aberto por vez na partida. Dois painéis abertos juntos empurram
+  // o time de baixo para fora da tela e a comparação, que é o ponto, se perde.
+  const [aberto, setAberto] = useState<string | null>(null);
+  const maximos = calcularMaximos(match.stats);
+
+  return (
+    <div className="rounded-lg border border-line/50 bg-raised/30 p-3">
+      <p className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-faint">
+        <span>Jogo {match.matchNumber}</span>
+        {match.gameDurationSec && (
+          <span className="tabular font-normal normal-case tracking-normal">
+            {Math.round(match.gameDurationSec / 60)} min
+          </span>
+        )}
+        {match.gameVersion && (
+          <span
+            className="font-normal normal-case tracking-normal text-ink-faint/70"
+            title="Patch em que a partida foi jogada"
+          >
+            patch {match.gameVersion.split('.').slice(0, 2).join('.')}
+          </span>
+        )}
+        {/* Rendição encerra o jogo antes da hora: os por-minuto ficam inflados e
+            comparar com um jogo completo engana. A tela avisa em vez de
+            apresentar números incomparáveis como se fossem equivalentes. */}
+        {match.surrendered && (
+          <span
+            className="flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-normal normal-case tracking-normal text-amber-400"
+            title="O jogo terminou em rendição -- as médias por minuto ficam mais altas do que num jogo completo."
+          >
+            <TriangleAlert size={11} />
+            rendição
+          </span>
+        )}
+      </p>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {(['BLUE', 'RED'] as const).map((side) => (
+          <TeamColumn
+            key={side}
+            side={side}
+            match={match}
+            maximos={maximos}
+            aberto={aberto}
+            onToggle={(id) => setAberto(aberto === id ? null : id)}
+          />
+        ))}
+      </div>
+
+      {(match.teams?.length ?? 0) > 0 && (
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <MatchObjectives teams={match.teams} />
+          <div className="flex items-start">
+            <MatchBans bans={match.bans ?? []} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeamColumn({
+  side,
+  match,
+  maximos,
+  aberto,
+  onToggle,
+}: {
+  side: TeamSide;
+  match: Match;
+  maximos: Maximos;
+  aberto: string | null;
+  onToggle: (id: string) => void;
+}) {
+  const doLado = ordenarPorLane(match.stats.filter((stat) => stat.teamSide === side));
+
+  return (
+    <div
+      className={`rounded-lg p-2 transition ${
+        match.winner === side ? 'bg-win/[0.06] ring-1 ring-win/25' : 'opacity-80'
+      }`}
+    >
+      <p
+        className={`mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase ${
+          side === 'BLUE' ? 'text-blue' : 'text-red'
+        }`}
+      >
+        {side === 'BLUE' ? 'Azul' : 'Vermelho'}
+        {match.winner === side && (
+          <span className="rounded bg-win/15 px-1.5 py-px text-[9px] font-bold tracking-wide text-win">
+            VENCEU
+          </span>
+        )}
+      </p>
+
+      <ul className="space-y-0.5 text-xs">
+        {doLado.map((stat) => (
+          <li key={stat.id}>
+            <PlayerRow
+              stat={stat}
+              expandido={aberto === stat.id}
+              onToggle={() => onToggle(stat.id)}
+            />
+            {aberto === stat.id && (
+              <MatchPlayerDetail
+                stat={stat}
+                gameDurationSec={match.gameDurationSec}
+                maximos={maximos}
+              />
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function PlayerRow({
+  stat,
+  expandido,
+  onToggle,
+}: {
+  stat: MatchStat;
+  expandido: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      aria-expanded={expandido}
+      className={`flex w-full items-center gap-2 rounded px-1 py-1 text-left transition hover:bg-raised/60 ${
+        expandido ? 'bg-raised/60' : ''
+      }`}
+    >
+      <ChampionIcon championName={stat.championName} size={22} />
+      <span className="w-11 shrink-0 text-[10px] font-medium uppercase tracking-wide text-ink-faint">
+        {ROLE_LABEL[stat.rolePlayed]}
+      </span>
+      <span className="min-w-0 flex-1 truncate font-medium">{stat.player.name}</span>
+      <Highlights stat={stat} />
+      <span className="tabular shrink-0 text-ink-muted">
+        {stat.kills}/{stat.deaths}/{stat.assists}
+      </span>
+      {/* A seta é o único indício de que a linha abre. Sem ela ninguém descobre
+          que existe um nível a mais de detalhe atrás do clique. */}
+      <ChevronRight
+        size={12}
+        className={`shrink-0 text-ink-faint transition-transform ${expandido ? 'rotate-90' : ''}`}
+      />
+    </button>
   );
 }

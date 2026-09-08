@@ -9,6 +9,7 @@
 import type {
   ApiResponse,
   AutoBalanceResult,
+  BuildManifest,
   BurnedChampion,
   ChampionManifest,
   Highlights,
@@ -181,6 +182,9 @@ export const riotApi = {
   status: () => request<{ enabled: boolean; note: string }>('/riot/status'),
 
   champions: () => request<ChampionManifest>('/riot/champions'),
+
+  /** Itens, feiticos e runas -- so o historico precisa, entao vem separado. */
+  build: () => request<BuildManifest>('/riot/build'),
 
   link: (playerId: string, riotId: string) =>
     post<Player>('/riot/link', { playerId, riotId }),
