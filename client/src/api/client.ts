@@ -170,7 +170,7 @@ export const seriesApi = {
 // ---------------------------------------------------------------------------
 
 export const statsApi = {
-  leaderboard: (sortBy: 'points' | 'winRate' | 'avgKda' = 'points', minGames = 0) =>
+  leaderboard: (sortBy: 'wins' | 'winRate' | 'avgKda' | 'points' = 'wins', minGames = 0) =>
     request<LeaderboardEntry[]>(`/stats/leaderboard?sortBy=${sortBy}&minGames=${minGames}`),
 };
 

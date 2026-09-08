@@ -6,12 +6,13 @@ import { useAsync } from '../hooks/useAsync';
 import { Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import type { LeaderboardEntry } from '../types';
 
-type SortKey = 'points' | 'winRate' | 'avgKda';
+type SortKey = 'wins' | 'winRate' | 'avgKda' | 'points';
 
 const SORT_LABELS: Record<SortKey, string> = {
-  points: 'Pontos',
+  wins: 'Vitórias',
   winRate: 'Winrate',
   avgKda: 'KDA',
+  points: 'Pontos',
 };
 
 /** Ouro, prata e bronze nos três primeiros; o resto só o número. */
@@ -26,7 +27,7 @@ const MEDAL = ['text-gold', 'text-slate-300', 'text-amber-700'];
  * pontos) fica na primeira linha e o detalhe vai embaixo.
  */
 export function DashboardPage() {
-  const [sortBy, setSortBy] = useState<SortKey>('points');
+  const [sortBy, setSortBy] = useState<SortKey>('wins');
   const { data, loading, error, reload } = useAsync(
     () => statsApi.leaderboard(sortBy),
     [sortBy]
@@ -86,8 +87,8 @@ export function DashboardPage() {
                   <tr className="border-b border-line/40 text-left text-[10px] uppercase tracking-wider text-ink-faint">
                     <th className="py-2.5 pl-5 pr-2 font-medium">#</th>
                     <th className="py-2.5 pr-2 font-medium">Jogador</th>
-                    <th className="py-2.5 pr-2 text-right font-medium">Pts</th>
                     <th className="py-2.5 pr-2 text-right font-medium">V–D</th>
+                    <th className="py-2.5 pr-2 text-right font-medium">Jogos</th>
                     <th className="py-2.5 pr-2 text-right font-medium">Winrate</th>
                     <th className="py-2.5 pr-2 text-right font-medium">KDA</th>
                     <th className="py-2.5 pr-2 text-right font-medium" title="Dano por minuto">
@@ -111,12 +112,20 @@ export function DashboardPage() {
                         >
                           {entry.name}
                         </Link>
+                        {entry.wonLastSeries && (
+                          <span
+                            className="ml-1.5 text-[11px]"
+                            title="Venceu a MD3 mais recente"
+                          >
+                            🏆
+                          </span>
+                        )}
                       </td>
                       <td className="tabular py-2.5 pr-2 text-right font-bold text-gold">
-                        {entry.points}
-                      </td>
-                      <td className="tabular py-2.5 pr-2 text-right text-ink-muted">
                         {entry.wins}–{entry.losses}
+                      </td>
+                      <td className="tabular py-2.5 pr-2 text-right text-ink-faint">
+                        {entry.games}
                       </td>
                       <td
                         className={`tabular py-2.5 pr-2 text-right font-medium ${
@@ -145,7 +154,7 @@ export function DashboardPage() {
 
       {data && data.length > 0 && (
         <p className="px-1 text-center text-[11px] text-ink-faint">
-          +3 pontos por mapa vencido · +1 por vencer a MD3
+          Empate se resolve por KDA, depois winrate, depois nº de jogos · 🏆 venceu a última MD3
         </p>
       )}
     </div>
@@ -166,7 +175,10 @@ function LinhaCelular({ entry, posicao }: { entry: LeaderboardEntry; posicao: nu
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium text-ink">{entry.name}</p>
+          <p className="truncate font-medium text-ink">
+            {entry.name}
+            {entry.wonLastSeries && <span className="ml-1" title="Venceu a MD3 mais recente">🏆</span>}
+          </p>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-ink-faint">
             <span className="tabular">
               {entry.wins}–{entry.losses}
