@@ -26,6 +26,7 @@
  *   node companion/inhouse-companion.mjs --list       lista os customs por noite
  *   node companion/inhouse-companion.mjs --last       manda o custom mais recente
  *   node companion/inhouse-companion.mjs --watch      manda sozinho ao fim de cada jogo
+ *   node companion/inhouse-companion.mjs --refresh-all atualiza as ja registradas
  *   node companion/inhouse-companion.mjs --game 123   manda um gameId especifico
  *
  *   node companion/inhouse-companion.mjs --replays      lista os replays salvos
@@ -411,13 +412,14 @@ async function postJson(endpoint, body) {
   return { ok: response.ok && payload.success, payload };
 }
 
-const sendGame = (game) =>
+const sendGame = (game, overrides = {}) =>
   postJson('/ingest/lcu', {
     game,
     seriesId: CONFIG.seriesId ?? undefined,
     dryRun: CONFIG.dryRun,
     autoCreatePlayers: CONFIG.autoCreate,
     refreshStats: CONFIG.refresh,
+    ...overrides,
   });
 
 const sendReplay = (entry) =>
@@ -605,6 +607,55 @@ async function commandReplays() {
  * qualquer partida que a conta jogou, inclusive de meses atras. Entao, sabendo
  * os ids, da para recuperar noites inteiras que nao aparecem no --list.
  */
+/**
+ * Atualiza a scoreboard de todas as partidas que JA estao registradas.
+ *
+ * Serve para quando o projeto passa a guardar um dado que a origem sempre soube
+ * responder -- destaques, por exemplo. Varre o historico do cliente e reenvia
+ * cada custom encontrado com refreshStats.
+ *
+ * E seguro varrer: o servidor recusa criar partida nova nesse modo, entao um
+ * custom de um ano atras que apareca no caminho e pulado em vez de entrar de
+ * carona na MD3 em andamento.
+ */
+async function commandRefreshAll() {
+  const games = (await fetchRecentGames()).filter(isCustom);
+
+  if (games.length === 0) {
+    log.warn('Nenhum custom game no historico do cliente.');
+    log.info('      Para partidas mais antigas: --replays\n');
+    return;
+  }
+
+  log.info(`Encontrei ${games.length} custom(s) no historico. Atualizando as registradas...\n`);
+
+  let atualizadas = 0;
+  let puladas = 0;
+
+  for (const [index, game] of games.entries()) {
+    const quando = new Date(game.gameCreation).toLocaleDateString('pt-BR');
+    log.info(`[${index + 1}/${games.length}] ${game.gameId}  ${quando}`);
+
+    try {
+      const result = await sendGame(game, { refreshStats: true });
+      const data = result.payload?.data ?? {};
+
+      if (data.skipped) {
+        // Nao esta no banco: nao e erro, so nao e assunto deste comando.
+        log.info('      nao registrada -- pulada');
+        puladas++;
+      } else {
+        describeResult(result);
+        if (result.ok && data.refreshed) atualizadas++;
+      }
+    } catch (error) {
+      log.fail(`  ${error.message.split('\n')[0]}`);
+    }
+  }
+
+  log.info(`\nConcluido: ${atualizadas} atualizada(s), ${puladas} pulada(s).`);
+}
+
 async function commandSendMany(idsCsv) {
   const ids = String(idsCsv ?? '')
     .split(/[,\s]+/)
@@ -787,6 +838,7 @@ async function main() {
   if (hasFlag('--replays')) return commandReplays();
   if (hasFlag('--replay')) return commandSendReplay(getOption('--replay'));
   if (hasFlag('--who')) return commandWho(getOption('--who'));
+  if (hasFlag('--refresh-all')) return commandRefreshAll();
   if (hasFlag('--games')) return commandSendMany(getOption('--games'));
   if (hasFlag('--list')) return commandList();
   if (hasFlag('--watch')) return commandWatch();
@@ -798,6 +850,7 @@ async function main() {
   log.info('  --last             envia o custom mais recente');
   log.info('  --game <id>        envia um gameId especifico');
   log.info('  --games <id,id>    envia varios de uma vez');
+  log.info('  --refresh-all      atualiza a scoreboard de todas as ja registradas');
   log.info('  --watch            envia sozinho ao fim de cada jogo');
   log.info('  --who [ids]        mostra os Riot IDs de quem joga os customs');
   log.info('');
