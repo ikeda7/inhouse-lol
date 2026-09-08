@@ -104,6 +104,32 @@ async function loadSeriesWinBonus(): Promise<Map<string, number>> {
   return bonusByPlayer;
 }
 
+/**
+ * Quem venceu a MD3 mais recente que ja terminou.
+ *
+ * Pedido do grupo: "podia colocar um emoji ou aviso de quem ganhou o mais
+ * recente, dai vai atualizando". Mesma regra do bonus: venceu a serie quem
+ * ganhou os mapas necessarios para fecha-la.
+ */
+async function loadUltimosCampeoes(): Promise<Set<string>> {
+  const ultima = await prisma.series.findFirst({
+    where: { status: 'FINISHED', winnerTeam: { in: ['BLUE', 'RED'] } },
+    orderBy: { date: 'desc' },
+    select: { matches: { select: { stats: { select: { playerId: true, win: true } } } } },
+  });
+  if (!ultima) return new Set();
+
+  const vitorias = new Map<string, number>();
+  for (const match of ultima.matches) {
+    for (const stat of match.stats) {
+      if (stat.win) vitorias.set(stat.playerId, (vitorias.get(stat.playerId) ?? 0) + 1);
+    }
+  }
+  return new Set(
+    [...vitorias.entries()].filter(([, v]) => v >= WINS_TO_CLINCH).map(([id]) => id)
+  );
+}
+
 export interface LeaderboardEntry {
   playerId: string;
   name: string;
@@ -119,16 +145,22 @@ export interface LeaderboardEntry {
   avgDamagePerMinute: number;
   avgVisionScore: number;
   avgCsPerMinute: number;
+  /** Venceu a MD3 mais recente que já terminou. */
+  wonLastSeries: boolean;
 }
 
-export type LeaderboardSort = 'points' | 'winRate' | 'avgKda';
+export type LeaderboardSort = 'wins' | 'winRate' | 'avgKda' | 'points';
 
 export async function getLeaderboard(
   options: { sortBy?: LeaderboardSort; minGames?: number } = {}
 ): Promise<LeaderboardEntry[]> {
-  const { sortBy = 'points', minGames = 0 } = options;
+  const { sortBy = 'wins', minGames = 0 } = options;
 
-  const [rows, seriesBonus] = await Promise.all([loadStatRows(), loadSeriesWinBonus()]);
+  const [rows, seriesBonus, ultimosCampeoes] = await Promise.all([
+    loadStatRows(),
+    loadSeriesWinBonus(),
+    loadUltimosCampeoes(),
+  ]);
 
   interface Acc {
     name: string;
@@ -190,14 +222,29 @@ export async function getLeaderboard(
       avgDamagePerMinute: Math.round(safeDivide(acc.damage, acc.minutes)),
       avgVisionScore: round(safeDivide(acc.vision, acc.games), 1),
       avgCsPerMinute: round(safeDivide(acc.cs, acc.minutes), 1),
+      wonLastSeries: ultimosCampeoes.has(playerId),
     }))
     .filter((entry) => entry.games >= minGames);
 
+  // DESEMPATE EXPLÍCITO
+  //
+  // Com poucos jogos o critério principal empata direto -- dois jogadores 4-0
+  // ficam iguais. A cadeia abaixo é a mesma que o grupo usa ao discutir a
+  // tabela: primeiro o critério escolhido, depois KDA, depois winrate, e quem
+  // jogou menos fica atrás. Sem isso a ordem de empate vem do banco, que é
+  // arbitrária e muda entre carregamentos.
+  //
+  // Ordenar por KDA como critério PRINCIPAL premiaria quem evita luta; como
+  // desempate, funciona.
+  const desempate = (a: LeaderboardEntry, b: LeaderboardEntry) =>
+    b.avgKda - a.avgKda || b.winRate - a.winRate || b.games - a.games;
+
   const comparators: Record<LeaderboardSort, (a: LeaderboardEntry, b: LeaderboardEntry) => number> =
     {
-      points: (a, b) => b.points - a.points || b.winRate - a.winRate,
-      winRate: (a, b) => b.winRate - a.winRate || b.games - a.games,
-      avgKda: (a, b) => b.avgKda - a.avgKda || b.games - a.games,
+      wins: (a, b) => b.wins - a.wins || desempate(a, b),
+      winRate: (a, b) => b.winRate - a.winRate || desempate(a, b),
+      avgKda: (a, b) => b.avgKda - a.avgKda || b.winRate - a.winRate || b.games - a.games,
+      points: (a, b) => b.points - a.points || desempate(a, b),
     };
 
   return entries.sort(comparators[sortBy]);
