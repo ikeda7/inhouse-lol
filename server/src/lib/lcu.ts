@@ -65,9 +65,15 @@ export interface LcuParticipant {
   /** So o .rofl preenche: ele guarda o NOME do campeao, nao o id numerico. */
   championName?: string;
   teamId: number; // 100 = azul, 200 = vermelho
+  /** Feiticos de invocador. O 11 e Smite -- ver INFERENCIA POR SINAIS abaixo. */
+  spell1Id?: number;
+  spell2Id?: number;
   stats?: LcuParticipantStats;
   timeline?: { lane?: string; role?: string };
 }
+
+/** Id do feitico Smite. Em 5x5 sério, quem leva Smite é o jungler. */
+const SMITE_SPELL_ID = 11;
 
 export interface LcuParticipantIdentity {
   participantId: number;
@@ -165,8 +171,157 @@ function roleFromTimeline(timeline?: { lane?: string; role?: string }): Role | n
  * Devolve tambem `inferred: false` quando precisou recorrer ao pool, para a UI
  * poder pedir confirmacao antes de gravar.
  */
+/**
+ * INFERENCIA POR SINAIS DA PARTIDA
+ *
+ * Em custom game o cliente quase nunca preenche `timeline.lane`. A versao
+ * anterior caia direto no pool declarado do jogador, e errava feio: gravou o
+ * Igor (jungler puro, de Warwick) como TOP e o Vini de jungle quando ele jogou
+ * top a noite toda.
+ *
+ * O pool declarado diz o que a pessoa COSTUMA jogar -- não o que ela jogou
+ * naquele jogo. Os dados da partida sabem melhor:
+ *
+ *   Smite            -> jungler. Em 5x5 sério é praticamente definitivo.
+ *   monstros neutros -> quem farma selva é o jungler.
+ *   CS de lane baixo -> support (a única role que não farma).
+ *   visão alta       -> support.
+ *   CS de lane alto  -> carry de lane, nunca support.
+ *
+ * Devolve pontuação por role em vez de um palpite único: assim a atribuição
+ * final resolve o time inteiro de uma vez, respeitando "uma role por pessoa".
+ */
+function pontuarPorSinais(participante: SinaisDoParticipante): Record<Role, number> {
+  const pontos = { TOP: 0, JUNGLE: 0, MID: 0, ADC: 0, SUPPORT: 0 } as Record<Role, number>;
+
+  const stats = participante.stats ?? {};
+  const laneCs = stats.totalMinionsKilled ?? 0;
+  const selvaCs = stats.neutralMinionsKilled ?? 0;
+  const visao = stats.visionScore ?? 0;
+
+  // --- jungle ---
+  const temSmite =
+    participante.spell1Id === SMITE_SPELL_ID || participante.spell2Id === SMITE_SPELL_ID;
+  if (temSmite) pontos.JUNGLE += 100;
+  if (selvaCs >= 60) pontos.JUNGLE += 40;
+  else if (selvaCs >= 30) pontos.JUNGLE += 20;
+
+  // --- support ---
+  // Quem quase não farma em 5x5 é o support. É o sinal mais confiável depois
+  // do Smite, e não depende de campeão.
+  if (laneCs < 60) pontos.SUPPORT += 45;
+  else if (laneCs < 100) pontos.SUPPORT += 15;
+  if (visao >= 40) pontos.SUPPORT += 20;
+
+  // --- carries de lane ---
+  if (laneCs >= 150) {
+    pontos.ADC += 25;
+    pontos.MID += 20;
+    pontos.TOP += 20;
+    pontos.SUPPORT -= 40; // support com 150 de CS não existe
+  }
+
+  // Smite exclui as outras: quem tem Smite não estava de support nem de ADC.
+  if (temSmite) {
+    pontos.TOP -= 30;
+    pontos.MID -= 30;
+    pontos.ADC -= 40;
+    pontos.SUPPORT -= 40;
+  }
+
+  // O que o cliente inferiu vale como voto forte, quando existe.
+  const doCliente = roleFromTimeline(participante.timeline);
+  if (doCliente) pontos[doCliente] += 60;
+
+  return pontos;
+}
+
+interface SinaisDoParticipante {
+  participantId: number;
+  spell1Id?: number;
+  spell2Id?: number;
+  stats?: LcuParticipantStats;
+  timeline?: { lane?: string; role?: string };
+}
+
 export function resolveTeamRoles(
-  participants: { participantId: number; timeline?: { lane?: string; role?: string } }[],
+  participants: SinaisDoParticipante[],
+  poolByParticipantId: Map<number, DraftablePlayer>
+): { roleByParticipantId: Map<number, Role>; inferred: boolean } {
+  // --- caminho novo: pontuação por sinais da própria partida ---
+  //
+  // Só vale quando há sinal de verdade. Um fixture sem stats (ou um replay
+  // antigo) cai no caminho antigo, baseado em lane + pool.
+  const temSinais = participants.some(
+    (p) =>
+      p.spell1Id !== undefined ||
+      (p.stats?.totalMinionsKilled ?? 0) > 0 ||
+      (p.stats?.neutralMinionsKilled ?? 0) > 0
+  );
+
+  if (temSinais) {
+    return atribuirPorPontuacao(participants, poolByParticipantId);
+  }
+
+  return atribuirPorLaneEPool(participants, poolByParticipantId);
+}
+
+/**
+ * Atribui as 5 roles maximizando a pontuação total do time.
+ *
+ * São 5 jogadores e 5 roles: 120 permutações. Testar todas é instantâneo e
+ * garante o ÓTIMO, em vez de um guloso que fixa a primeira escolha e depois se
+ * arrepende. Guloso erraria justamente o caso comum: dois candidatos fortes
+ * para jungle, e o que sobra empurrando alguém para uma role errada.
+ */
+function atribuirPorPontuacao(
+  participants: SinaisDoParticipante[],
+  poolByParticipantId: Map<number, DraftablePlayer>
+): { roleByParticipantId: Map<number, Role>; inferred: boolean } {
+  const pontuacoes = participants.map((p) => pontuarPorSinais(p));
+
+  // O pool declarado entra como desempate leve: decide entre opções que os
+  // sinais consideram equivalentes, sem sobrepor o que a partida mostrou.
+  participants.forEach((p, i) => {
+    const pool = poolByParticipantId.get(p.participantId);
+    if (!pool) return;
+    const roles = pool.roles.includes('FILL') ? ROLES : (pool.roles as Role[]);
+    roles.forEach((role, posicao) => {
+      if (ROLES.includes(role)) pontuacoes[i][role] += Math.max(8 - posicao * 3, 2);
+    });
+  });
+
+  let melhorTotal = -Infinity;
+  let melhorArranjo: Role[] = [...ROLES];
+
+  const permutar = (restantes: Role[], atual: Role[]) => {
+    if (restantes.length === 0) {
+      const total = atual.reduce((soma, role, i) => soma + pontuacoes[i][role], 0);
+      if (total > melhorTotal) {
+        melhorTotal = total;
+        melhorArranjo = [...atual];
+      }
+      return;
+    }
+    for (let i = 0; i < restantes.length; i++) {
+      permutar([...restantes.slice(0, i), ...restantes.slice(i + 1)], [...atual, restantes[i]]);
+    }
+  };
+  permutar([...ROLES], []);
+
+  const roleByParticipantId = new Map<number, Role>();
+  participants.forEach((p, i) => roleByParticipantId.set(p.participantId, melhorArranjo[i]));
+
+  // "inferred" significa que a ORIGEM trouxe a posição pronta. Aqui deduzimos,
+  // então a UI continua sendo avisada para pedir conferência.
+  const todosDoCliente = participants.every((p) => roleFromTimeline(p.timeline) !== null);
+
+  return { roleByParticipantId, inferred: todosDoCliente };
+}
+
+/** Caminho antigo: o que o cliente informou, e o pool para o que sobrou. */
+function atribuirPorLaneEPool(
+  participants: SinaisDoParticipante[],
   poolByParticipantId: Map<number, DraftablePlayer>
 ): { roleByParticipantId: Map<number, Role>; inferred: boolean } {
   const roleByParticipantId = new Map<number, Role>();

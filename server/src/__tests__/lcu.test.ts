@@ -268,3 +268,113 @@ describe('mapa e modo de jogo', () => {
     expect(() => mapLcuGame(semMapa)).not.toThrow();
   });
 });
+
+/**
+ * Inferencia de role pelos SINAIS da partida.
+ *
+ * Regressao de um erro real reportado pelo grupo: o sistema gravou o Igor
+ * (jungler puro) como TOP e o Vini de jungle numa noite em que ele jogou top.
+ * A versao anterior adivinhava pelo pool declarado -- que diz o que a pessoa
+ * COSTUMA jogar, nao o que ela jogou naquele jogo.
+ */
+describe('inferencia de role por sinais da partida', () => {
+  /** Um participante com os sinais que o LCU realmente traz. */
+  const jogador = (
+    participantId: number,
+    sinais: { smite?: boolean; laneCs?: number; selvaCs?: number; visao?: number }
+  ) => ({
+    participantId,
+    spell1Id: sinais.smite ? 11 : 4,
+    spell2Id: 12,
+    timeline: { lane: 'NONE', role: 'NONE' },
+    stats: {
+      totalMinionsKilled: sinais.laneCs ?? 150,
+      neutralMinionsKilled: sinais.selvaCs ?? 0,
+      visionScore: sinais.visao ?? 20,
+    },
+  });
+
+  it('coloca quem levou Smite no jungle, contra o pool declarado', () => {
+    // O Igor só joga JUNGLE no cadastro, mas quem tem Smite aqui é o 2.
+    // O pool não pode ganhar do que aconteceu na partida.
+    const time = [
+      jogador(1, { laneCs: 200 }),
+      jogador(2, { smite: true, laneCs: 30, selvaCs: 90 }),
+      jogador(3, { laneCs: 190 }),
+      jogador(4, { laneCs: 210 }),
+      jogador(5, { laneCs: 25, visao: 60 }),
+    ];
+
+    const pool = new Map([
+      [1, { id: 'igor', name: 'Ígor', roles: ['JUNGLE' as const] }],
+    ]);
+
+    const { roleByParticipantId } = resolveTeamRoles(time, pool);
+
+    expect(roleByParticipantId.get(2)).toBe('JUNGLE');
+    expect(roleByParticipantId.get(1)).not.toBe('JUNGLE');
+  });
+
+  it('identifica o support por CS baixo e visão alta', () => {
+    const time = [
+      jogador(1, { laneCs: 180 }),
+      jogador(2, { smite: true, selvaCs: 80, laneCs: 40 }),
+      jogador(3, { laneCs: 200 }),
+      jogador(4, { laneCs: 220 }),
+      jogador(5, { laneCs: 18, visao: 75 }),
+    ];
+
+    const { roleByParticipantId } = resolveTeamRoles(time, new Map());
+
+    expect(roleByParticipantId.get(5)).toBe('SUPPORT');
+    expect(roleByParticipantId.get(2)).toBe('JUNGLE');
+  });
+
+  it('sempre devolve as 5 roles, uma por jogador', () => {
+    const time = [
+      jogador(1, { laneCs: 150 }),
+      jogador(2, { smite: true, selvaCs: 70, laneCs: 35 }),
+      jogador(3, { laneCs: 170 }),
+      jogador(4, { laneCs: 190 }),
+      jogador(5, { laneCs: 20, visao: 55 }),
+    ];
+
+    const { roleByParticipantId } = resolveTeamRoles(time, new Map());
+
+    expect(new Set(roleByParticipantId.values()).size).toBe(5);
+    expect(roleByParticipantId.size).toBe(5);
+  });
+
+  it('resolve o ótimo quando dois candidatos disputam o jungle', () => {
+    // Guloso erraria: fixaria o primeiro com sinal de selva e empurraria o
+    // outro para uma role errada. Só um tem Smite.
+    const time = [
+      jogador(1, { smite: true, selvaCs: 90, laneCs: 30 }),
+      jogador(2, { selvaCs: 45, laneCs: 120 }),
+      jogador(3, { laneCs: 200 }),
+      jogador(4, { laneCs: 210 }),
+      jogador(5, { laneCs: 22, visao: 60 }),
+    ];
+
+    const { roleByParticipantId } = resolveTeamRoles(time, new Map());
+
+    expect(roleByParticipantId.get(1)).toBe('JUNGLE');
+    expect(roleByParticipantId.get(5)).toBe('SUPPORT');
+  });
+
+  it('mantém o caminho antigo quando não há sinal nenhum (replay antigo)', () => {
+    const semSinais = [
+      { participantId: 1, timeline: { lane: 'TOP', role: 'SOLO' } },
+      { participantId: 2, timeline: { lane: 'JUNGLE', role: 'NONE' } },
+      { participantId: 3, timeline: { lane: 'MIDDLE', role: 'SOLO' } },
+      { participantId: 4, timeline: { lane: 'BOTTOM', role: 'DUO_CARRY' } },
+      { participantId: 5, timeline: { lane: 'BOTTOM', role: 'DUO_SUPPORT' } },
+    ];
+
+    const { roleByParticipantId, inferred } = resolveTeamRoles(semSinais, new Map());
+
+    expect(inferred).toBe(true);
+    expect(roleByParticipantId.get(1)).toBe('TOP');
+    expect(roleByParticipantId.get(5)).toBe('SUPPORT');
+  });
+});
