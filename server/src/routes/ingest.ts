@@ -1,0 +1,346 @@
+import { Router, type Response } from 'express';
+import { z } from 'zod';
+import { prisma } from '../lib/prisma.js';
+import { mapLcuGame, type LcuGame } from '../lib/lcu.js';
+import { roflToLcuGame, type RoflMetadata } from '../lib/rofl.js';
+import { resolveChampion } from '../lib/ddragon.js';
+import { recordMatch, type MatchPlayerInput } from '../services/series.js';
+import type { DraftablePlayer } from '../lib/autoBalance.js';
+import type { RoleInput } from '../lib/roles.js';
+import { asyncHandler } from './helpers.js';
+
+/**
+ * Porta de entrada do agente local (`companion/`).
+ *
+ * Duas origens, um so caminho de gravacao:
+ *   - POST /lcu   -> historico do cliente do LoL (~100 partidas, ~1 mes)
+ *   - POST /rofl  -> arquivo de replay (partidas antigas, sem limite de janela)
+ *
+ * O `.rofl` e convertido para o mesmo shape do LCU antes de entrar, entao toda
+ * a regra (casamento por PUUID, auto-vinculo, Fearless, idempotencia) vive num
+ * lugar so.
+ *
+ * A traducao acontece no servidor de proposito: o agente continua sendo um
+ * script sem dependencias que ninguem precisa atualizar quando a regra muda.
+ */
+export const ingestRouter = Router();
+
+/**
+ * O shape do LCU e grande e varia entre patches. Validamos apenas o que
+ * realmente lemos e deixamos o resto passar (`passthrough`), senao cada patch
+ * novo quebraria a ingestao por um campo cosmetico.
+ */
+const lcuGameSchema = z
+  .object({
+    gameId: z.number(),
+    platformId: z.string().optional(),
+    gameCreation: z.number().optional(),
+    gameCreationDate: z.string().optional(),
+    gameDuration: z.number().optional(),
+    gameType: z.string().optional(),
+    gameMode: z.string().optional(),
+    queueId: z.number().optional(),
+    mapId: z.number().optional(),
+    participants: z.array(z.object({}).passthrough()).optional(),
+    participantIdentities: z.array(z.object({}).passthrough()).optional(),
+    teams: z.array(z.object({}).passthrough()).optional(),
+  })
+  .passthrough();
+
+const commonOptions = {
+  /** Sem seriesId, cai na MD3 em andamento. */
+  seriesId: z.string().optional(),
+  matchNumber: z.number().int().min(1).max(3).optional(),
+  /** Só devolve o preview, não grava. */
+  dryRun: z.boolean().optional(),
+  /**
+   * Vincula automaticamente participantes desconhecidos cujo Riot ID bata com
+   * um cadastro que ainda nao tem PUUID. Evita configuracao manual dos 10.
+   */
+  autoLink: z.boolean().optional().default(true),
+};
+
+const lcuIngestSchema = z.object({ game: lcuGameSchema, ...commonOptions });
+
+const roflIngestSchema = z.object({
+  /** Bloco de metadados extraido do .rofl pelo agente. */
+  metadata: z
+    .object({
+      gameLength: z.number().optional(),
+      statsJson: z.string(),
+    })
+    .passthrough(),
+  /** Vem do nome do arquivo: BR1-3019927113.rofl */
+  platformId: z.string().min(2),
+  gameId: z.number(),
+  /** mtime do arquivo -- o replay nao guarda a data da partida. */
+  playedAtMs: z.number().optional(),
+  ...commonOptions,
+});
+
+/** Carrega o cadastro indexado por PUUID e por Riot ID (para o auto-vinculo). */
+async function loadKnownPlayers() {
+  const players = await prisma.player.findMany({
+    include: { roles: { orderBy: { priority: 'asc' } } },
+  });
+
+  const byPuuid = new Map<string, DraftablePlayer>();
+  const byRiotId = new Map<string, { id: string; name: string; puuid: string | null }>();
+
+  for (const player of players) {
+    const draftable: DraftablePlayer = {
+      id: player.id,
+      name: player.name,
+      roles: player.roles.map((entry) => entry.role as RoleInput),
+      rating: player.internalRating,
+    };
+    if (player.puuid) byPuuid.set(player.puuid, draftable);
+    if (player.riotId) {
+      byRiotId.set(player.riotId.toLowerCase(), {
+        id: player.id,
+        name: player.name,
+        puuid: player.puuid,
+      });
+    }
+  }
+
+  return { players, byPuuid, byRiotId };
+}
+
+interface IngestOptions {
+  seriesId?: string;
+  matchNumber?: number;
+  dryRun?: boolean;
+  autoLink: boolean;
+  /** Rotulo da origem, so para a resposta. */
+  source: 'LCU' | 'ROFL';
+}
+
+/**
+ * Fluxo unico de ingestao. Recebe o jogo ja no shape do LCU, venha ele do
+ * cliente ou de um replay.
+ */
+async function ingestGame(game: LcuGame, options: IngestOptions, res: Response): Promise<void> {
+  const { byPuuid, byRiotId } = await loadKnownPlayers();
+  const imported = mapLcuGame(game, byPuuid);
+
+  if (!imported.isCustomGame) {
+    res.status(400).json({
+      success: false,
+      error: 'Essa partida nao e um custom game. O InHouse so registra os amistosos do grupo.',
+      code: 'NOT_A_CUSTOM_GAME',
+    });
+    return;
+  }
+
+  // --- auto-vinculo: quem ja tem Riot ID cadastrado ganha o PUUID de brinde ---
+  const linked: string[] = [];
+  if (options.autoLink) {
+    for (const participant of imported.participants) {
+      if (!participant.puuid || byPuuid.has(participant.puuid)) continue;
+      const candidate = participant.riotId
+        ? byRiotId.get(participant.riotId.toLowerCase())
+        : undefined;
+      if (candidate && !candidate.puuid) {
+        await prisma.player.update({
+          where: { id: candidate.id },
+          data: { puuid: participant.puuid },
+        });
+        linked.push(candidate.name);
+      }
+    }
+  }
+
+  // Recarrega se algo mudou, para o casamento abaixo enxergar os novos vinculos.
+  const known = linked.length > 0 ? (await loadKnownPlayers()).byPuuid : byPuuid;
+
+  const matched: MatchPlayerInput[] = [];
+  const unmatched: {
+    riotId: string | null;
+    summonerName: string | null;
+    championName: string | null;
+  }[] = [];
+
+  for (const participant of imported.participants) {
+    const player = participant.puuid ? known.get(participant.puuid) : undefined;
+
+    // O .rofl traz o NOME do campeao; o LCU traz o id numerico. resolveChampion
+    // aceita os dois, entao passamos o que a origem tiver.
+    const championKey = participant.championName || participant.championId;
+    const champion = await resolveChampion(championKey).catch(() => null);
+
+    if (!player) {
+      unmatched.push({
+        riotId: participant.riotId,
+        summonerName: participant.summonerName,
+        championName: champion?.name ?? participant.championName,
+      });
+      continue;
+    }
+
+    matched.push({
+      playerId: player.id,
+      teamSide: participant.teamSide,
+      rolePlayed: participant.rolePlayed,
+      // Sem o Data Dragon, guarda o que tiver para nao perder o dado.
+      championName:
+        champion?.name ?? participant.championName ?? `champion:${participant.championId}`,
+      // O replay nao traz id numerico (championId = 0); o Data Dragon devolve.
+      championId: champion?.key ?? participant.championId ?? null,
+      kills: participant.kills,
+      deaths: participant.deaths,
+      assists: participant.assists,
+      damage: participant.damage,
+      damageTaken: participant.damageTaken,
+      goldEarned: participant.goldEarned,
+      visionScore: participant.visionScore,
+      cs: participant.cs,
+    });
+  }
+
+  if (unmatched.length > 0) {
+    // Gravar 8 de 10 corromperia o leaderboard em silencio. Melhor recusar e
+    // dizer exatamente quem falta vincular.
+    res.status(409).json({
+      success: false,
+      error: `${unmatched.length} participante(s) nao estao vinculados a nenhum jogador cadastrado.`,
+      code: 'UNMATCHED_PARTICIPANTS',
+      details: { unmatched, autoLinked: linked },
+    });
+    return;
+  }
+
+  // --- descobre a serie de destino ---
+  let targetSeriesId = options.seriesId;
+  if (!targetSeriesId) {
+    const ongoing = await prisma.series.findFirst({
+      where: { status: 'ONGOING' },
+      orderBy: { date: 'desc' },
+    });
+    if (!ongoing) {
+      res.status(409).json({
+        success: false,
+        error: 'Nenhuma MD3 em andamento. Abra uma na tela "Noite de jogos" antes de importar.',
+        code: 'NO_ONGOING_SERIES',
+      });
+      return;
+    }
+    targetSeriesId = ongoing.id;
+  }
+
+  // --- idempotencia: o agente pode reenviar o mesmo jogo sem duplicar ---
+  const already = await prisma.match.findUnique({
+    where: { riotMatchId: imported.riotMatchId },
+    select: { id: true, matchNumber: true, seriesId: true },
+  });
+  if (already) {
+    res.json({
+      success: true,
+      data: {
+        saved: false,
+        alreadyImported: true,
+        match: already,
+        message: `A partida ${imported.riotMatchId} ja tinha sido registrada (jogo ${already.matchNumber}).`,
+      },
+    });
+    return;
+  }
+
+  if (options.dryRun) {
+    res.json({
+      success: true,
+      data: {
+        saved: false,
+        source: options.source,
+        preview: { ...imported, players: matched },
+        rolesFullyInferred: imported.rolesFullyInferred,
+        autoLinked: linked,
+        seriesId: targetSeriesId,
+      },
+    });
+    return;
+  }
+
+  const result = await recordMatch({
+    seriesId: targetSeriesId,
+    matchNumber: options.matchNumber,
+    winner: imported.winner,
+    gameDurationSec: imported.gameDurationSec,
+    riotMatchId: imported.riotMatchId,
+    source: 'RIOT_API',
+    players: matched,
+  });
+
+  res.status(201).json({
+    success: true,
+    data: {
+      saved: true,
+      source: options.source,
+      autoLinked: linked,
+      // A UI usa isso para pedir conferencia das posicoes quando a origem nao
+      // soube inferir todas.
+      rolesFullyInferred: imported.rolesFullyInferred,
+      match: result.match,
+      series: result.series,
+    },
+  });
+}
+
+/**
+ * POST /api/ingest/lcu
+ * Jogo cru vindo do historico do cliente do LoL.
+ */
+ingestRouter.post(
+  '/lcu',
+  asyncHandler(async (req, res) => {
+    const { game, ...options } = lcuIngestSchema.parse(req.body);
+    await ingestGame(game as unknown as LcuGame, { ...options, source: 'LCU' }, res);
+  })
+);
+
+/**
+ * POST /api/ingest/rofl
+ *
+ * Metadados extraidos de um arquivo de replay. E o unico caminho para importar
+ * partidas que ja sairam da janela do historico do cliente.
+ */
+ingestRouter.post(
+  '/rofl',
+  asyncHandler(async (req, res) => {
+    const { metadata, platformId, gameId, playedAtMs, ...options } = roflIngestSchema.parse(
+      req.body
+    );
+
+    const game = roflToLcuGame(metadata as RoflMetadata, { platformId, gameId, playedAtMs });
+    await ingestGame(game, { ...options, source: 'ROFL' }, res);
+  })
+);
+
+/**
+ * GET /api/ingest/status
+ * O agente bate aqui no boot para confirmar que achou o servidor certo.
+ */
+ingestRouter.get(
+  '/status',
+  asyncHandler(async (_req, res) => {
+    const [ongoing, linkedCount, totalPlayers] = await Promise.all([
+      prisma.series.findFirst({
+        where: { status: 'ONGOING' },
+        orderBy: { date: 'desc' },
+        select: { id: true, name: true, blueScore: true, redScore: true },
+      }),
+      prisma.player.count({ where: { puuid: { not: null } } }),
+      prisma.player.count(),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        ongoingSeries: ongoing,
+        linkedPlayers: linkedCount,
+        totalPlayers,
+        ready: ongoing !== null,
+      },
+    });
+  })
+);

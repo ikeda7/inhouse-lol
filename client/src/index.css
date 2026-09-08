@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+/* Paleta inspirada na UI do cliente do LoL: azul-petroleo escuro + dourado. */
+@theme {
+  --color-hextech-950: #050d16;
+  --color-hextech-900: #0a1428;
+  --color-hextech-800: #0f2137;
+  --color-hextech-700: #1a3454;
+  --color-gold-400: #c8aa6e;
+  --color-gold-300: #f0e6d2;
+  --color-blueside: #2a7fd4;
+  --color-redside: #d43a3a;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-hextech-950 text-gold-300 antialiased;
+}

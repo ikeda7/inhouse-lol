@@ -1,0 +1,183 @@
+// ---------------------------------------------------------------------------
+// InHouse LoL - schema Prisma (SQLite)
+//
+// NOTA IMPORTANTE SOBRE ENUMS:
+// O provider `sqlite` do Prisma NAO suporta `enum`. Todos os campos que
+// conceitualmente sao enums (Role, TeamSide, SeriesStatus, MatchSource) sao
+// gravados como String. A fonte da verdade dos valores validos fica em
+// `server/src/lib/roles.ts` e `server/src/lib/enums.ts`, e a validacao
+// acontece na borda da API (zod). Se um dia migrar para PostgreSQL, esses
+// campos viram enums reais sem mudanca de dados.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Jogador do grupo.
+model Player {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  /// Riot ID no formato "Nick#TAG". Opcional: da pra registrar partida manual sem ele.
+  riotId         String?  @unique
+  /// PUUID resolvido pela Account-V1. Cacheado para nao gastar rate limit toda hora.
+  puuid          String?  @unique
+  /// Rating interno usado pelo auto-balance. 1000 = neutro (estilo Elo simplificado).
+  internalRating Int      @default(1000)
+  /// Jogador inativo nao aparece na tela de sorteio, mas mantem o historico.
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  /// Pool de roles. Ordem definida por `PlayerRole.priority` (0 = role principal).
+  roles PlayerRole[]
+  stats MatchPlayerStat[]
+
+  burnedChampions BurnedChampion[]
+
+  @@index([active])
+}
+
+/// Pool de posicoes de um jogador, normalizado.
+///
+/// Preferi a tabela de ligacao ao inves de um campo `mainRoles` em CSV porque o
+/// algoritmo de auto-balance precisa da ORDEM de preferencia (o array do seed ja
+/// vem ordenado: ["Jungle","Top","ADC"] = Jungle e a main) e porque permite
+/// consultar "quem joga Support?" sem LIKE em string.
+///
+/// `role` aceita TOP | JUNGLE | MID | ADC | SUPPORT | FILL.
+/// FILL e gravado como uma unica linha e expandido para as 5 roles em memoria.
+model PlayerRole {
+  id       String @id @default(cuid())
+  playerId String
+  role     String
+  /// 0 = role principal, 1 = secundaria, ...
+  priority Int    @default(0)
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, role])
+  @@index([role])
+}
+
+/// A "noite de jogos": uma MD3 (melhor de 3).
+model Series {
+  id     String   @id @default(cuid())
+  date   DateTime @default(now())
+  /// Rotulo opcional, ex: "Quarta 05/03".
+  name   String?
+  /// ONGOING | FINISHED | CANCELLED
+  status String   @default("ONGOING")
+  /// BLUE | RED | NONE (NONE = encerrada sem vencedor definido)
+  winnerTeam String?
+  /// Placar agregado da serie (2-0, 2-1, ...). Mantido denormalizado para o
+  /// historico nao precisar agregar Match em toda listagem.
+  blueScore Int @default(0)
+  redScore  Int @default(0)
+  /// Se false, o Fearless Draft fica desligado nessa serie (campeoes se repetem).
+  fearless  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  matches         Match[]
+  burnedChampions BurnedChampion[]
+
+  @@index([date])
+  @@index([status])
+}
+
+/// Um jogo unico dentro da serie.
+///
+/// Nao existe modelo `Team`: os times sao formados na hora e mudam a cada jogo,
+/// entao a composicao vive em `MatchPlayerStat.teamSide` (BLUE/RED). Um modelo
+/// Team persistido geraria centenas de times de uma partida so.
+model Match {
+  id          String @id @default(cuid())
+  seriesId    String
+  /// 1, 2 ou 3 dentro da MD3.
+  matchNumber Int
+  /// ID da partida na Riot (ex: "BR1_1234567890"), quando veio da API.
+  riotMatchId String? @unique
+  /// BLUE | RED. Null enquanto o jogo esta em andamento.
+  winner      String?
+  gameDurationSec Int?
+  playedAt    DateTime @default(now())
+  /// RIOT_API | MANUAL
+  source      String   @default("MANUAL")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  series Series            @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  stats  MatchPlayerStat[]
+
+  @@unique([seriesId, matchNumber])
+  @@index([seriesId])
+}
+
+/// Linha da tabela de scoreboard: um jogador em um jogo.
+model MatchPlayerStat {
+  id       String @id @default(cuid())
+  matchId  String
+  playerId String
+
+  /// BLUE | RED
+  teamSide     String
+  /// TOP | JUNGLE | MID | ADC | SUPPORT (role efetivamente jogada)
+  rolePlayed   String
+  championName String
+  /// championId numerico da Riot; usado para casar com o Data Dragon.
+  championId   Int?
+
+  kills       Int @default(0)
+  deaths      Int @default(0)
+  assists     Int @default(0)
+  /// totalDamageDealtToChampions
+  damage      Int @default(0)
+  damageTaken Int @default(0)
+  goldEarned  Int @default(0)
+  visionScore Int @default(0)
+  /// minions + monstros abatidos
+  cs          Int @default(0)
+
+  win Boolean
+
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId])
+  @@index([playerId])
+  @@index([championName])
+}
+
+/// Campeao "queimado" pelo Fearless Draft dentro de uma serie.
+///
+/// A unique em [seriesId, championName] e o que garante a regra: um campeao so
+/// pode ser queimado uma vez por MD3. O upsert na hora de salvar o jogo torna a
+/// operacao idempotente (re-sincronizar a mesma partida nao duplica nada).
+model BurnedChampion {
+  id                    String @id @default(cuid())
+  seriesId              String
+  championName          String
+  championId            Int?
+  /// Em qual jogo da MD3 o campeao foi usado (1, 2 ou 3).
+  matchNumberWhenBurned Int
+  /// Quem jogou e de que lado. Opcional: permite queimar manualmente no draft,
+  /// antes do jogo existir.
+  teamSide              String?
+  playerId              String?
+
+  createdAt DateTime @default(now())
+
+  series Series  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  player Player? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+
+  @@unique([seriesId, championName])
+  @@index([seriesId])
+}

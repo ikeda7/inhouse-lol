@@ -1,0 +1,104 @@
+# ---------------------------------------------------------------------------
+# Dependencias
+# ---------------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.js
+jspm_packages/
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnpm-store/
+
+# ---------------------------------------------------------------------------
+# Build / saida
+# ---------------------------------------------------------------------------
+dist/
+dist-ssr/
+build/
+out/
+.next/
+.nuxt/
+.output/
+.vercel/
+.turbo/
+*.tsbuildinfo
+
+# ---------------------------------------------------------------------------
+# Ambiente e segredos  --  NUNCA versionar
+# A RIOT_API_KEY e a DATABASE_URL vivem aqui. O repositorio e publico.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.local
+
+# ---------------------------------------------------------------------------
+# Banco SQLite local
+# O dev.db contem os dados reais das partidas do grupo; nao vai para o repo.
+# ---------------------------------------------------------------------------
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+prisma/dev.db*
+server/prisma/dev.db*
+server/prisma/migrations/dev/
+
+# ---------------------------------------------------------------------------
+# Logs
+# ---------------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# ---------------------------------------------------------------------------
+# Testes e cobertura
+# ---------------------------------------------------------------------------
+coverage/
+*.lcov
+.nyc_output/
+test-results/
+playwright-report/
+
+# ---------------------------------------------------------------------------
+# Caches de ferramenta
+# ---------------------------------------------------------------------------
+.cache/
+.eslintcache
+.stylelintcache
+.parcel-cache/
+.vite/
+.vitest/
+node_repl_history
+
+# ---------------------------------------------------------------------------
+# Editores
+# ---------------------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+
+# ---------------------------------------------------------------------------
+# Sistema operacional
+# ---------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini

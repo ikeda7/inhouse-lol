@@ -1,0 +1,49 @@
+# Deploy no Fly.io -- a opcao mais direta para este app, porque o SQLite
+# continua sendo SQLite: um volume persistente e o banco vive nele.
+#
+#   fly launch --no-deploy      (cria o app; ele le este arquivo)
+#   fly volumes create inhouse_data --size 1 --region gru
+#   fly deploy
+#
+# Trocar "inhouse-lol" pelo nome real do seu app antes do primeiro deploy.
+
+app = "inhouse-lol"
+primary_region = "gru"   # Sao Paulo
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3333"
+  DATABASE_URL = "file:/data/inhouse.db"
+  DDRAGON_LOCALE = "pt_BR"
+  RIOT_PLATFORM = "br1"
+  RIOT_REGIONAL_ROUTE = "americas"
+
+# O front e servido pelo proprio Express, entao a origem e a mesma: sem CORS.
+  CORS_ORIGIN = "*"
+
+[[mounts]]
+  source = "inhouse_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 3333
+  force_https = true
+  # Uma noite de jogos por semana nao justifica manter maquina ligada 24h.
+  # Ela dorme sozinha e acorda no primeiro acesso (uns segundos de espera).
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
