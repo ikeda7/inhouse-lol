@@ -1,0 +1,95 @@
+name: CI
+
+# Roda em PR para develop/main e em push nas branches de trabalho.
+# O fluxo do projeto é GitFlow: nada entra em develop sem passar por aqui.
+on:
+  push:
+    branches: [main, develop, 'feat/**', 'fix/**', 'chore/**']
+  pull_request:
+    branches: [main, develop]
+
+# Um push novo na mesma branch cancela a execução anterior: não adianta
+# gastar runner validando um commit que já foi substituído.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Testes, tipos e build
+    runs-on: ubuntu-latest
+
+    env:
+      # O Prisma exige DATABASE_URL até para gerar o client. Aqui é um banco
+      # descartável do runner — nenhum dado real passa pelo CI.
+      DATABASE_URL: 'file:./ci.db'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci` em vez de `npm install`: instala exatamente o lockfile e
+      # falha se ele estiver dessincronizado do package.json.
+      - name: Instalar dependências
+        run: npm ci
+
+      # Precisa vir antes do typecheck: os tipos do banco vêm do client gerado.
+      - name: Gerar Prisma Client
+        run: npx prisma generate --schema=server/prisma/schema.prisma
+
+      - name: Checagem de tipos
+        run: npm run typecheck
+
+      - name: Testes
+        run: npm test
+
+      - name: Build de produção
+        run: npm run build
+
+      # O agente local não é compilado, então um erro de sintaxe nele só
+      # apareceria em produção. Este check é barato e cobre isso.
+      - name: Validar sintaxe do agente local
+        run: node --check companion/inhouse-companion.mjs
+
+  seguranca:
+    name: Segredos e dependências
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # O repositório é público: uma chave da Riot commitada por engano fica
+      # exposta. Este passo falha o build antes de o merge acontecer.
+      - name: Procurar chave da Riot no código
+        run: |
+          if grep -rIn --exclude-dir=node_modules --exclude-dir=.git \
+               -E 'RGAPI-[A-Za-z0-9-]{8,}' .; then
+            echo "::error::Chave da Riot encontrada no código. Remova antes de commitar."
+            exit 1
+          fi
+          echo "Nenhuma chave RGAPI encontrada."
+
+      - name: Conferir que .env não está versionado
+        run: |
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "::error::.env está versionado. Ele guarda segredos."
+            exit 1
+          fi
+          echo ".env não está versionado."
+
+      # Só quebra em vulnerabilidade alta/crítica. Aviso de dependência
+      # transitiva de dev não deve travar o merge de um app de amigos.
+      - name: Auditoria de dependências
+        run: npm audit --audit-level=high
+        continue-on-error: true

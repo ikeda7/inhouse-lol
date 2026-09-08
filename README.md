@@ -1,8 +1,14 @@
 # InHouse LoL
 
+[![CI](https://github.com/lucasikeda/inhouse-lol/actions/workflows/ci.yml/badge.svg)](https://github.com/lucasikeda/inhouse-lol/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Gerenciador das noites de custom game 5x5 de League of Legends de um grupo de
 amigos. Sorteia os times respeitando o pool de posições de cada um, controla o
 **Fearless Draft** ao longo da MD3 e guarda as estatísticas de todo mundo.
+
+> **Nota:** o caminho do badge de CI assume o repositório em
+> `lucasikeda/inhouse-lol`. Ajuste se o seu for outro.
 
 Nasceu de um problema chato de resolver na mão: com 10 pessoas e pools de role
 diferentes, montar dois times válidos (Top/Jungle/Mid/ADC/Support dos dois
@@ -35,6 +41,28 @@ Também dá para colar o Match ID ou preencher o formulário manual. Ver
 com dano por minuto, winrate por role e pódio dos 3 campeões mais jogados.
 
 Pontuação: **+3** por mapa vencido, **+1** de bônus para quem vence a MD3.
+
+### O placar da MD3 é por elenco, não por cor
+
+Detalhe que parece pequeno e não é. Em custom os times **trocam de lado entre
+os jogos**. Se o placar contasse vitórias por azul/vermelho, uma MD3 em que os
+mesmos 5 vencem os dois jogos de lados diferentes viraria **1-1** em vez de
+**2-0** — a série nunca fecharia e ninguém levaria o bônus.
+
+Isso aconteceu de verdade aqui (MD3 de 07/09/2026) e deixou jogadores com o
+mesmo retrospecto 2-2 com pontuações diferentes.
+
+A identidade de um time é o **conjunto de jogadores**. O sistema ancora no jogo
+1 — quem estava de azul nele é o "Time 1" — e classifica os jogos seguintes por
+sobreposição de elenco (maioria de 5). Isso tolera até uma substituição.
+
+Se a regra mudar, ou se você corrigir um jogo antigo, dá para reconstruir todos
+os placares a partir dos jogos:
+
+```bash
+npm run db:recompute -- --dry-run   # mostra o que mudaria
+npm run db:recompute                # aplica
+```
 
 ---
 
@@ -87,6 +115,7 @@ Abra <http://localhost:5173>.
 npm test           # testes do algoritmo de draft e do parser do cliente
 npm run typecheck  # checagem de tipos dos dois workspaces
 npm run db:studio  # Prisma Studio, para olhar o banco
+npm run db:recompute # recalcula os placares das MD3 a partir dos jogos
 npm run build      # build de produção
 ```
 
@@ -375,6 +404,19 @@ Todas respondem no envelope `{ success, data }` ou `{ success, error, code }`.
 
 ---
 
+## Privacidade
+
+**Este repositório é público.** Nomes reais, Riot IDs e PUUIDs dos jogadores
+vivem **só no banco** (`dev.db`, que está no `.gitignore`) — nunca no `seed.ts`.
+O seed usa apelidos genéricos de propósito.
+
+O CI tem um passo que falha o build se encontrar uma chave `RGAPI-` no código ou
+se o `.env` for versionado. Detalhes em [CONTRIBUTING.md](CONTRIBUTING.md).
+
+O `lockfile` do cliente do LoL dá acesso total à conta de quem roda o agente.
+Ele fica só em memória e nunca sai da máquina — só os dados da partida são
+enviados.
+
 ## Notas de modelagem
 
 - **Sem enum no schema.** O provider `sqlite` do Prisma não suporta `enum`;
@@ -386,6 +428,9 @@ Todas respondem no envelope `{ success, data }` ou `{ success, error, code }`.
 - **`PlayerRole` em vez de um campo `mainRoles`.** A ordem de preferência é
   informação que o algoritmo usa, e uma tabela normalizada permite consultar
   "quem joga Support?" sem `LIKE` em string.
+- **Placar da MD3 por elenco, não por cor.** Os campos `blueScore`/`redScore`
+  guardam Time 1 / Time 2, ancorados no jogo 1. Mantive os nomes das colunas
+  para não migrar um banco com dados reais dentro.
 - **Jogador é desativado, nunca apagado** — deletar levaria junto todo o
   histórico de partidas dele e corromperia a classificação.
 

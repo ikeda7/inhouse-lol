@@ -1,0 +1,9 @@
+# Normaliza a quebra de linha no repositório (LF), independente do SO de quem
+# clonar. Sem isso, Windows commita CRLF e o diff fica poluído.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.rofl binary
+*.db binary
