@@ -59,7 +59,7 @@ export function DraftPage() {
     if (!result) return;
     saveActiveDraft(fromAutoBalance(result));
     setConfirmed(true);
-    navigate('/noite');
+    navigate('/serie');
   };
 
   if (loading) return <LoadingState label="Carregando jogadores..." />;
@@ -141,7 +141,7 @@ export function DraftPage() {
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Button onClick={handleUseTeams}>
               {confirmed ? <Check size={16} /> : <ArrowRight size={16} />}
-              Usar esses times na noite
+              Usar esses times na série
             </Button>
           </div>
 

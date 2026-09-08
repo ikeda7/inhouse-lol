@@ -133,6 +133,7 @@ export interface LeaderboardEntry {
   avgDamagePerMinute: number;
   avgVisionScore: number;
   avgCsPerMinute: number;
+  seriesWon: number;
   wonLastSeries: boolean;
 }
 
