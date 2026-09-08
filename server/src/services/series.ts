@@ -113,6 +113,143 @@ export interface MatchPlayerInput {
   largestKillingSpree?: number;
   largestMultiKill?: number;
   firstBloodKill?: boolean;
+  firstBloodAssist?: boolean;
+  killingSprees?: number;
+  largestCriticalStrike?: number;
+  champLevel?: number;
+  goldSpent?: number;
+  totalDamageDealt?: number;
+  damageToObjectives?: number;
+  damageToTurrets?: number;
+  damageSelfMitigated?: number;
+  totalHeal?: number;
+  physicalDamageToChampions?: number;
+  magicDamageToChampions?: number;
+  trueDamageToChampions?: number;
+  timeCCingOthers?: number;
+  longestTimeSpentLiving?: number;
+  turretKills?: number;
+  inhibitorKills?: number;
+  wardsPlaced?: number;
+  wardsKilled?: number;
+  controlWardsBought?: number;
+  laneMinionsKilled?: number;
+  neutralMinionsKilled?: number;
+  items?: string | null;
+  spell1Id?: number | null;
+  spell2Id?: number | null;
+  keystoneId?: number | null;
+  primaryStyleId?: number | null;
+  subStyleId?: number | null;
+}
+
+/** Objetivos de um lado, como o LCU entrega. */
+export interface MatchTeamInput {
+  teamSide: TeamSide;
+  win: boolean;
+  towerKills?: number;
+  inhibitorKills?: number;
+  dragonKills?: number;
+  baronKills?: number;
+  riftHeraldKills?: number;
+  voidgrubKills?: number;
+  firstBlood?: boolean;
+  firstTower?: boolean;
+  firstInhibitor?: boolean;
+  firstBaron?: boolean;
+  firstDragon?: boolean;
+}
+
+export interface MatchBanInput {
+  teamSide: TeamSide;
+  championId: number;
+  championName?: string | null;
+  pickTurn: number;
+}
+
+/**
+ * Colunas de scoreboard de um jogador, no formato do banco.
+ *
+ * Existe porque a lista tem 30+ campos e estava duplicada entre gravar
+ * (`recordMatch`) e atualizar (`refreshMatchStats`). Duplicada, uma coluna nova
+ * que entrasse so num dos dois ficaria zerada em silencio no outro caminho --
+ * exatamente o tipo de bug que nao aparece em teste e aparece na tela.
+ *
+ * `win` sai do lado do jogador contra o vencedor do jogo, nao de um campo da
+ * origem: assim nao existe estado onde o time perdeu mas o jogador "ganhou".
+ */
+function colunasDeScoreboard(player: MatchPlayerInput, winner: TeamSide) {
+  return {
+    teamSide: player.teamSide,
+    rolePlayed: player.rolePlayed,
+    championName: player.championName,
+    championId: player.championId ?? null,
+    kills: player.kills ?? 0,
+    deaths: player.deaths ?? 0,
+    assists: player.assists ?? 0,
+    damage: player.damage ?? 0,
+    damageTaken: player.damageTaken ?? 0,
+    goldEarned: player.goldEarned ?? 0,
+    visionScore: player.visionScore ?? 0,
+    cs: player.cs ?? 0,
+    doubleKills: player.doubleKills ?? 0,
+    tripleKills: player.tripleKills ?? 0,
+    quadraKills: player.quadraKills ?? 0,
+    pentaKills: player.pentaKills ?? 0,
+    largestKillingSpree: player.largestKillingSpree ?? 0,
+    largestMultiKill: player.largestMultiKill ?? 0,
+    firstBloodKill: player.firstBloodKill ?? false,
+    firstBloodAssist: player.firstBloodAssist ?? false,
+    killingSprees: player.killingSprees ?? 0,
+    largestCriticalStrike: player.largestCriticalStrike ?? 0,
+    champLevel: player.champLevel ?? 0,
+    goldSpent: player.goldSpent ?? 0,
+    totalDamageDealt: player.totalDamageDealt ?? 0,
+    damageToObjectives: player.damageToObjectives ?? 0,
+    damageToTurrets: player.damageToTurrets ?? 0,
+    damageSelfMitigated: player.damageSelfMitigated ?? 0,
+    totalHeal: player.totalHeal ?? 0,
+    physicalDamageToChampions: player.physicalDamageToChampions ?? 0,
+    magicDamageToChampions: player.magicDamageToChampions ?? 0,
+    trueDamageToChampions: player.trueDamageToChampions ?? 0,
+    timeCCingOthers: player.timeCCingOthers ?? 0,
+    longestTimeSpentLiving: player.longestTimeSpentLiving ?? 0,
+    turretKills: player.turretKills ?? 0,
+    inhibitorKills: player.inhibitorKills ?? 0,
+    wardsPlaced: player.wardsPlaced ?? 0,
+    wardsKilled: player.wardsKilled ?? 0,
+    controlWardsBought: player.controlWardsBought ?? 0,
+    laneMinionsKilled: player.laneMinionsKilled ?? 0,
+    neutralMinionsKilled: player.neutralMinionsKilled ?? 0,
+    // null e "a origem nao sabe" (replay nao traz build); zero seria "slot
+    // vazio". A tela mostra coisas diferentes nos dois casos.
+    items: player.items ?? null,
+    spell1Id: player.spell1Id ?? null,
+    spell2Id: player.spell2Id ?? null,
+    keystoneId: player.keystoneId ?? null,
+    primaryStyleId: player.primaryStyleId ?? null,
+    subStyleId: player.subStyleId ?? null,
+    win: player.teamSide === winner,
+  };
+}
+
+/** Objetivos de um lado, no formato do banco. */
+function colunasDeTime(team: MatchTeamInput) {
+  return {
+    teamSide: team.teamSide,
+    win: team.win,
+    towerKills: team.towerKills ?? 0,
+    inhibitorKills: team.inhibitorKills ?? 0,
+    dragonKills: team.dragonKills ?? 0,
+    baronKills: team.baronKills ?? 0,
+    riftHeraldKills: team.riftHeraldKills ?? 0,
+    voidgrubKills: team.voidgrubKills ?? 0,
+    firstBlood: team.firstBlood ?? false,
+    firstTower: team.firstTower ?? false,
+    firstInhibitor: team.firstInhibitor ?? false,
+    firstBaron: team.firstBaron ?? false,
+    firstDragon: team.firstDragon ?? false,
+  };
 }
 
 export interface RecordMatchInput {
@@ -123,7 +260,11 @@ export interface RecordMatchInput {
   gameDurationSec?: number;
   riotMatchId?: string | null;
   source?: 'RIOT_API' | 'MANUAL';
+  gameVersion?: string | null;
+  surrendered?: boolean;
   players: MatchPlayerInput[];
+  teams?: MatchTeamInput[];
+  bans?: MatchBanInput[];
 }
 
 function validateMatchPlayers(players: MatchPlayerInput[]): void {
@@ -256,29 +397,21 @@ export async function recordMatch(input: RecordMatchInput) {
         gameDurationSec: input.gameDurationSec ?? null,
         riotMatchId: input.riotMatchId ?? null,
         source: input.source ?? 'MANUAL',
+        gameVersion: input.gameVersion ?? null,
+        surrendered: input.surrendered ?? false,
         stats: {
           create: input.players.map((player) => ({
             playerId: player.playerId,
-            teamSide: player.teamSide,
-            rolePlayed: player.rolePlayed,
-            championName: player.championName,
-            championId: player.championId ?? null,
-            kills: player.kills ?? 0,
-            deaths: player.deaths ?? 0,
-            assists: player.assists ?? 0,
-            damage: player.damage ?? 0,
-            damageTaken: player.damageTaken ?? 0,
-            goldEarned: player.goldEarned ?? 0,
-            visionScore: player.visionScore ?? 0,
-            cs: player.cs ?? 0,
-            doubleKills: player.doubleKills ?? 0,
-            tripleKills: player.tripleKills ?? 0,
-            quadraKills: player.quadraKills ?? 0,
-            pentaKills: player.pentaKills ?? 0,
-            largestKillingSpree: player.largestKillingSpree ?? 0,
-            largestMultiKill: player.largestMultiKill ?? 0,
-            firstBloodKill: player.firstBloodKill ?? false,
-            win: player.teamSide === input.winner,
+            ...colunasDeScoreboard(player, input.winner),
+          })),
+        },
+        teams: { create: (input.teams ?? []).map(colunasDeTime) },
+        bans: {
+          create: (input.bans ?? []).map((ban) => ({
+            teamSide: ban.teamSide,
+            championId: ban.championId,
+            championName: ban.championName ?? null,
+            pickTurn: ban.pickTurn,
           })),
         },
       },
@@ -436,7 +569,13 @@ export function assertMesmaPartida(
 export async function refreshMatchStats(
   matchId: string,
   winner: TeamSide,
-  players: MatchPlayerInput[]
+  players: MatchPlayerInput[],
+  extras: {
+    teams?: MatchTeamInput[];
+    bans?: MatchBanInput[];
+    gameVersion?: string | null;
+    surrendered?: boolean;
+  } = {}
 ) {
   validateMatchPlayers(players);
 
@@ -452,39 +591,56 @@ export async function refreshMatchStats(
     players.map((player) => player.playerId)
   );
 
-  await prisma.$transaction(
-    players.map((player) =>
-      prisma.matchPlayerStat.update({
+  await prisma.$transaction(async (tx) => {
+    for (const player of players) {
+      await tx.matchPlayerStat.update({
         where: { matchId_playerId: { matchId, playerId: player.playerId } },
-        data: {
-          // A role tambem entra: a inferencia melhorou depois das primeiras
-          // importacoes, e este e o caminho para corrigir sem apagar nada.
-          rolePlayed: player.rolePlayed,
-          teamSide: player.teamSide,
-          championName: player.championName,
-          championId: player.championId ?? null,
-          kills: player.kills ?? 0,
-          deaths: player.deaths ?? 0,
-          assists: player.assists ?? 0,
-          damage: player.damage ?? 0,
-          damageTaken: player.damageTaken ?? 0,
-          goldEarned: player.goldEarned ?? 0,
-          visionScore: player.visionScore ?? 0,
-          cs: player.cs ?? 0,
-          doubleKills: player.doubleKills ?? 0,
-          tripleKills: player.tripleKills ?? 0,
-          quadraKills: player.quadraKills ?? 0,
-          pentaKills: player.pentaKills ?? 0,
-          largestKillingSpree: player.largestKillingSpree ?? 0,
-          largestMultiKill: player.largestMultiKill ?? 0,
-          firstBloodKill: player.firstBloodKill ?? false,
-          win: player.teamSide === winner,
-        },
-      })
-    )
-  );
+        // A role entra junto de propósito: a inferencia melhorou depois das
+        // primeiras importacoes, e este e o caminho para corrigir sem apagar.
+        data: colunasDeScoreboard(player, winner),
+      });
+    }
 
-  return { updated: players.length };
+    for (const team of extras.teams ?? []) {
+      await tx.matchTeamStat.upsert({
+        where: { matchId_teamSide: { matchId, teamSide: team.teamSide } },
+        create: { matchId, ...colunasDeTime(team) },
+        update: colunasDeTime(team),
+      });
+    }
+
+    // Bans sao substituidos em bloco, nao atualizados um a um: a chave e
+    // (matchId, teamSide, pickTurn), e se a origem mudasse a ordem sobrariam
+    // linhas orfas de um draft que nao existe mais.
+    if (extras.bans && extras.bans.length > 0) {
+      await tx.matchBan.deleteMany({ where: { matchId } });
+      await tx.matchBan.createMany({
+        data: extras.bans.map((ban) => ({
+          matchId,
+          teamSide: ban.teamSide,
+          championId: ban.championId,
+          championName: ban.championName ?? null,
+          pickTurn: ban.pickTurn,
+        })),
+      });
+    }
+
+    if (extras.gameVersion !== undefined || extras.surrendered !== undefined) {
+      await tx.match.update({
+        where: { id: matchId },
+        data: {
+          ...(extras.gameVersion !== undefined ? { gameVersion: extras.gameVersion } : {}),
+          ...(extras.surrendered !== undefined ? { surrendered: extras.surrendered } : {}),
+        },
+      });
+    }
+  });
+
+  return {
+    updated: players.length,
+    teams: extras.teams?.length ?? 0,
+    bans: extras.bans?.length ?? 0,
+  };
 }
 
 export async function getSeriesDetail(seriesId: string) {
@@ -497,6 +653,8 @@ export async function getSeriesDetail(seriesId: string) {
           stats: {
             include: { player: { select: { id: true, name: true } } },
           },
+          teams: true,
+          bans: { orderBy: { pickTurn: 'asc' } },
         },
       },
     },

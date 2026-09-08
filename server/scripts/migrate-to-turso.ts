@@ -61,7 +61,7 @@ function credenciais(): { url: string; authToken: string } {
  * `ALTER TABLE ADD COLUMN` que faltam.
  */
 /** Tipos que o Prisma emite no provider sqlite. */
-const TIPOS_SQLITE = 'TEXT|INTEGER|REAL|BLOB|NUMERIC|DECIMAL|BOOLEAN|DATETIME';
+const TIPOS_SQLITE = 'TEXT|INTEGER|REAL|BLOB|NUMERIC|DECIMAL|BOOLEAN|DATETIME|JSONB?';
 
 /**
  * Executa um statement dizendo qual era, se falhar.

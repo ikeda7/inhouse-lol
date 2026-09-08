@@ -619,24 +619,35 @@ async function commandReplays() {
  * carona na MD3 em andamento.
  */
 async function commandRefreshAll() {
-  const games = (await fetchRecentGames()).filter(isCustom);
+  // A LISTA do historico traz o resumo: so o SEU participante, nao os 10. Para
+  // reenviar a partida e preciso o detalhe de cada uma (/games/<id>), senao o
+  // servidor recebe 1 jogador e recusa com "esperava 10".
+  const resumos = (await fetchRecentGames()).filter(isCustom);
 
-  if (games.length === 0) {
+  if (resumos.length === 0) {
     log.warn('Nenhum custom game no historico do cliente.');
     log.info('      Para partidas mais antigas: --replays\n');
     return;
   }
 
-  log.info(`Encontrei ${games.length} custom(s) no historico. Atualizando as registradas...\n`);
+  log.info(`Encontrei ${resumos.length} custom(s) no historico. Atualizando as registradas...\n`);
 
   let atualizadas = 0;
   let puladas = 0;
+  let recusadas = 0;
 
-  for (const [index, game] of games.entries()) {
-    const quando = new Date(game.gameCreation).toLocaleDateString('pt-BR');
-    log.info(`[${index + 1}/${games.length}] ${game.gameId}  ${quando}`);
+  for (const [index, resumo] of resumos.entries()) {
+    const quando = new Date(resumo.gameCreation).toLocaleDateString('pt-BR');
+    log.info(`[${index + 1}/${resumos.length}] ${resumo.gameId}  ${quando}`);
 
     try {
+      const game = await fetchGameDetail(resumo.gameId);
+      if (!game) {
+        log.info('      detalhe indisponivel no cliente -- pulada');
+        puladas++;
+        continue;
+      }
+
       const result = await sendGame(game, { refreshStats: true });
       const data = result.payload?.data ?? {};
 
@@ -644,16 +655,23 @@ async function commandRefreshAll() {
         // Nao esta no banco: nao e erro, so nao e assunto deste comando.
         log.info('      nao registrada -- pulada');
         puladas++;
+      } else if (!result.ok) {
+        // ARAM, treino contra bot, time incompleto: o servidor recusa por
+        // regra, e a varredura segue. Nao e falha do comando.
+        log.info(`      ${result.payload?.error ?? 'recusada'}`);
+        recusadas++;
       } else {
         describeResult(result);
-        if (result.ok && data.refreshed) atualizadas++;
+        if (data.refreshed) atualizadas++;
       }
     } catch (error) {
       log.fail(`  ${error.message.split('\n')[0]}`);
     }
   }
 
-  log.info(`\nConcluido: ${atualizadas} atualizada(s), ${puladas} pulada(s).`);
+  log.info(
+    `\nConcluido: ${atualizadas} atualizada(s), ${puladas} pulada(s), ${recusadas} recusada(s) por regra.`
+  );
 }
 
 async function commandSendMany(idsCsv) {
