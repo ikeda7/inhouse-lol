@@ -348,6 +348,22 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     return;
   }
 
+  // refreshStats atualiza o que existe, e SO isso. Sem esta guarda, varrer o
+  // historico do cliente para consertar as partidas registradas importaria de
+  // carona todo custom antigo que aparecesse no caminho -- e todos cairiam na
+  // MD3 em andamento, que nao tem nada a ver com eles.
+  if (options.refreshStats) {
+    res.json({
+      success: true,
+      data: {
+        saved: false,
+        skipped: true,
+        message: `A partida ${imported.riotMatchId} nao esta registrada. refreshStats so atualiza partida existente.`,
+      },
+    });
+    return;
+  }
+
   if (options.dryRun) {
     res.json({
       success: true,

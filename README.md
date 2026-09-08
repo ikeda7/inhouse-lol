@@ -160,6 +160,17 @@ Outros comandos:
 Extras: `--dry-run` (confere sem gravar), `--criar-faltantes` (cadastra
 desconhecidos com o nick, para renomear depois), `--api <url>`, `--series <id>`.
 
+`--refresh-all` faz isso de uma vez para tudo que já está registrado — é o
+comando para rodar depois de um deploy que passou a guardar um dado novo:
+
+```bash
+node companion/inhouse-companion.mjs --refresh-all --api https://inhouse-lol.vercel.app/api
+```
+
+Varrer é seguro: nesse modo o servidor **recusa criar partida nova**, então um
+custom de um ano atrás que apareça no histórico é pulado em vez de entrar de
+carona na MD3 em andamento.
+
 `--refresh` reescreve a scoreboard de uma partida **já importada** em vez de
 avisar que ela existe. É o caminho para quando o projeto passa a guardar um dado
 novo (destaques, por exemplo) ou a inferência de role melhora: reenvie o mesmo
