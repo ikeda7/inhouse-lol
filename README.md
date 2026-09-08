@@ -76,6 +76,9 @@ npm run db:recompute                # aplica
 
 Monorepo com npm workspaces: [`server/`](server/) e [`client/`](client/).
 
+**Documentação:** [ARCHITECTURE.md](ARCHITECTURE.md) (por que o código é assim) ·
+[DEPLOY.md](DEPLOY.md) (como publicar) · [CONTRIBUTING.md](CONTRIBUTING.md) (como contribuir)
+
 ---
 
 ## Rodando localmente
@@ -146,7 +149,16 @@ node companion/inhouse-companion.mjs --watch     # manda sozinho ao fim de cada 
 node companion/inhouse-companion.mjs --game 3280827724   # manda um gameId específico
 ```
 
-Extras: `--dry-run` (mostra sem gravar), `--api <url>`, `--series <id>`.
+Outros comandos:
+
+| Comando | O que faz |
+|---|---|
+| `--games <id,id>` | importa várias de uma vez |
+| `--who [ids]` | lista os Riot IDs de quem joga os customs |
+| `--replays` / `--replay <id>` | importa de arquivo de replay |
+
+Extras: `--dry-run` (confere sem gravar), `--criar-faltantes` (cadastra
+desconhecidos com o nick, para renomear depois), `--api <url>`, `--series <id>`.
 
 Requisitos: **Node 18+**. O cliente do LoL precisa estar aberto para os comandos
 de histórico; os de replay leem arquivo em disco e funcionam com o jogo fechado.
@@ -245,114 +257,78 @@ jogador, e sinaliza `rolesFullyInferred: false` para a tela pedir conferência.
 ## Deploy
 
 Em produção o Express serve **também o frontend já buildado**, então o deploy
-tem um alvo só: um container, uma URL, sem CORS e sem domínio separado para a
-API.
+tem um alvo só: uma URL, sem CORS e sem domínio separado para a API.
 
 ```bash
 npm run build   # compila server + client
 npm start       # sobe tudo na :3333
 ```
 
-### As opções, na ordem em que eu recomendaria
+**Instruções passo a passo em [DEPLOY.md](DEPLOY.md).** Resumo:
 
-#### 1. Só na sua rede (zero custo, zero configuração)
+| Camada | Onde | Custo |
+|---|---|---|
+| Banco | **Turso** (SQLite hospedado) | grátis |
+| App | **Vercel** | grátis |
 
-Roda na sua máquina e o pessoal acessa pelo IP local:
+Por que não SQLite em arquivo na nuvem: Vercel e afins têm filesystem efêmero.
+O arquivo some a cada deploy e a escrita **não dá erro** — ela desaparece, que é
+pior. Por que Turso e não Postgres: mantém o mesmo motor em dev e em produção,
+evitando a divergência silenciosa que gera "na minha máquina funciona".
 
-```bash
-npm run build && npm start
-# descubra seu IP:  ipconfig   (procure IPv4)
-# o grupo abre:     http://192.168.0.42:3333
-```
+Alternativas que rodam o mesmo código, sem alteração:
 
-Serve para a noite de jogos inteira. Limitação óbvia: só funciona com o seu PC
-ligado e todo mundo na mesma rede.
+- **Rede local** — `npm start` e o pessoal acessa pelo seu IP. Zero custo, mas
+  depende do seu PC ligado.
+- **VPS** (~R$25/mês) — [`Dockerfile`](Dockerfile) pronto. O SQLite volta a ser
+  arquivo e o Turso vira opcional.
+- **Fly.io** — [`fly.toml`](fly.toml) pronto, com volume persistente.
 
-#### 2. Fly.io — a melhor relação custo/esforço aqui
-
-É a única opção da lista em que **o SQLite continua sendo SQLite**: um volume
-persistente e pronto, sem trocar de banco nem reescrever nada. Os arquivos
-[`Dockerfile`](Dockerfile) e [`fly.toml`](fly.toml) já estão prontos.
-
-```bash
-fly launch --no-deploy                              # troque o nome do app no fly.toml
-fly volumes create inhouse_data --size 1 --region gru
-fly deploy
-fly secrets set RIOT_API_KEY=xxx                    # opcional
-```
-
-O `fly.toml` deixa a máquina **dormir sozinha** (`min_machines_running = 0`) e
-acordar no primeiro acesso — uma noite de jogos por semana não justifica manter
-servidor ligado 24h. O primeiro acesso depois de dormir demora alguns segundos.
-
-#### 3. Railway / Render
-
-Funcionam com o mesmo `Dockerfile`. Exigem um **disco persistente** montado em
-`/data` — sem isso o banco é apagado a cada deploy, e você perde o histórico.
-No plano gratuito do Render o serviço hiberna e **não tem disco persistente**:
-serve para demonstrar, não para guardar as partidas.
-
-#### 4. Vercel / Netlify — só com troca de banco
-
-O sistema de arquivos deles é efêmero, então SQLite em arquivo **não persiste**.
-Para usar, troque o banco por [Turso](https://turso.tech) (libSQL, compatível
-com SQLite, tem plano gratuito) e ajuste o datasource do Prisma. É mais trabalho
-do que o Fly, e só compensa se você já usa Vercel para outra coisa.
-
-### O agente local com o app hospedado
-
-O agente roda no **seu PC** (é ele que tem o cliente do LoL), mas pode mandar
-para o servidor hospedado:
-
-```bash
-node companion/inhouse-companion.mjs --watch --api https://inhouse-lol.fly.dev/api
-```
-
-Ou fixe num arquivo `.env` local: `INHOUSE_API_URL="https://.../api"`.
-
-### Antes de expor na internet
-
-**O app não tem autenticação.** Quem tiver o link pode cadastrar jogador,
-registrar partida e encerrar MD3. Para um grupo de amigos com URL não divulgada
-isso costuma bastar — mas é uma decisão consciente, não um esquecimento. Se for
-publicar, considere pôr atrás de uma senha (Cloudflare Access, basic auth no
-proxy) antes de compartilhar.
-
-Faça backup do banco de vez em quando:
-
-```bash
-fly ssh console -C "cat /data/inhouse.db" > backup-$(date +%F).db
-```
+> **O app não tem autenticação.** Quem tiver o link mexe em tudo. Para um link
+> não divulgado entre amigos costuma bastar, mas leia o aviso em
+> [DEPLOY.md](DEPLOY.md) antes de compartilhar.
 
 ---
 
 ## Estrutura
 
+Detalhes e o **porquê** de cada decisão em [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ```
 inhouse-lol/
-├─ companion/
-│  └─ inhouse-companion.mjs  # agente local que le o cliente do LoL
+├─ api/index.ts               handler serverless (Vercel)
+├─ companion/                 agente que lê o cliente do LoL
 ├─ server/
 │  ├─ prisma/
-│  │  ├─ schema.prisma        # modelagem (Player, Series, Match, BurnedChampion)
-│  │  └─ seed.ts              # base inicial de jogadores
+│  │  ├─ schema.prisma        Player, Series, Match, BurnedChampion
+│  │  └─ seed.ts              base inicial (apelidos genéricos)
+│  ├─ scripts/
+│  │  └─ recompute-series.ts  recalcula os placares das MD3
 │  └─ src/
-│     ├─ lib/
-│     │  ├─ autoBalance.ts    # ← o algoritmo de sorteio
-│     │  ├─ captainsDraft.ts  # snake draft 1-2-2-2-2-1
-│     │  ├─ riot.ts           # Riot API publica
-│     │  ├─ lcu.ts            # cliente do LoL (custom games)
-│     │  ├─ ddragon.ts        # Data Dragon (ícones)
-│     │  └─ roles.ts          # roles canônicas e normalização
-│     ├─ services/            # regras de negócio (séries, stats, jogadores)
-│     ├─ routes/              # endpoints Express
-│     └─ __tests__/
-└─ client/
-   └─ src/
-      ├─ pages/               # Classificação, Sorteio, Noite, Histórico, Perfil
-      ├─ components/
-      └─ api/client.ts        # cliente HTTP tipado
+│     ├─ app.ts               monta o Express, sem escutar porta
+│     ├─ index.ts             escuta porta (local, VPS, Docker)
+│     ├─ lib/                 ← lógica pura, sem framework
+│     │  ├─ autoBalance.ts       o algoritmo de sorteio
+│     │  ├─ captainsDraft.ts     snake draft 1-2-2-2-2-1
+│     │  ├─ lcu.ts               histórico do cliente do LoL
+│     │  ├─ rofl.ts              arquivos de replay
+│     │  ├─ riot.ts              API pública da Riot
+│     │  ├─ ddragon.ts           ícones oficiais
+│     │  └─ roles.ts             roles canônicas
+│     ├─ services/            regras de negócio
+│     ├─ routes/              endpoints Express
+│     └─ __tests__/           53 testes
+└─ client/src/
+   ├─ pages/                  Ranking, Sorteio, Noite, Histórico, Perfil
+   ├─ components/             Select, ChampionPicker, MatchForm, TeamCard...
+   ├─ hooks/
+   ├─ index.css               tokens do sistema visual
+   └─ api/client.ts           cliente HTTP tipado
 ```
+
+**`lib/` não importa framework nenhum.** É a parte cara do projeto — o
+algoritmo e os parsers descobertos por engenharia reversa — e portaria para
+outra stack sem alteração.
 
 ### Como o Auto-Balance funciona
 
@@ -366,16 +342,14 @@ jogador. Em [`server/src/lib/autoBalance.ts`](server/src/lib/autoBalance.ts):
    sortear" inútil.
 2. **Busca** — backtracking com heurística MRV (*Minimum Remaining Values*):
    a cada passo aloca o jogador com **menos vagas disponíveis**. É o que
-   implementa "gargalo primeiro, Fill por último" — e de forma dinâmica, reagindo
-   ao que as escolhas anteriores já consumiram.
-3. **Escolha** — existem várias soluções válidas; o sistema avalia milhares e
-   fica com a de menor custo: diferença de rating entre os times + desconforto
-   de role + concentração de autofill num lado só.
+   implementa "gargalo primeiro, Fill por último" — e de forma dinâmica,
+   reagindo ao que as escolhas anteriores já consumiram.
+3. **Escolha** — existem várias soluções válidas; o sistema avalia milhares com
+   restarts independentes e fica com a de menor custo: diferença de rating +
+   desconforto de role + concentração de autofill num lado só.
 
 Cada sorteio devolve a **seed** usada. Passar a mesma seed de volta reproduz
 exatamente os mesmos times — útil quando alguém contesta o resultado.
-
----
 
 ## API
 
