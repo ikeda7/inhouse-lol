@@ -135,6 +135,27 @@ time é o conjunto de jogadores, ancorado no jogo 1, com maioria de 5 —
 tolera uma substituição. Os campos `blueScore`/`redScore` guardam Time A / Time
 B; mantive os nomes das colunas para não migrar um banco com dados reais dentro.
 
+**Objetivos em `MatchTeamStat`, não em `Match`.** Dragão, barão e torre são dado
+de **time**, não de jogador — dragão não pertence a quem deu o last hit. Poderiam
+ser colunas `blueDragons`/`redDragons` no `Match`, mas em tabela separada a
+consulta e a UI tratam os dois lados pelo mesmo caminho, em vez de escolher
+coluna por `if (side === 'BLUE')`.
+
+**Ban não é campeão queimado.** `MatchBan` e `BurnedChampion` parecem redundantes
+e não são: **ban** é escolha de quem draftou naquele jogo; **queimado** é
+consequência de ter sido usado, e vale para o resto da MD3 (Fearless). Um
+campeão pode ser banido no jogo 2 sem nunca ter sido jogado, e queimado no 2 sem
+nunca ter sido banido.
+
+**Itens em CSV, não em tabela.** Os 7 slots são posição fixa, não entidade:
+normalizar sete inteiros ordenados não compra consulta nenhuma. Ficam como
+`"3084,1056,0,..."` em `MatchPlayerStat.items`.
+
+**`null` e `0` querem dizer coisas diferentes na build.** Zero é *slot vazio* —
+o cara terminou o jogo com 4 itens. `null` é *a origem não sabe* — o `.rofl` não
+guarda build. A tela mostra quadrado vazio no primeiro caso e "build
+indisponível" no segundo, e confundir os dois seria mentir sobre o que aconteceu.
+
 ---
 
 ## Banco
@@ -157,6 +178,57 @@ desenvolvimento é o de produção; só a URL muda.
 O placar fica **denormalizado** em `Series` para o histórico não agregar tudo a
 cada listagem. Denormalização precisa de um jeito de reconstruir a verdade:
 `npm run db:recompute`.
+
+### Migração para o Turso
+
+`prisma db push` fala com arquivo SQLite, não com libSQL remoto. O caminho
+suportado é gerar o SQL a partir do schema (`prisma migrate diff`) e executá-lo
+pelo cliente libSQL — é o que `scripts/migrate-to-turso.ts` faz.
+
+> **Pegadinha resolvida:** `CREATE TABLE IF NOT EXISTS` **não é migração.** Num
+> banco que já tem as tabelas ele não faz nada, e uma coluna nova do schema nunca
+> chega no destino — em silêncio, que é o pior jeito de falhar. O script agora lê
+> o `CREATE TABLE` que o próprio SQLite guardou em `sqlite_master`, compara com o
+> que o schema espera e emite os `ALTER TABLE ADD COLUMN` que faltam.
+>
+> Foi preciso usar `sqlite_master` porque **`PRAGMA table_info` não passa no
+> parser do libSQL** (`SQL_PARSE_ERROR: near LP`).
+
+Rodar sem flag copia dados de local → Turso e **recusa sobrescrever** sem
+`--force`. Para só mexer na estrutura: `npm run db:turso -- --schema-only`.
+
+---
+
+## Reescrever a scoreboard sem apagar a partida
+
+Dado de custom game só existe na máquina de quem jogou, e só enquanto o cliente
+ainda tem a partida em cache. Isso cria um problema: quando o schema cresce, as
+partidas antigas ficam com zero em colunas que a origem sempre soube responder.
+
+Apagar e reimportar resolveria o número e destruiria o resto — placar da MD3,
+campeões queimados, número do jogo. Então existe `refreshMatchStats`, exposto
+como `refreshStats` na ingestão e `--refresh` / `--refresh-all` no agente:
+
+```
+reenvia o mesmo jogo  →  reescreve SÓ a scoreboard
+                          (jogadores, times, bans, patch, rendição)
+                      →  não toca em vencedor, número do jogo, série, Fearless
+```
+
+Duas guardas, porque essa é a única operação do projeto que **sobrescreve dado
+real**:
+
+- **`assertMesmaPartida`** — vencedor e elenco têm que bater. Um `riotMatchId`
+  reaproveitado ou um `--series` apontado errado gravaria os números de um jogo
+  em cima de outro. Divergência aborta, não "corrige". Tem teste próprio.
+- **Não cria partida nova.** Com `refreshStats` ligado e a partida ausente, a
+  rota **pula**. Sem isso, varrer o histórico para consertar as registradas
+  importaria de carona todo custom antigo que aparecesse — e todos cairiam na
+  MD3 em andamento, que não tem nada a ver com eles.
+
+A checagem de idempotência acontece **antes** de procurar a série de destino:
+partida que já existe pertence a uma série, e exigir uma MD3 aberta para
+atualizar a scoreboard dela não faz sentido.
 
 ---
 
@@ -181,6 +253,24 @@ colunas viravam rolagem horizontal.
 
 **Opção bloqueada continua visível** e marcada com o motivo. Esconder faz a
 pessoa procurar um nome que sumiu — e o motivo é a informação que ela precisa.
+
+**Histórico em três níveis**, cada um atrás de um clique: série → jogo →
+jogador. Tudo aberto de uma vez seriam ~40 blocos de números na mesma tela.
+
+**Número grande sempre com barra de comparação.** No detalhe do jogador, cada
+métrica vem com uma barra do tamanho relativo ao melhor da partida, e fica
+dourada quando é o melhor. "37k de dano" não diz nada sozinho; 37k *sendo o
+maior da partida* diz tudo. É o que transforma número em informação.
+
+**Manifesto do Data Dragon em Map, não em lista.** `/riot/build` traz ~870
+itens; uma scoreboard aberta resolve 70 ícones. Com `.find()` numa lista, cada
+render viraria dezenas de milhares de comparações. `useBuild` indexa uma vez, na
+primeira carga, e cacheia em módulo — uma requisição por sessão.
+
+**Itens, feitiços e runas vêm em rota separada** de campeões. São ~870 entradas e
+só o histórico precisa: quem abre o ranking não paga por isso. Os três catálogos
+vêm em paralelo com `allSettled` — se só o de runas cair, item e feitiço ainda
+aparecem. Ícone faltando é melhor que scoreboard vazia.
 
 ---
 
@@ -213,3 +303,7 @@ descreve a MD3 de 07/09/2026 que quebrou.
 | Novo campo no banco | `prisma/schema.prisma` → `npm run db:push` |
 | Cor, espaçamento, fonte | `client/src/index.css` (tokens) |
 | Comando do agente | `companion/inhouse-companion.mjs` |
+| Novo destaque ou recorde | `services/highlights.ts` (tabela `CATEGORIAS`) |
+| Novo campo no scoreboard | `lib/lcu.ts` → `colunasDeScoreboard` em `services/series.ts` → schema |
+| Levar coluna nova pro Turso | `npm run db:turso -- --schema-only` |
+| Preencher coluna nova nas partidas antigas | `--refresh-all` no agente, com o cliente aberto |
