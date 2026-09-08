@@ -8,10 +8,11 @@ import {
   recordMatch,
   refreshMatchStats,
   SeriesError,
+  type MatchBanInput,
   type MatchPlayerInput,
 } from '../services/series.js';
 import type { DraftablePlayer } from '../lib/autoBalance.js';
-import type { RoleInput } from '../lib/roles.js';
+import type { RoleInput, TeamSide } from '../lib/roles.js';
 import { asyncHandler } from './helpers.js';
 
 /**
@@ -103,6 +104,25 @@ const roflIngestSchema = z.object({
   playedAtMs: z.number().optional(),
   ...commonOptions,
 });
+
+/**
+ * Resolve o nome dos campeoes banidos.
+ *
+ * O payload traz so o championId. Guardamos o nome junto porque o Data Dragon
+ * muda de versao e um id que hoje resolve pode nao resolver depois -- e um ban
+ * sem nome na tela nao serve para nada. Se o CDN estiver fora, entra sem nome
+ * em vez de derrubar a importacao inteira por um dado decorativo.
+ */
+async function nomearBans(
+  bans: { teamSide: TeamSide; championId: number; pickTurn: number }[]
+): Promise<MatchBanInput[]> {
+  return Promise.all(
+    bans.map(async (ban) => {
+      const asset = await resolveChampion(ban.championId).catch(() => null);
+      return { ...ban, championName: asset?.name ?? null };
+    })
+  );
+}
 
 /** Carrega o cadastro indexado por PUUID e por Riot ID (para o auto-vinculo). */
 async function loadKnownPlayers() {
@@ -247,30 +267,21 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
       continue;
     }
 
+    // Espalhar em vez de listar campo por campo: os nomes de LcuImportedParticipant
+    // e MatchPlayerInput sao os mesmos de proposito, e com 40+ colunas de
+    // scoreboard uma lista manual esquece uma e grava zero sem avisar. Só o que
+    // muda de verdade vem sobrescrito abaixo -- e o TypeScript reclama se um
+    // campo obrigatorio faltar.
+    const { puuid, riotId, summonerName, win, ...scoreboard } = participant;
+
     matched.push({
+      ...scoreboard,
       playerId: player.id,
-      teamSide: participant.teamSide,
-      rolePlayed: participant.rolePlayed,
       // Sem o Data Dragon, guarda o que tiver para nao perder o dado.
       championName:
         champion?.name ?? participant.championName ?? `champion:${participant.championId}`,
       // O replay nao traz id numerico (championId = 0); o Data Dragon devolve.
       championId: champion?.key ?? participant.championId ?? null,
-      kills: participant.kills,
-      deaths: participant.deaths,
-      assists: participant.assists,
-      damage: participant.damage,
-      damageTaken: participant.damageTaken,
-      goldEarned: participant.goldEarned,
-      visionScore: participant.visionScore,
-      cs: participant.cs,
-      doubleKills: participant.doubleKills,
-      tripleKills: participant.tripleKills,
-      quadraKills: participant.quadraKills,
-      pentaKills: participant.pentaKills,
-      largestKillingSpree: participant.largestKillingSpree,
-      largestMultiKill: participant.largestMultiKill,
-      firstBloodKill: participant.firstBloodKill,
     });
   }
 
@@ -317,14 +328,26 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     // apagar a partida e perder placar da MD3 e campeoes queimados.
     if (options.refreshStats && !options.dryRun) {
       try {
-        const { updated } = await refreshMatchStats(already.id, imported.winner, matched);
+        const { updated, teams, bans } = await refreshMatchStats(
+          already.id,
+          imported.winner,
+          matched,
+          {
+            teams: imported.teams,
+            bans: await nomearBans(imported.bans),
+            gameVersion: imported.gameVersion,
+            surrendered: imported.surrendered,
+          }
+        );
         res.json({
           success: true,
           data: {
             saved: true,
             refreshed: true,
             match: already,
-            message: `Estatisticas do jogo ${already.matchNumber} atualizadas (${updated} jogadores).`,
+            message:
+              `Estatisticas do jogo ${already.matchNumber} atualizadas: ${updated} jogadores` +
+              `, ${teams} time(s), ${bans} ban(s).`,
           },
         });
       } catch (erro) {
@@ -387,7 +410,11 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     gameDurationSec: imported.gameDurationSec,
     riotMatchId: imported.riotMatchId,
     source: 'RIOT_API',
+    gameVersion: imported.gameVersion,
+    surrendered: imported.surrendered,
     players: matched,
+    teams: imported.teams,
+    bans: await nomearBans(imported.bans),
   });
 
   res.status(201).json({
