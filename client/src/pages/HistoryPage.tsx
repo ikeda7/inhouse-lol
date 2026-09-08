@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, History } from 'lucide-react';
 import { seriesApi } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { Card, EmptyState, ErrorState, LoadingState } from '../components/ui';
+import { ChampionIcon, ordenarPorLane } from '../components/ChampionIcon';
 import { ROLE_LABEL, type SeriesDetail } from '../types';
 
 /** Historico de MD3 com placar agregado e detalhe expandivel de cada jogo. */
@@ -105,23 +106,29 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
                 >
                   {side === 'BLUE' ? 'Azul' : 'Vermelho'}
                 </p>
-                <ul className="space-y-1 text-xs">
-                  {match.stats
-                    .filter((stat) => stat.teamSide === side)
-                    .map((stat) => (
-                      <li key={stat.id} className="flex items-center gap-2">
-                        <span className="w-14 shrink-0 text-ink-faint">
+                {/* Ordem da Fenda: Top em cima, Support embaixo -- como em
+                    transmissão de campeonato. Sem isso a ordem vem do banco e
+                    embaralha a cada partida. */}
+                <ul className="space-y-0.5 text-xs">
+                  {ordenarPorLane(match.stats.filter((stat) => stat.teamSide === side)).map(
+                    (stat) => (
+                      <li
+                        key={stat.id}
+                        className="flex items-center gap-2 rounded px-1 py-1 transition hover:bg-raised/50"
+                      >
+                        <ChampionIcon championName={stat.championName} size={22} />
+                        <span className="w-11 shrink-0 text-[10px] font-medium uppercase tracking-wide text-ink-faint">
                           {ROLE_LABEL[stat.rolePlayed]}
                         </span>
-                        <span className="flex-1 truncate">{stat.player.name}</span>
-                        <span className="truncate text-ink-faint">
-                          {stat.championName}
+                        <span className="min-w-0 flex-1 truncate font-medium">
+                          {stat.player.name}
                         </span>
-                        <span className="font-mono text-ink/80">
+                        <span className="tabular shrink-0 text-ink-muted">
                           {stat.kills}/{stat.deaths}/{stat.assists}
                         </span>
                       </li>
-                    ))}
+                    )
+                  )}
                 </ul>
               </div>
             ))}
