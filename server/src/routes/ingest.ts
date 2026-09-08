@@ -299,25 +299,12 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     return;
   }
 
-  // --- descobre a serie de destino ---
-  let targetSeriesId = options.seriesId;
-  if (!targetSeriesId) {
-    const ongoing = await prisma.series.findFirst({
-      where: { status: 'ONGOING' },
-      orderBy: { date: 'desc' },
-    });
-    if (!ongoing) {
-      res.status(409).json({
-        success: false,
-        error: 'Nenhuma MD3 em andamento. Abra uma na aba Serie antes de importar.',
-        code: 'NO_ONGOING_SERIES',
-      });
-      return;
-    }
-    targetSeriesId = ongoing.id;
-  }
-
   // --- idempotencia: o agente pode reenviar o mesmo jogo sem duplicar ---
+  //
+  // Esta checagem vem ANTES de procurar a serie de destino de proposito: uma
+  // partida que ja existe pertence a uma serie, e exigir uma MD3 aberta para
+  // atualizar a scoreboard dela nao faz sentido nenhum. Na ordem contraria, o
+  // --refresh-all falhava em todas as partidas fora de uma noite de jogos.
   const already = await prisma.match.findUnique({
     where: { riotMatchId: imported.riotMatchId },
     select: { id: true, matchNumber: true, seriesId: true },
@@ -385,6 +372,24 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
       },
     });
     return;
+  }
+
+  // --- serie de destino: so a partir daqui, porque so quem vai GRAVAR precisa ---
+  let targetSeriesId = options.seriesId;
+  if (!targetSeriesId) {
+    const ongoing = await prisma.series.findFirst({
+      where: { status: 'ONGOING' },
+      orderBy: { date: 'desc' },
+    });
+    if (!ongoing) {
+      res.status(409).json({
+        success: false,
+        error: 'Nenhuma MD3 em andamento. Abra uma na aba Serie antes de importar.',
+        code: 'NO_ONGOING_SERIES',
+      });
+      return;
+    }
+    targetSeriesId = ongoing.id;
   }
 
   if (options.dryRun) {
