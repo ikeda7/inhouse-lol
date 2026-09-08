@@ -378,3 +378,66 @@ describe('inferencia de role por sinais da partida', () => {
     expect(roleByParticipantId.get(5)).toBe('SUPPORT');
   });
 });
+
+/**
+ * A ORDEM DO SAGUAO.
+ *
+ * O grupo define as lanes no saguao antes de comecar, e essa ordem sobrevive no
+ * array de participantes. Medido nas 4 partidas reais: 8 times, 8 acertos --
+ * o Smite sempre no segundo do time.
+ *
+ * Achado depois de o grupo apontar que o Cho'Gath do Crepaldi foi gravado como
+ * MID quando ele jogou TOP. A posicao ja vinha pronta e estava sendo deduzida.
+ */
+describe('ordem do saguão', () => {
+  const time = (comSmiteNoIndice: number) =>
+    Array.from({ length: 5 }, (_, i) => ({
+      participantId: i + 1,
+      spell1Id: i === comSmiteNoIndice ? 11 : 4,
+      spell2Id: 12,
+      timeline: { lane: 'NONE', role: 'NONE' },
+      stats: { totalMinionsKilled: 150, neutralMinionsKilled: 0, visionScore: 20 },
+    }));
+
+  it('usa a ordem do array quando o Smite valida a premissa', () => {
+    // Smite no índice 1 = segundo do time = onde o jungle deve estar.
+    const { roleByParticipantId, inferred } = resolveTeamRoles(time(1), new Map());
+
+    expect([...roleByParticipantId.values()]).toEqual([
+      'TOP',
+      'JUNGLE',
+      'MID',
+      'ADC',
+      'SUPPORT',
+    ]);
+    // Veio pronto, não foi deduzido.
+    expect(inferred).toBe(true);
+  });
+
+  it('ignora a ordem quando o Smite não bate com a posição do jungle', () => {
+    // Smite no último: o saguão não seguiu a ordem. Não dá para confiar.
+    const { roleByParticipantId } = resolveTeamRoles(time(4), new Map());
+
+    expect(roleByParticipantId.get(5)).toBe('JUNGLE');
+    expect(new Set(roleByParticipantId.values()).size).toBe(5);
+  });
+
+  it('não usa a ordem quando ninguém levou Smite', () => {
+    // Sem Smite não há como validar. Cai na pontuação por sinais, que ainda
+    // devolve as 5 roles.
+    const semSmite = time(-1);
+    const { roleByParticipantId } = resolveTeamRoles(semSmite, new Map());
+
+    expect(new Set(roleByParticipantId.values()).size).toBe(5);
+  });
+
+  it('respeita a ordem mesmo contra o pool declarado', () => {
+    // O pool diz que o participante 1 só joga JUNGLE, mas o saguão o pôs na
+    // primeira vaga (TOP). O saguão vence: é o que aconteceu de fato.
+    const pool = new Map([[1, { id: 'x', name: 'Ígor', roles: ['JUNGLE' as const] }]]);
+    const { roleByParticipantId } = resolveTeamRoles(time(1), pool);
+
+    expect(roleByParticipantId.get(1)).toBe('TOP');
+    expect(roleByParticipantId.get(2)).toBe('JUNGLE');
+  });
+});
