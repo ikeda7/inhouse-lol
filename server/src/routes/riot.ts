@@ -10,6 +10,7 @@ import {
 } from '../lib/riot.js';
 import { prisma } from '../lib/prisma.js';
 import { getChampionManifest } from '../lib/ddragon.js';
+import { getBuildManifest } from '../lib/ddragonBuild.js';
 import { recordMatch, type MatchPlayerInput } from '../services/series.js';
 import { asyncHandler } from './helpers.js';
 
@@ -33,6 +34,19 @@ riotRouter.get(
   '/champions',
   asyncHandler(async (_req, res) => {
     res.json({ success: true, data: await getChampionManifest() });
+  })
+);
+
+/**
+ * GET /api/riot/build - itens, feiticos e runas.
+ *
+ * Separado de /champions porque e bem maior (~500 itens) e so a tela de
+ * historico precisa. Quem abre o ranking nao paga por isso.
+ */
+riotRouter.get(
+  '/build',
+  asyncHandler(async (_req, res) => {
+    res.json({ success: true, data: await getBuildManifest() });
   })
 );
 

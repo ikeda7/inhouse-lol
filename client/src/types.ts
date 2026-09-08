@@ -99,6 +99,8 @@ export interface MatchStat {
   deaths: number;
   assists: number;
   damage: number;
+  damageTaken: number;
+  goldEarned: number;
   visionScore: number;
   cs: number;
   win: boolean;
@@ -110,6 +112,36 @@ export interface MatchStat {
   largestKillingSpree: number;
   largestMultiKill: number;
   firstBloodKill: boolean;
+  firstBloodAssist: boolean;
+  killingSprees: number;
+  largestCriticalStrike: number;
+  // --- scoreboard completo (ver o modelo MatchPlayerStat no servidor) ---
+  champLevel: number;
+  goldSpent: number;
+  totalDamageDealt: number;
+  damageToObjectives: number;
+  damageToTurrets: number;
+  damageSelfMitigated: number;
+  totalHeal: number;
+  physicalDamageToChampions: number;
+  magicDamageToChampions: number;
+  trueDamageToChampions: number;
+  timeCCingOthers: number;
+  longestTimeSpentLiving: number;
+  turretKills: number;
+  inhibitorKills: number;
+  wardsPlaced: number;
+  wardsKilled: number;
+  controlWardsBought: number;
+  laneMinionsKilled: number;
+  neutralMinionsKilled: number;
+  /** Os 7 slots em CSV. null = a origem nao trouxe build (caso do replay). */
+  items: string | null;
+  spell1Id: number | null;
+  spell2Id: number | null;
+  keystoneId: number | null;
+  primaryStyleId: number | null;
+  subStyleId: number | null;
   player: { id: string; name: string };
 }
 
@@ -121,9 +153,52 @@ export interface SeriesDetail extends Omit<SeriesSummary, 'matches' | 'scoreline
     gameDurationSec: number | null;
     playedAt: string;
     source: 'RIOT_API' | 'MANUAL';
+    /** Patch da partida. null nas importadas antes de a coluna existir. */
+    gameVersion: string | null;
+    surrendered: boolean;
     stats: MatchStat[];
+    teams: MatchTeamStat[];
+    bans: MatchBan[];
   }[];
   burnedChampions: BurnedChampion[];
+}
+
+/** Objetivos de um dos lados da partida. */
+export interface MatchTeamStat {
+  teamSide: TeamSide;
+  win: boolean;
+  towerKills: number;
+  inhibitorKills: number;
+  dragonKills: number;
+  baronKills: number;
+  riftHeraldKills: number;
+  voidgrubKills: number;
+  firstBlood: boolean;
+  firstTower: boolean;
+  firstInhibitor: boolean;
+  firstBaron: boolean;
+  firstDragon: boolean;
+}
+
+export interface MatchBan {
+  teamSide: TeamSide;
+  championId: number;
+  championName: string | null;
+  pickTurn: number;
+}
+
+/** Itens, feiticos e runas do Data Dragon. Um so por sessao. */
+export interface BuildAsset {
+  id: number;
+  name: string;
+  iconUrl: string;
+}
+
+export interface BuildManifest {
+  version: string;
+  items: (BuildAsset & { gold: number })[];
+  spells: BuildAsset[];
+  runes: BuildAsset[];
 }
 
 export interface LeaderboardEntry {
