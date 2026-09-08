@@ -16,5 +16,16 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "x-inhouse-config",
+          "value": "vercel-json-lido"
+        }
+      ]
+    }
   ]
 }
