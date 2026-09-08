@@ -6,7 +6,7 @@ import { asyncHandler } from './helpers.js';
 export const statsRouter = Router();
 
 const querySchema = z.object({
-  sortBy: z.enum(['points', 'winRate', 'avgKda']).default('points'),
+  sortBy: z.enum(['wins', 'winRate', 'avgKda', 'points']).default('wins'),
   minGames: z.coerce.number().int().min(0).default(0),
 });
 
