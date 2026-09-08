@@ -20,7 +20,8 @@
     "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace client",
     "start": "node server/dist/src/index.js",
     "db:recompute": "npm run db:recompute --workspace server",
-    "vercel-build": "prisma generate --schema=server/prisma/schema.prisma && npm run build --workspace client"
+    "vercel-build": "prisma generate --schema=server/prisma/schema.prisma && npm run build --workspace client",
+    "db:turso": "npm run db:turso --workspace server"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
