@@ -16,11 +16,11 @@ import { WINS_TO_CLINCH } from './series.js';
 export const POINTS_PER_MAP_WIN = 3;
 export const POINTS_PER_SERIES_WIN = 1;
 
-function safeDivide(numerator: number, denominator: number): number {
+export function safeDivide(numerator: number, denominator: number): number {
   return denominator === 0 ? 0 : numerator / denominator;
 }
 
-function round(value: number, decimals = 2): number {
+export function round(value: number, decimals = 2): number {
   const factor = 10 ** decimals;
   return Math.round(value * factor) / factor;
 }
@@ -29,7 +29,7 @@ function round(value: number, decimals = 2): number {
  * KDA. Com 0 mortes a divisao explodiria, entao usamos a convencao da
  * comunidade: trata como "perfect KDA" contando 1 morte.
  */
-function computeKda(kills: number, deaths: number, assists: number): number {
+export function computeKda(kills: number, deaths: number, assists: number): number {
   return round(safeDivide(kills + assists, Math.max(deaths, 1)));
 }
 

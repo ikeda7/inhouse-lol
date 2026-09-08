@@ -1,16 +1,18 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
-import { Trophy, Dices, Swords, Users, History } from 'lucide-react';
+import { Trophy, Dices, Swords, Users, History, Flame } from 'lucide-react';
 import { DashboardPage } from './pages/DashboardPage';
 import { DraftPage } from './pages/DraftPage';
 import { SeriesPage } from './pages/SeriesPage';
 import { PlayersPage } from './pages/PlayersPage';
 import { PlayerProfilePage } from './pages/PlayerProfilePage';
 import { HistoryPage } from './pages/HistoryPage';
+import { HighlightsPage } from './pages/HighlightsPage';
 
 const NAV = [
   { to: '/', label: 'Ranking', short: 'Ranking', icon: Trophy, end: true },
   { to: '/sorteio', label: 'Sorteio', short: 'Sorteio', icon: Dices, end: false },
   { to: '/serie', label: 'Série', short: 'Série', icon: Swords, end: false },
+  { to: '/destaques', label: 'Destaques', short: 'Destaques', icon: Flame, end: false },
   { to: '/historico', label: 'Histórico', short: 'Histórico', icon: History, end: false },
   { to: '/jogadores', label: 'Jogadores', short: 'Jogadores', icon: Users, end: true },
 ];
@@ -69,6 +71,7 @@ export function App() {
           <Route path="/serie" element={<SeriesPage />} />
           {/* Rota antiga: quem tiver o link salvo continua chegando. */}
           <Route path="/noite" element={<Navigate to="/serie" replace />} />
+          <Route path="/destaques" element={<HighlightsPage />} />
           <Route path="/historico" element={<HistoryPage />} />
           <Route path="/jogadores" element={<PlayersPage />} />
           <Route path="/jogadores/:playerId" element={<PlayerProfilePage />} />
@@ -93,7 +96,10 @@ export function App() {
             to={to}
             end={end}
             className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition ${
+              // whitespace-nowrap: com 6 abas cada uma fica com ~53px num
+              // celular de 320px, e "Destaques" quebraria em duas linhas,
+              // desalinhando a barra inteira.
+              `flex min-w-0 flex-1 flex-col items-center gap-1 whitespace-nowrap py-2.5 text-[10px] font-medium transition ${
                 isActive ? 'text-gold' : 'text-ink-faint'
               }`
             }
