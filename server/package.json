@@ -14,7 +14,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "db:recompute": "tsx scripts/recompute-series.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.3.0",

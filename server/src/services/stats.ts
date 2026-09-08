@@ -10,6 +10,7 @@
 import { prisma } from '../lib/prisma.js';
 import { ROLES, type Role } from '../lib/roles.js';
 import { resolveChampion } from '../lib/ddragon.js';
+import { WINS_TO_CLINCH } from './series.js';
 
 /** Pontuacao: +3 por mapa vencido, +1 de bonus por vencer a MD3. */
 export const POINTS_PER_MAP_WIN = 3;
@@ -65,21 +66,33 @@ async function loadSeriesWinBonus(): Promise<Map<string, number>> {
     select: {
       id: true,
       winnerTeam: true,
-      matches: { select: { stats: { select: { playerId: true, teamSide: true } } } },
+      matches: { select: { stats: { select: { playerId: true, win: true } } } },
     },
   });
 
   const bonusByPlayer = new Map<string, number>();
 
   for (const series of finished) {
-    // Quem esteve no lado vencedor em qualquer mapa da serie leva o bonus uma
-    // vez so -- os times podem ser re-sorteados entre os jogos.
-    const winners = new Set<string>();
+    // NAO da para usar `stat.teamSide === series.winnerTeam`: em custom os
+    // times trocam de lado entre os jogos, entao a cor nao identifica o time.
+    //
+    // Quem venceu a MD3 e, por definicao, quem ganhou os mapas necessarios para
+    // fecha-la. Contar vitorias por jogador resolve o problema sem precisar
+    // reconstruir a identidade dos times aqui.
+    const vitoriasPorJogador = new Map<string, number>();
     for (const match of series.matches) {
       for (const stat of match.stats) {
-        if (stat.teamSide === series.winnerTeam) winners.add(stat.playerId);
+        if (stat.win) {
+          vitoriasPorJogador.set(stat.playerId, (vitoriasPorJogador.get(stat.playerId) ?? 0) + 1);
+        }
       }
     }
+
+    const winners = new Set(
+      [...vitoriasPorJogador.entries()]
+        .filter(([, vitorias]) => vitorias >= WINS_TO_CLINCH)
+        .map(([playerId]) => playerId)
+    );
     for (const playerId of winners) {
       bonusByPlayer.set(
         playerId,

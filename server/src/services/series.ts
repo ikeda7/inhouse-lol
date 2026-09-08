@@ -8,6 +8,81 @@ import { resolveChampion } from '../lib/ddragon.js';
 
 /** Vitorias necessarias para fechar uma melhor de 3. */
 export const WINS_TO_CLINCH = 2;
+
+// ---------------------------------------------------------------------------
+// PLACAR DA MD3 -- por elenco, nao por cor
+//
+// Em custom os times trocam de lado entre os jogos. Contar vitorias por
+// BLUE/RED faz um 2-0 virar 1-1 quando os mesmos 5 vencem os dois jogos de
+// lados diferentes -- e ai a serie nunca fecha e ninguem leva o bonus de +1.
+// Aconteceu de verdade na MD3 de 07/09/2026 deste grupo.
+//
+// A identidade de um time e o CONJUNTO DE JOGADORES. Ancoramos no jogo 1: quem
+// estava de azul nele e o "Time A", quem estava de vermelho e o "Time B". Nos
+// jogos seguintes, cada lado e classificado por sobreposicao de elenco.
+//
+// Os campos `blueScore`/`redScore` passam a guardar Time A / Time B. Mantive os
+// nomes para nao migrar o banco com dados reais dentro; a UI rotula Time 1 / 2.
+// ---------------------------------------------------------------------------
+
+/** Maioria de 5: 3 jogadores em comum ja identificam o time. */
+const MIN_OVERLAP_TO_MATCH_TEAM = 3;
+
+interface MatchForStanding {
+  matchNumber: number;
+  winner: string | null;
+  stats: { playerId: string; teamSide: string }[];
+}
+
+export interface SeriesStanding {
+  teamAWins: number;
+  teamBWins: number;
+  /** true quando os elencos mudaram tanto que a ancora do jogo 1 nao serve. */
+  rostersUnstable: boolean;
+}
+
+function rosterOf(match: MatchForStanding, side: 'BLUE' | 'RED'): Set<string> {
+  return new Set(match.stats.filter((s) => s.teamSide === side).map((s) => s.playerId));
+}
+
+function overlap(a: Set<string>, b: Set<string>): number {
+  let count = 0;
+  for (const id of a) if (b.has(id)) count++;
+  return count;
+}
+
+export function computeSeriesStanding(matches: MatchForStanding[]): SeriesStanding {
+  const ordered = [...matches].sort((a, b) => a.matchNumber - b.matchNumber);
+  const first = ordered[0];
+  if (!first) return { teamAWins: 0, teamBWins: 0, rostersUnstable: false };
+
+  const teamA = rosterOf(first, 'BLUE');
+
+  let teamAWins = 0;
+  let teamBWins = 0;
+  let rostersUnstable = false;
+
+  for (const match of ordered) {
+    if (match.winner !== 'BLUE' && match.winner !== 'RED') continue;
+
+    const winners = rosterOf(match, match.winner);
+    const semelhanca = overlap(winners, teamA);
+
+    if (semelhanca >= MIN_OVERLAP_TO_MATCH_TEAM) {
+      teamAWins++;
+    } else if (winners.size - semelhanca >= MIN_OVERLAP_TO_MATCH_TEAM) {
+      teamBWins++;
+    } else {
+      // Elenco embaralhado demais (re-sorteio no meio da MD3): sem ancora
+      // confiavel, cai no lado bruto e sinaliza para a UI.
+      rostersUnstable = true;
+      if (match.winner === 'BLUE') teamAWins++;
+      else teamBWins++;
+    }
+  }
+
+  return { teamAWins, teamBWins, rostersUnstable };
+}
 export const MAX_MATCHES_PER_SERIES = 3;
 
 export class SeriesError extends Error {
@@ -165,10 +240,6 @@ export async function recordMatch(input: RecordMatchInput) {
     }
   }
 
-  const blueScore = series.blueScore + (input.winner === 'BLUE' ? 1 : 0);
-  const redScore = series.redScore + (input.winner === 'RED' ? 1 : 0);
-  const clinched = blueScore >= WINS_TO_CLINCH || redScore >= WINS_TO_CLINCH;
-
   return prisma.$transaction(async (tx) => {
     const match = await tx.match.create({
       data: {
@@ -224,13 +295,29 @@ export async function recordMatch(input: RecordMatchInput) {
       }
     }
 
+    // Recalcula o placar do ZERO a partir de todos os jogos, em vez de somar
+    // no acumulado. Custa uma consulta e garante que corrigir um jogo antigo
+    // conserte a serie inteira, em vez de deixar um erro cravado no total.
+    const todosOsJogos = await tx.match.findMany({
+      where: { seriesId: series.id },
+      select: {
+        matchNumber: true,
+        winner: true,
+        stats: { select: { playerId: true, teamSide: true } },
+      },
+    });
+
+    const { teamAWins, teamBWins } = computeSeriesStanding(todosOsJogos);
+    const clinched = teamAWins >= WINS_TO_CLINCH || teamBWins >= WINS_TO_CLINCH;
+
     const updatedSeries = await tx.series.update({
       where: { id: series.id },
       data: {
-        blueScore,
-        redScore,
+        // blueScore/redScore = Time A / Time B (ancorados no jogo 1).
+        blueScore: teamAWins,
+        redScore: teamBWins,
         status: clinched ? 'FINISHED' : 'ONGOING',
-        winnerTeam: clinched ? (blueScore > redScore ? 'BLUE' : 'RED') : null,
+        winnerTeam: clinched ? (teamAWins > teamBWins ? 'BLUE' : 'RED') : null,
       },
     });
 
