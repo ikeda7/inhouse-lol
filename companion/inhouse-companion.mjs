@@ -31,7 +31,7 @@
  *   node companion/inhouse-companion.mjs --replays      lista os replays salvos
  *   node companion/inhouse-companion.mjs --replay 123   importa de um replay
  *
- * Opcoes: --dry-run, --api <url>, --series <id>, --interval <segundos>
+ * Opcoes: --dry-run, --refresh, --api <url>, --series <id>, --interval <segundos>
  *
  * Requisitos: Node 18+ (usa fetch nativo). O cliente do LoL precisa estar
  * ABERTO para os comandos de historico -- os de replay leem arquivo em disco e
@@ -66,6 +66,10 @@ const CONFIG = {
   // Cadastra quem nao esta na base usando o nick, para uma partida antiga nao
   // ficar de fora so porque ninguem lembra de quem e aquele nick.
   autoCreate: hasFlag('--criar-faltantes'),
+  // Reescreve a scoreboard de uma partida ja importada em vez de so avisar que
+  // ela existe. E o caminho para preencher coluna nova (destaques) ou corrigir
+  // role sem apagar a partida -- apagar levaria placar da MD3 e Fearless junto.
+  refresh: hasFlag('--refresh'),
   pollIntervalMs: Number(getOption('--interval', '15')) * 1000,
 };
 
@@ -413,6 +417,7 @@ const sendGame = (game) =>
     seriesId: CONFIG.seriesId ?? undefined,
     dryRun: CONFIG.dryRun,
     autoCreatePlayers: CONFIG.autoCreate,
+    refreshStats: CONFIG.refresh,
   });
 
 const sendReplay = (entry) =>
@@ -424,11 +429,17 @@ const sendReplay = (entry) =>
     seriesId: CONFIG.seriesId ?? undefined,
     dryRun: CONFIG.dryRun,
     autoCreatePlayers: CONFIG.autoCreate,
+    refreshStats: CONFIG.refresh,
   });
 
 function describeResult({ ok, payload }) {
   if (ok) {
     const data = payload.data ?? {};
+
+    if (data.refreshed) {
+      log.ok(data.message ?? 'Estatisticas atualizadas.');
+      return;
+    }
 
     if (data.alreadyImported) {
       log.warn(data.message ?? 'Partida ja registrada.');
@@ -474,7 +485,7 @@ function describeResult({ ok, payload }) {
     }
   }
   if (payload.code === 'NO_ONGOING_SERIES') {
-    log.info('      Abra uma MD3 em "Noite de jogos" antes de importar.');
+    log.info('      Abra uma MD3 na aba Serie antes de importar.');
   }
   if (payload.code === 'FEARLESS_VIOLATION') {
     log.info('      Algum campeao dessa partida ja foi usado nessa MD3.');
@@ -762,7 +773,7 @@ async function main() {
     log.info(
       ongoing
         ? `MD3 em andamento: ${ongoing.name ?? ongoing.id.slice(0, 8)} (${ongoing.blueScore}-${ongoing.redScore})`
-        : 'Nenhuma MD3 aberta -- abra uma em "Noite de jogos" antes de importar.'
+        : 'Nenhuma MD3 aberta -- abra uma na aba Serie antes de importar.'
     );
     log.info(
       `Jogadores vinculados: ${status?.data?.linkedPlayers ?? 0}/${status?.data?.totalPlayers ?? 0}\n`
@@ -797,7 +808,8 @@ async function main() {
   log.info('  --replays          lista os replays salvos');
   log.info('  --replay <id>      importa a partida a partir do replay');
   log.info('');
-  log.info('Extras: --dry-run, --api <url>, --series <id>, --interval <seg>\n');
+  log.info('Extras: --dry-run, --api <url>, --series <id>, --interval <seg>');
+  log.info('  --refresh          reescreve a scoreboard de partidas ja importadas\n');
 }
 
 main().catch((error) => {

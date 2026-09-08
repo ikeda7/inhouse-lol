@@ -5,9 +5,10 @@
  * remoto. O caminho suportado é gerar o SQL a partir do schema
  * (`prisma migrate diff`) e executá-lo pelo cliente libSQL.
  *
- * É idempotente na estrutura (CREATE TABLE só roda se as tabelas não existirem)
- * e recusa sobrescrever dados sem `--force`, para não apagar produção por
- * engano.
+ * É idempotente na estrutura: as tabelas só são criadas se não existirem, e as
+ * colunas que o schema ganhou depois entram por ALTER TABLE (ver
+ * `colunasEsperadas`). Dados só são sobrescritos com `--force`, para não apagar
+ * produção por engano.
  *
  * Uso:
  *   npm run db:turso --workspace server               copia local -> Turso
@@ -48,6 +49,73 @@ function credenciais(): { url: string; authToken: string } {
   const authToken = pegar('DATABASE_AUTH_TOKEN');
   if (!url || !authToken) throw new Error('.env.turso sem DATABASE_URL ou DATABASE_AUTH_TOKEN.');
   return { url, authToken };
+}
+
+/**
+ * Colunas esperadas por tabela, lidas do SQL que o `prisma migrate diff` gerou.
+ *
+ * Existe porque `CREATE TABLE IF NOT EXISTS` não é migração: num banco que já
+ * tem as tabelas, ele não faz nada e uma coluna nova do schema simplesmente
+ * nunca chega no Turso -- em silêncio, que é o pior jeito de falhar. Com esse
+ * mapa, o passo seguinte compara com o `PRAGMA table_info` real e emite os
+ * `ALTER TABLE ADD COLUMN` que faltam.
+ */
+/** Tipos que o Prisma emite no provider sqlite. */
+const TIPOS_SQLITE = 'TEXT|INTEGER|REAL|BLOB|NUMERIC|DECIMAL|BOOLEAN|DATETIME';
+
+/**
+ * Executa um statement dizendo qual era, se falhar.
+ *
+ * O erro cru do libSQL é só "syntax error at (1, 43)" -- sem o statement, isso
+ * não localiza nada num script que roda 20+ comandos.
+ */
+async function executar(turso: ReturnType<typeof createClient>, sql: string) {
+  try {
+    await turso.execute(sql);
+  } catch (erro) {
+    const motivo = erro instanceof Error ? erro.message : String(erro);
+    throw new Error(`Falhou em:\n${sql}\n\nMotivo: ${motivo}`);
+  }
+}
+
+/**
+ * Nomes das colunas de um `CREATE TABLE`, direto do texto.
+ *
+ * Casa `"nome" TIPO`, o que naturalmente ignora `FOREIGN KEY ("x")` e
+ * `REFERENCES "T" ("id")` -- ali o identificador é seguido de parêntese, não de
+ * um tipo. Funciona tanto no SQL multilinha do Prisma quanto no que o SQLite
+ * devolve de volta.
+ */
+function colunasDeclaradas(createTable: string): Set<string> {
+  const encontradas = createTable.matchAll(
+    new RegExp(`"([A-Za-z_][A-Za-z0-9_]*)"\\s+(?:${TIPOS_SQLITE})\\b`, 'gi')
+  );
+  return new Set([...encontradas].map((m) => m[1]));
+}
+
+function colunasEsperadas(sql: string): Map<string, { nome: string; def: string }[]> {
+  const porTabela = new Map<string, { nome: string; def: string }[]>();
+
+  for (const bloco of sql.split(/CREATE TABLE /i).slice(1)) {
+    const tabela = bloco.match(/^"([^"]+)"/)?.[1];
+    if (!tabela) continue;
+
+    const colunas = bloco
+      .split('\n')
+      .map((linha) => linha.trim().replace(/,$/, ''))
+      // Nome entre aspas SEGUIDO DE UM TIPO. Exigir o tipo é o que descarta
+      // CONSTRAINT/FOREIGN KEY/UNIQUE e, principalmente, a linha de abertura
+      // `"Player" (` -- que sem isso virava uma "coluna" chamada Player.
+      .filter((linha) => new RegExp(`^"[^"]+"\\s+(?:${TIPOS_SQLITE})\\b`, 'i').test(linha))
+      .map((linha) => ({ nome: linha.match(/^"([^"]+)"/)![1], def: linha }))
+      // PK não se adiciona por ALTER TABLE no SQLite; se faltar, o problema é
+      // outro e um ADD COLUMN silencioso só esconderia.
+      .filter((coluna) => !/PRIMARY KEY/i.test(coluna.def));
+
+    porTabela.set(tabela, colunas);
+  }
+
+  return porTabela;
 }
 
 /** Ordem de inserção: pai antes de filho, por causa das foreign keys. */
@@ -111,9 +179,31 @@ async function main() {
   }
 
   for (const comando of comandos) {
-    await turso.execute(comando);
+    await executar(turso, comando);
   }
   console.log(`  ${comandos.length} comando(s) aplicado(s)`);
+
+  // --- 1b. colunas que apareceram no schema depois da criação das tabelas ---
+  let adicionadas = 0;
+  for (const [tabela, colunas] of colunasEsperadas(sql)) {
+    // `PRAGMA table_info` não passa no parser do libSQL (SQL_PARSE_ERROR), então
+    // a fonte da verdade é o CREATE TABLE guardado pelo próprio SQLite.
+    const atual = await turso.execute({
+      sql: "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+      args: [tabela],
+    });
+    const criacao = atual.rows[0]?.sql;
+    if (typeof criacao !== 'string') continue; // tabela acabou de nascer completa
+    const presentes = colunasDeclaradas(criacao);
+
+    for (const coluna of colunas) {
+      if (presentes.has(coluna.nome)) continue;
+      await executar(turso, `ALTER TABLE "${tabela}" ADD COLUMN ${coluna.def}`);
+      console.log(`  + ${tabela}.${coluna.nome}`);
+      adicionadas++;
+    }
+  }
+  if (adicionadas === 0) console.log('  nenhuma coluna nova a adicionar');
 
   if (schemaOnly) {
     console.log('\n--schema-only: dados não foram copiados.');

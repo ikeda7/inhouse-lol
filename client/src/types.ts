@@ -102,6 +102,14 @@ export interface MatchStat {
   visionScore: number;
   cs: number;
   win: boolean;
+  // --- destaques, prontos do cliente do LoL (ver components/Highlights.tsx) ---
+  doubleKills: number;
+  tripleKills: number;
+  quadraKills: number;
+  pentaKills: number;
+  largestKillingSpree: number;
+  largestMultiKill: number;
+  firstBloodKill: boolean;
   player: { id: string; name: string };
 }
 

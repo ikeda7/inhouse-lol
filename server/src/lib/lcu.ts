@@ -57,6 +57,13 @@ export interface LcuParticipantStats {
   totalMinionsKilled?: number;
   neutralMinionsKilled?: number;
   win?: boolean;
+  doubleKills?: number;
+  tripleKills?: number;
+  quadraKills?: number;
+  pentaKills?: number;
+  largestKillingSpree?: number;
+  largestMultiKill?: number;
+  firstBloodKill?: boolean;
 }
 
 export interface LcuParticipant {
@@ -453,6 +460,14 @@ export interface LcuImportedParticipant {
   visionScore: number;
   cs: number;
   win: boolean;
+  /** Destaques da partida -- ver o modelo MatchPlayerStat. */
+  doubleKills: number;
+  tripleKills: number;
+  quadraKills: number;
+  pentaKills: number;
+  largestKillingSpree: number;
+  largestMultiKill: number;
+  firstBloodKill: boolean;
 }
 
 export interface LcuImportedMatch {
@@ -589,6 +604,13 @@ export function mapLcuGame(
       goldEarned: stats.goldEarned ?? 0,
       visionScore: stats.visionScore ?? 0,
       cs: (stats.totalMinionsKilled ?? 0) + (stats.neutralMinionsKilled ?? 0),
+      doubleKills: stats.doubleKills ?? 0,
+      tripleKills: stats.tripleKills ?? 0,
+      quadraKills: stats.quadraKills ?? 0,
+      pentaKills: stats.pentaKills ?? 0,
+      largestKillingSpree: stats.largestKillingSpree ?? 0,
+      largestMultiKill: stats.largestMultiKill ?? 0,
+      firstBloodKill: stats.firstBloodKill === true,
       win: participant.teamId === 100 ? blueWon : !blueWon,
     };
   });

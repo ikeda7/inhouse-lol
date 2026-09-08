@@ -148,6 +148,20 @@ model MatchPlayerStat {
 
   win Boolean
 
+  // --- destaques ---
+  // Vem prontos do cliente do LoL; antes eram descartados na importacao.
+  // Guardados por jogo (nao acumulados) para o historico saber em QUAL partida
+  // a quadra aconteceu.
+  doubleKills         Int @default(0)
+  tripleKills         Int @default(0)
+  quadraKills         Int @default(0)
+  pentaKills          Int @default(0)
+  /// Maior sequencia de abates sem morrer.
+  largestKillingSpree Int @default(0)
+  /// 2 = double, 3 = triple, 4 = quadra, 5 = penta.
+  largestMultiKill    Int @default(0)
+  firstBloodKill      Boolean @default(false)
+
   match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
