@@ -4,6 +4,7 @@ import { seriesApi, type RecordMatchPlayer } from '../api/client';
 import { useAction } from '../hooks/useAsync';
 import { Button, Card, ErrorState, RoleBadge } from './ui';
 import { ChampionPicker } from './ChampionPicker';
+import { Select } from './Select';
 import { ROLES, ROLE_LABEL, type BurnedChampion, type Player, type Role, type TeamSide } from '../types';
 
 /** Uma linha do scoreboard em edicao. */
@@ -154,7 +155,7 @@ export function MatchForm({
     <Card title="Registrar partida">
       {/* --- vencedor: primeira decisao, porque tinge o resto do formulario --- */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <span className="text-xs uppercase tracking-wider text-gold-400/70">Quem venceu?</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-ink-faint">Quem venceu?</span>
         {(['BLUE', 'RED'] as TeamSide[]).map((side) => (
           <button
             key={side}
@@ -164,9 +165,9 @@ export function MatchForm({
             className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold uppercase transition ${
               winner === side
                 ? side === 'BLUE'
-                  ? 'border-blueside bg-blueside/25 text-blueside'
-                  : 'border-redside bg-redside/25 text-redside'
-                : 'border-hextech-700 text-gold-400/50 hover:border-gold-400/50'
+                  ? 'border-blue bg-blue/25 text-blue'
+                  : 'border-red bg-red/25 text-red'
+                : 'border-line text-ink-faint hover:border-gold/50'
             }`}
           >
             <Trophy size={13} />
@@ -174,14 +175,14 @@ export function MatchForm({
           </button>
         ))}
 
-        <label className="ml-auto text-xs text-gold-400/60">
+        <label className="ml-auto text-xs text-ink-faint">
           Duracao (min)
           <input
             value={durationMin}
             onChange={(event) => setDurationMin(event.target.value.replace(/\D/g, ''))}
             placeholder="30"
             inputMode="numeric"
-            className="ml-2 w-16 rounded border border-hextech-700 bg-hextech-800/60 px-2 py-1 text-xs text-gold-300 placeholder:text-gold-400/30 focus:border-gold-400 focus:outline-none"
+            className="ml-2 w-16 rounded border border-line bg-raised px-2 py-1 text-xs text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
           />
         </label>
       </div>
@@ -191,7 +192,7 @@ export function MatchForm({
           <div key={side}>
             <p
               className={`mb-1.5 text-[11px] font-bold uppercase tracking-wider ${
-                side === 'BLUE' ? 'text-blueside' : 'text-redside'
+                side === 'BLUE' ? 'text-blue' : 'text-red'
               }`}
             >
               Time {side === 'BLUE' ? 'Azul' : 'Vermelho'}
@@ -200,7 +201,7 @@ export function MatchForm({
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] border-separate border-spacing-y-1 text-xs">
                 <thead>
-                  <tr className="text-left text-[10px] uppercase tracking-wider text-gold-400/50">
+                  <tr className="text-left text-[10px] uppercase tracking-wider text-ink-faint">
                     <th className="w-20 font-medium">Role</th>
                     <th className="w-40 font-medium">Jogador</th>
                     <th className="w-48 font-medium">Campeao</th>
@@ -222,29 +223,24 @@ export function MatchForm({
                         </td>
 
                         <td className="pr-2">
-                          <select
+                          <Select
                             value={row.playerId}
-                            onChange={(event) => update(index, { playerId: event.target.value })}
-                            className={`w-full rounded border bg-hextech-800/60 px-2 py-1.5 text-xs focus:outline-none ${
-                              row.playerId
-                                ? 'border-hextech-700 text-gold-300 focus:border-gold-400'
-                                : 'border-amber-500/50 text-gold-400/50'
-                            }`}
-                          >
-                            <option value="">selecione...</option>
-                            {players.map((player) => (
-                              <option
-                                key={player.id}
-                                value={player.id}
-                                // Bloqueia escalar a mesma pessoa duas vezes.
-                                disabled={
-                                  usedPlayerIds.has(player.id) && player.id !== row.playerId
-                                }
-                              >
-                                {player.name}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(playerId) => update(index, { playerId })}
+                            invalid={!row.playerId}
+                            ariaLabel={`Jogador de ${ROLE_LABEL[row.rolePlayed]} do time ${side === 'BLUE' ? 'azul' : 'vermelho'}`}
+                            options={players.map((player) => ({
+                              value: player.id,
+                              label: player.name,
+                              // Bloqueia escalar a mesma pessoa duas vezes --
+                              // continua visível, com o motivo à mostra.
+                              disabled:
+                                usedPlayerIds.has(player.id) && player.id !== row.playerId,
+                              hint:
+                                usedPlayerIds.has(player.id) && player.id !== row.playerId
+                                  ? 'escalado'
+                                  : undefined,
+                            }))}
+                          />
                         </td>
 
                         <td className="pr-2">
@@ -271,7 +267,7 @@ export function MatchForm({
                                 inputMode="numeric"
                                 placeholder="0"
                                 aria-label={`${field} de ${ROLE_LABEL[row.rolePlayed]} ${side}`}
-                                className="w-full rounded border border-hextech-700 bg-hextech-800/60 px-1.5 py-1.5 text-center text-xs text-gold-300 placeholder:text-gold-400/25 focus:border-gold-400 focus:outline-none"
+                                className="w-full rounded border border-line bg-raised px-1.5 py-1.5 text-center text-xs text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
                               />
                             </td>
                           )

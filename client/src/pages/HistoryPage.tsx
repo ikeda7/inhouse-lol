@@ -19,13 +19,13 @@ export function HistoryPage() {
   return (
     <Card
       title={
-        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-gold-400">
+        <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
           <History size={16} />
           Historico de series
         </h2>
       }
     >
-      <ul className="divide-y divide-hextech-700/40">
+      <ul className="divide-y divide-line/40">
         {data.map((series) => {
           const isOpen = expanded === series.id;
           return (
@@ -33,18 +33,18 @@ export function HistoryPage() {
               <button
                 onClick={() => setExpanded(isOpen ? null : series.id)}
                 aria-expanded={isOpen}
-                className="flex w-full items-center gap-3 py-3 text-left hover:text-gold-400"
+                className="flex w-full items-center gap-3 py-3 text-left hover:text-gold"
               >
                 {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                 <span className="flex-1 text-sm font-medium">
                   {series.name ?? new Date(series.date).toLocaleDateString('pt-BR')}
                 </span>
-                <span className="font-mono text-sm font-bold text-gold-400">
+                <span className="font-mono text-sm font-bold text-gold">
                   {series.scoreline}
                 </span>
                 <span
                   className={`w-24 text-right text-xs ${
-                    series.status === 'ONGOING' ? 'text-amber-400' : 'text-gold-400/50'
+                    series.status === 'ONGOING' ? 'text-amber-400' : 'text-ink-faint'
                   }`}
                 >
                   {series.status === 'ONGOING'
@@ -85,9 +85,9 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
       {data.matches.map((match) => (
         <div
           key={match.id}
-          className="rounded-lg border border-hextech-700/50 bg-hextech-800/30 p-3"
+          className="rounded-lg border border-line/50 bg-raised/30 p-3"
         >
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gold-400/70">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-faint">
             Jogo {match.matchNumber} ·{' '}
             {match.winner === 'BLUE' ? 'vitoria azul' : 'vitoria vermelha'}
             {match.gameDurationSec
@@ -100,7 +100,7 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
               <div key={side}>
                 <p
                   className={`mb-1 text-[11px] font-bold uppercase ${
-                    side === 'BLUE' ? 'text-blueside' : 'text-redside'
+                    side === 'BLUE' ? 'text-blue' : 'text-red'
                   }`}
                 >
                   {side === 'BLUE' ? 'Azul' : 'Vermelho'}
@@ -110,14 +110,14 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
                     .filter((stat) => stat.teamSide === side)
                     .map((stat) => (
                       <li key={stat.id} className="flex items-center gap-2">
-                        <span className="w-14 shrink-0 text-gold-400/50">
+                        <span className="w-14 shrink-0 text-ink-faint">
                           {ROLE_LABEL[stat.rolePlayed]}
                         </span>
                         <span className="flex-1 truncate">{stat.player.name}</span>
-                        <span className="truncate text-gold-400/60">
+                        <span className="truncate text-ink-faint">
                           {stat.championName}
                         </span>
-                        <span className="font-mono text-gold-300/80">
+                        <span className="font-mono text-ink/80">
                           {stat.kills}/{stat.deaths}/{stat.assists}
                         </span>
                       </li>
@@ -130,7 +130,7 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
       ))}
 
       {data.burnedChampions.length > 0 && (
-        <p className="text-xs text-gold-400/50">
+        <p className="text-xs text-ink-faint">
           Fearless: {data.burnedChampions.map((c) => c.championName).join(', ')}
         </p>
       )}

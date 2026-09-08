@@ -62,7 +62,7 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
           <div className="flex flex-wrap items-center gap-2">
             <Link
               to={`/jogadores/${player.id}`}
-              className="text-sm font-medium hover:text-gold-400 hover:underline"
+              className="text-sm font-medium hover:text-gold hover:underline"
             >
               {player.name}
             </Link>
@@ -98,14 +98,14 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
         <button
           onClick={toggleActive}
           title={player.active ? 'Desativar (some do sorteio)' : 'Reativar'}
-          className="shrink-0 text-gold-400/40 hover:text-gold-400"
+          className="shrink-0 text-ink-faint hover:text-gold"
         >
           {player.active ? <Eye size={15} /> : <EyeOff size={15} />}
         </button>
         <button
           onClick={() => setEditing(true)}
           title="Editar"
-          className="shrink-0 text-gold-400/40 hover:text-gold-400"
+          className="shrink-0 text-ink-faint hover:text-gold"
         >
           <Pencil size={15} />
         </button>
@@ -114,30 +114,30 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
   }
 
   return (
-    <li className="rounded-lg border border-gold-400/40 bg-gold-400/5 p-3">
+    <li className="rounded-lg border border-gold/40 bg-gold/5 p-3">
       <div className="grid gap-2 sm:grid-cols-2">
-        <label className="text-[11px] text-gold-400/70">
+        <label className="text-[11px] text-ink-faint">
           Nome
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="mt-1 w-full rounded border border-hextech-700 bg-hextech-800/60 px-2 py-1.5 text-xs text-gold-300 focus:border-gold-400 focus:outline-none"
+            className="mt-1 w-full rounded border border-line bg-raised px-2 py-1.5 text-xs text-ink focus:border-gold focus:outline-none"
           />
         </label>
 
-        <label className="text-[11px] text-gold-400/70">
-          Riot ID <span className="text-gold-400/40">(Nick#TAG)</span>
+        <label className="text-[11px] text-ink-faint">
+          Riot ID <span className="text-ink-faint">(Nick#TAG)</span>
           <input
             value={riotId}
             onChange={(event) => setRiotId(event.target.value)}
             placeholder="Cangosul#PCBR"
-            className="mt-1 w-full rounded border border-hextech-700 bg-hextech-800/60 px-2 py-1.5 text-xs text-gold-300 placeholder:text-gold-400/25 focus:border-gold-400 focus:outline-none"
+            className="mt-1 w-full rounded border border-line bg-raised px-2 py-1.5 text-xs text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
           />
         </label>
       </div>
 
       <div className="mt-2">
-        <p className="text-[11px] text-gold-400/70">
+        <p className="text-[11px] text-ink-faint">
           Roles (ordem = preferencia; a primeira e a main)
         </p>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -152,11 +152,11 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
                 aria-pressed={selected}
                 className={`rounded border px-2 py-1 text-[11px] font-semibold transition ${
                   selected
-                    ? 'border-gold-400 bg-gold-400/15 text-gold-300'
-                    : 'border-hextech-700 text-gold-400/60 hover:border-gold-400/50'
+                    ? 'border-gold bg-gold/15 text-ink'
+                    : 'border-line text-ink-faint hover:border-gold/50'
                 }`}
               >
-                {selected && <span className="mr-1 text-gold-400">{position + 1}.</span>}
+                {selected && <span className="mr-1 text-gold">{position + 1}.</span>}
                 {ROLE_LABEL[role]}
               </button>
             );

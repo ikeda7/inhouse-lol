@@ -31,13 +31,13 @@ export function BurnedChampions({
   return (
     <Card
       title={
-        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-gold-400">
+        <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
           <Flame size={16} className="text-orange-400" />
           Campeoes queimados
         </h2>
       }
       action={
-        <span className="text-xs text-gold-400/60">
+        <span className="text-xs text-ink-faint">
           {burned.length} indisponivel{burned.length === 1 ? '' : 'is'}
         </span>
       }
@@ -50,7 +50,7 @@ export function BurnedChampions({
             .sort(([a], [b]) => Number(a) - Number(b))
             .map(([matchNumber, champions]) => (
               <div key={matchNumber}>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gold-400/60">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
                   Queimados no jogo {matchNumber}
                 </p>
                 <ul className="flex flex-wrap gap-2">
@@ -69,10 +69,10 @@ export function BurnedChampions({
                             width={48}
                             height={48}
                             loading="lazy"
-                            className="h-12 w-12 rounded border border-hextech-700 opacity-40 grayscale transition group-hover:opacity-70"
+                            className="h-12 w-12 rounded border border-line opacity-40 grayscale transition group-hover:opacity-70"
                           />
                         ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded border border-hextech-700 bg-hextech-800 text-[9px] opacity-50">
+                          <div className="flex h-12 w-12 items-center justify-center rounded border border-line bg-raised text-[9px] opacity-50">
                             {champion.championName.slice(0, 6)}
                           </div>
                         )}
@@ -82,7 +82,7 @@ export function BurnedChampions({
                           aria-hidden
                           className="pointer-events-none absolute inset-0 flex items-center justify-center"
                         >
-                          <span className="h-[2px] w-full rotate-45 bg-redside/70" />
+                          <span className="h-[2px] w-full rotate-45 bg-red/70" />
                         </span>
                         <span className="sr-only">{champion.championName} indisponivel</span>
                       </li>

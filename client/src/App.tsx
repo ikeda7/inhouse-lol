@@ -8,45 +8,61 @@ import { PlayerProfilePage } from './pages/PlayerProfilePage';
 import { HistoryPage } from './pages/HistoryPage';
 
 const NAV = [
-  { to: '/', label: 'Classificacao', icon: Trophy, end: true },
-  { to: '/sorteio', label: 'Sorteio', icon: Dices, end: false },
-  { to: '/noite', label: 'Noite de jogos', icon: Swords, end: false },
-  { to: '/historico', label: 'Historico', icon: History, end: false },
-  { to: '/jogadores', label: 'Jogadores', icon: Users, end: true },
+  { to: '/', label: 'Ranking', short: 'Ranking', icon: Trophy, end: true },
+  { to: '/sorteio', label: 'Sorteio', short: 'Sorteio', icon: Dices, end: false },
+  { to: '/noite', label: 'Noite de jogos', short: 'Noite', icon: Swords, end: false },
+  { to: '/historico', label: 'Histórico', short: 'Histórico', icon: History, end: false },
+  { to: '/jogadores', label: 'Jogadores', short: 'Jogadores', icon: Users, end: true },
 ];
 
+/**
+ * Navegação em dois formatos:
+ *  - no desktop, no topo junto do título;
+ *  - no celular, barra fixa embaixo, onde o polegar alcança.
+ *
+ * Repetir a lista em duas marcações é mais simples e mais legível do que
+ * espremer um menu só nos dois contextos com CSS.
+ */
 export function App() {
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-hextech-700/60 bg-hextech-900/80 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-lg font-bold tracking-tight text-gold-400">
-            InHouse <span className="text-gold-300">LoL</span>
-          </h1>
+    <div className="min-h-screen pb-20 sm:pb-0">
+      <header className="sticky top-0 z-30 border-b border-line/50 bg-base/85 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-4 py-3.5 sm:px-6">
+          <NavLink to="/" className="group flex items-baseline gap-1.5">
+            <span className="text-base font-bold tracking-tight text-ink">InHouse</span>
+            <span className="text-base font-bold tracking-tight text-gold">LoL</span>
+          </NavLink>
 
-          <nav className="flex flex-wrap gap-1" aria-label="Navegacao principal">
+          <nav className="hidden gap-0.5 sm:flex" aria-label="Navegação principal">
             {NAV.map(({ to, label, icon: Icon, end }) => (
               <NavLink
                 key={to}
                 to={to}
                 end={end}
                 className={({ isActive }) =>
-                  `flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                    isActive
-                      ? 'bg-gold-400/15 text-gold-400'
-                      : 'text-gold-300/60 hover:text-gold-400'
+                  `relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+                    isActive ? 'text-ink' : 'text-ink-faint hover:text-ink-muted'
                   }`
                 }
               >
-                <Icon size={14} />
-                {label}
+                {({ isActive }) => (
+                  <>
+                    <Icon size={14} />
+                    {label}
+                    {/* Sublinhado do item ativo: marca a posição sem pintar
+                        um bloco inteiro de cor. */}
+                    {isActive && (
+                      <span className="absolute inset-x-3 -bottom-[14px] h-px bg-gold" />
+                    )}
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-6">
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/sorteio" element={<DraftPage />} />
@@ -56,10 +72,35 @@ export function App() {
           <Route path="/jogadores/:playerId" element={<PlayerProfilePage />} />
           <Route
             path="*"
-            element={<p className="py-10 text-center text-sm text-gold-400/60">Pagina nao encontrada.</p>}
+            element={
+              <p className="py-16 text-center text-sm text-ink-faint">Página não encontrada.</p>
+            }
           />
         </Routes>
       </main>
+
+      {/* Barra inferior no celular. `pb-safe` via padding-bottom evita que o
+          gesto de home do iOS cubra os rótulos. */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line/50 bg-base/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl sm:hidden"
+        aria-label="Navegação principal"
+      >
+        {NAV.map(({ to, short, icon: Icon, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) =>
+              `flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition ${
+                isActive ? 'text-gold' : 'text-ink-faint'
+              }`
+            }
+          >
+            <Icon size={18} />
+            {short}
+          </NavLink>
+        ))}
+      </nav>
     </div>
   );
 }

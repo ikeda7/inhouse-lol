@@ -69,7 +69,7 @@ export function DraftPage() {
     <div className="space-y-6">
       <Card
         title={
-          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-gold-400">
+          <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
             <Users size={16} />
             Quem veio hoje
           </h2>
@@ -79,13 +79,13 @@ export function DraftPage() {
             {sortedPlayers.length >= REQUIRED_PLAYERS && selected.size === 0 && (
               <button
                 onClick={selectAll}
-                className="text-xs font-semibold text-gold-400/60 hover:text-gold-400"
+                className="text-xs font-semibold text-ink-faint hover:text-gold"
               >
                 marcar todos
               </button>
             )}
             <span
-              className={`text-xs font-semibold ${canDraw ? 'text-emerald-400' : 'text-gold-400/60'}`}
+              className={`text-xs font-semibold ${canDraw ? 'text-emerald-400' : 'text-ink-faint'}`}
             >
               {selected.size} / {REQUIRED_PLAYERS}
             </span>
@@ -147,13 +147,13 @@ export function DraftPage() {
 
           {/* Transparencia do algoritmo: a seed permite reproduzir um sorteio
               contestado, e o custo justifica as escolhas de role. */}
-          <p className="text-center text-xs text-gold-400/50">
+          <p className="text-center text-xs text-ink-faint">
             Diferenca de rating: {result.ratingDiff} · custo de roles: {result.comfortCost} ·{' '}
             {result.solutionsEvaluated} composicoes avaliadas · seed {result.seed}
           </p>
-          <p className="flex items-center justify-center gap-4 text-[11px] text-gold-400/40">
+          <p className="flex items-center justify-center gap-4 text-[11px] text-ink-faint">
             <span className="flex items-center gap-1">
-              <Crown size={11} className="text-gold-400" /> na role principal
+              <Crown size={11} className="text-gold" /> na role principal
             </span>
             <span>2a/3a = opcao do pool</span>
             <span>fill = preencheu a vaga</span>
@@ -180,8 +180,8 @@ function PlayerToggle({
       <label
         className={`flex cursor-pointer items-center gap-3 rounded-lg border p-2.5 transition ${
           checked
-            ? 'border-gold-400/60 bg-gold-400/10'
-            : 'border-hextech-700/60 bg-hextech-800/40 hover:border-hextech-700'
+            ? 'border-gold/60 bg-gold/10'
+            : 'border-line/60 bg-raised/40 hover:border-line'
         } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
       >
         <input
@@ -189,7 +189,7 @@ function PlayerToggle({
           checked={checked}
           disabled={disabled}
           onChange={onToggle}
-          className="h-4 w-4 accent-[#c8aa6e]"
+          className="h-4 w-4 accent-[#d4b26a]"
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{player.name}</p>

@@ -77,7 +77,7 @@ export function SeriesPage() {
       {/* ---------------- placar ---------------- */}
       <Card
         title={
-          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-gold-400">
+          <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
             <Swords size={16} />
             {current.name ?? 'MD3 em andamento'}
           </h2>
@@ -100,11 +100,11 @@ export function SeriesPage() {
       >
         <div className="flex items-center justify-center gap-6 py-2">
           <ScoreBlock label="Azul" score={current.blueScore} side="BLUE" />
-          <span className="text-gold-400/40">x</span>
+          <span className="text-ink-faint">x</span>
           <ScoreBlock label="Vermelho" score={current.redScore} side="RED" />
         </div>
 
-        <p className="text-center text-xs text-gold-400/60">
+        <p className="text-center text-xs text-ink-faint">
           {current.matches.length === 0
             ? 'Nenhum jogo registrado. O jogo 1 libera todos os campeoes.'
             : `Proximo: jogo ${nextMatchNumber} · Fearless ${current.fearless ? 'ligado' : 'desligado'}`}
@@ -145,7 +145,7 @@ export function SeriesPage() {
                 clearActiveDraft();
                 setDraft(null);
               }}
-              className="flex items-center gap-1 text-xs text-gold-400/50 hover:text-redside"
+              className="flex items-center gap-1 text-xs text-ink-faint hover:text-red"
             >
               <Trash2 size={12} />
               descartar
@@ -157,7 +157,7 @@ export function SeriesPage() {
               <div key={side}>
                 <p
                   className={`mb-1.5 text-[11px] font-bold uppercase tracking-wider ${
-                    side === 'BLUE' ? 'text-blueside' : 'text-redside'
+                    side === 'BLUE' ? 'text-blue' : 'text-red'
                   }`}
                 >
                   {side === 'BLUE' ? 'Azul' : 'Vermelho'}
@@ -178,7 +178,7 @@ export function SeriesPage() {
               </div>
             ))}
           </div>
-          <p className="mt-3 text-[11px] text-gold-400/50">
+          <p className="mt-3 text-[11px] text-ink-faint">
             Esses times ja preenchem o formulario de registro. Seed {draft.seed}.
           </p>
         </Card>
@@ -190,27 +190,27 @@ export function SeriesPage() {
       {/* ---------------- importacao automatica ---------------- */}
       <Card
         title={
-          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-gold-400">
+          <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
             <Terminal size={16} />
             Importar do cliente do LoL
           </h2>
         }
       >
-        <p className="mb-3 text-xs leading-relaxed text-gold-400/70">
-          A API publica da Riot <strong className="text-gold-300">nao lista custom games</strong>.
+        <p className="mb-3 text-xs leading-relaxed text-ink-faint">
+          A API publica da Riot <strong className="text-ink">nao lista custom games</strong>.
           Quem lista e o proprio cliente do LoL. Rode o agente na maquina de quem hospedou a
           partida e ele manda o placar completo para ca:
         </p>
-        <pre className="overflow-x-auto rounded-lg border border-hextech-700/60 bg-hextech-950 p-3 text-[11px] text-emerald-300">
+        <pre className="overflow-x-auto rounded-lg border border-line/60 bg-base p-3 text-[11px] text-emerald-300">
           node companion/inhouse-companion.mjs --watch
         </pre>
-        <p className="mt-2 text-[11px] text-gold-400/50">
-          Com <code className="text-gold-400">--watch</code> ele envia sozinho no fim de cada jogo.
-          Use <code className="text-gold-400">--last</code> para mandar so a ultima partida.
+        <p className="mt-2 text-[11px] text-ink-faint">
+          Com <code className="text-gold">--watch</code> ele envia sozinho no fim de cada jogo.
+          Use <code className="text-gold">--last</code> para mandar so a ultima partida.
         </p>
 
-        <div className="mt-4 border-t border-hextech-700/40 pt-3">
-          <p className="mb-2 text-[11px] uppercase tracking-wider text-gold-400/50">
+        <div className="mt-4 border-t border-line/40 pt-3">
+          <p className="mb-2 text-[11px] uppercase tracking-wider text-ink-faint">
             Ou cole o Match ID manualmente
           </p>
           <div className="flex flex-wrap gap-2">
@@ -218,7 +218,7 @@ export function SeriesPage() {
               value={matchIdInput}
               onChange={(event) => setMatchIdInput(event.target.value)}
               placeholder="BR1_1234567890"
-              className="min-w-[200px] flex-1 rounded-lg border border-hextech-700 bg-hextech-800/60 px-3 py-2 text-sm placeholder:text-gold-400/30 focus:border-gold-400 focus:outline-none"
+              className="min-w-[200px] flex-1 rounded-lg border border-line bg-raised px-3 py-2 text-sm placeholder:text-ink-faint focus:border-gold focus:outline-none"
             />
             <Button
               onClick={async () => {
@@ -251,13 +251,13 @@ export function SeriesPage() {
             {current.matches.map((match) => (
               <li
                 key={match.id}
-                className="flex items-center justify-between rounded-lg border border-hextech-700/50 bg-hextech-800/40 px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-lg border border-line/50 bg-raised/40 px-3 py-2 text-sm"
               >
                 <span className="font-medium">Jogo {match.matchNumber}</span>
-                <span className={match.winner === 'BLUE' ? 'text-blueside' : 'text-redside'}>
+                <span className={match.winner === 'BLUE' ? 'text-blue' : 'text-red'}>
                   {match.winner === 'BLUE' ? 'Azul venceu' : 'Vermelho venceu'}
                 </span>
-                <span className="text-xs text-gold-400/50">
+                <span className="text-xs text-ink-faint">
                   {match.gameDurationSec
                     ? `${Math.round(match.gameDurationSec / 60)} min`
                     : 'duracao n/d'}
@@ -275,10 +275,10 @@ export function SeriesPage() {
 function ScoreBlock({ label, score, side }: { label: string; score: number; side: TeamSide }) {
   return (
     <div className="text-center">
-      <p className={`text-4xl font-bold ${side === 'BLUE' ? 'text-blueside' : 'text-redside'}`}>
+      <p className={`text-4xl font-bold ${side === 'BLUE' ? 'text-blue' : 'text-red'}`}>
         {score}
       </p>
-      <p className="text-[11px] uppercase tracking-widest text-gold-400/60">{label}</p>
+      <p className="text-[11px] uppercase tracking-widest text-ink-faint">{label}</p>
     </div>
   );
 }

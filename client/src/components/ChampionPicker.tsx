@@ -77,7 +77,7 @@ export function ChampionPicker({
         value={value}
         onChange={(event) => onChange(event.target.value, null)}
         placeholder={`${placeholder} (digite)`}
-        className="w-full rounded border border-hextech-700 bg-hextech-800/60 px-2 py-1.5 text-xs text-gold-300 placeholder:text-gold-400/30 focus:border-gold-400 focus:outline-none"
+        className="w-full rounded border border-line bg-raised px-2 py-1.5 text-xs text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
       />
     );
   }
@@ -88,7 +88,7 @@ export function ChampionPicker({
 
   return (
     <div ref={containerRef} className="relative">
-      <div className="flex items-center gap-1.5 rounded border border-hextech-700 bg-hextech-800/60 px-2 py-1 focus-within:border-gold-400">
+      <div className="flex items-center gap-1.5 rounded border border-line bg-raised px-2 py-1 focus-within:border-gold">
         {selected ? (
           <img
             src={selected.squareUrl}
@@ -98,7 +98,7 @@ export function ChampionPicker({
             className="h-5 w-5 shrink-0 rounded"
           />
         ) : (
-          <Search size={14} className="shrink-0 text-gold-400/40" />
+          <Search size={14} className="shrink-0 text-ink-faint" />
         )}
 
         <input
@@ -130,7 +130,7 @@ export function ChampionPicker({
             }
           }}
           placeholder={loading ? 'carregando...' : placeholder}
-          className="w-full bg-transparent text-xs text-gold-300 placeholder:text-gold-400/30 focus:outline-none"
+          className="w-full bg-transparent text-xs text-ink placeholder:text-ink-faint focus:outline-none"
         />
 
         {value && (
@@ -138,7 +138,7 @@ export function ChampionPicker({
             type="button"
             onClick={() => onChange('', null)}
             aria-label="Limpar campeao"
-            className="shrink-0 text-gold-400/40 hover:text-gold-400"
+            className="shrink-0 text-ink-faint hover:text-gold"
           >
             <X size={13} />
           </button>
@@ -148,10 +148,10 @@ export function ChampionPicker({
       {open && (
         <ul
           role="listbox"
-          className="absolute z-30 mt-1 max-h-64 w-full min-w-[220px] overflow-y-auto rounded-lg border border-hextech-700 bg-hextech-900 shadow-2xl"
+          className="absolute z-30 mt-1 max-h-64 w-full min-w-[220px] overflow-y-auto rounded-lg border border-line bg-surface shadow-2xl"
         >
           {results.length === 0 && (
-            <li className="px-3 py-2 text-xs text-gold-400/50">Nenhum campeao encontrado.</li>
+            <li className="px-3 py-2 text-xs text-ink-faint">Nenhum campeao encontrado.</li>
           )}
 
           {results.map((champion, index) => {
@@ -170,8 +170,8 @@ export function ChampionPicker({
                     blocked
                       ? 'cursor-not-allowed opacity-40'
                       : index === highlight
-                        ? 'bg-gold-400/15 text-gold-300'
-                        : 'text-gold-300/80 hover:bg-hextech-800'
+                        ? 'bg-gold/15 text-ink'
+                        : 'text-ink/80 hover:bg-raised'
                   }`}
                 >
                   <img
