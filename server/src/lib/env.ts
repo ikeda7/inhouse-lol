@@ -58,6 +58,29 @@ function optional(name: string, fallback: string): string {
 }
 
 /**
+ * Segredo de sessao: obrigatorio em producao, com queda para um valor fixo
+ * fora dela.
+ *
+ * `required()` aqui quebraria o CI e todo clone novo -- nenhum dos dois tem
+ * `.env`, e o modulo lanca no import, entao ate `npm test` morria antes de
+ * rodar. Em producao a ausencia continua sendo erro de boot, alto e cedo: um
+ * segredo publico assinando sessao de verdade seria pior que nao subir.
+ */
+function segredoDeSessao(nodeEnv: string): string {
+  const valor = process.env.JWT_SECRET?.trim();
+  if (valor) return valor;
+
+  if (nodeEnv === 'production') {
+    throw new Error(
+      'Variavel de ambiente obrigatoria ausente em producao: JWT_SECRET. ' +
+        'Gere um segredo com `openssl rand -hex 32` e configure no ambiente.'
+    );
+  }
+
+  return 'inhouse-dev-secret-nao-use-em-producao';
+}
+
+/**
  * Transforma `file:./dev.db` num caminho ABSOLUTO.
  *
  * Sem isso, a mesma URL aponta para dois arquivos diferentes:
@@ -113,6 +136,9 @@ export const env = {
 
   /** Locale usado nos assets do Data Dragon. */
   ddragonLocale: optional('DDRAGON_LOCALE', 'pt_BR'),
+
+  /** Assina o cookie de sessao das contas de jogador (issue #3). */
+  jwtSecret: segredoDeSessao(optional('NODE_ENV', 'development')),
 } as const;
 
 export const hasRiotApi = env.riotApiKey !== null;

@@ -80,16 +80,21 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
   return (
     <div className="space-y-4 border-l-2 border-gold/40 bg-base/50 px-3 py-3.5 sm:px-4">
       {/* --- build --- */}
+      {/* No celular os 7 itens não cabem ao lado dos feitiços e das runas, e a
+          linha quebra deixando um buraco à direita deles. O nível preenche esse
+          vão: fica logo após as runas no celular e, no desktop, `order-last`
+          devolve ele para a ponta direita, onde sempre esteve. O divisor só
+          aparece quando os dois grupos dividem a mesma linha. */}
       <div className="flex flex-wrap items-center gap-2">
         <SpellPair spell1Id={stat.spell1Id} spell2Id={stat.spell2Id} />
         <RunePair keystoneId={stat.keystoneId} subStyleId={stat.subStyleId} />
-        <span className="mx-1 h-6 w-px bg-line/50" />
-        <ItemRow items={stat.items} />
         {stat.champLevel > 0 && (
-          <span className="ml-auto rounded bg-overlay px-2 py-0.5 text-[11px] font-semibold text-ink-muted">
+          <span className="ml-auto rounded bg-overlay px-2 py-0.5 text-[11px] font-semibold text-ink-muted sm:order-last">
             nível {stat.champLevel}
           </span>
         )}
+        <span className="mx-1 hidden h-6 w-px bg-line/50 sm:block" />
+        <ItemRow items={stat.items} />
       </div>
 
       {/* --- dano --- */}

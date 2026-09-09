@@ -124,6 +124,21 @@ export async function getAccountByRiotId(riotId: string): Promise<RiotAccount> {
 }
 
 // ---------------------------------------------------------------------------
+// Summoner-V4: icone de invocador (usado pela conta do jogador, issue #3)
+// ---------------------------------------------------------------------------
+
+interface SummonerDto {
+  profileIconId: number;
+}
+
+export async function getSummonerByPuuid(puuid: string): Promise<{ profileIconId: number }> {
+  const dto = await riotFetch<SummonerDto>(
+    `${PLATFORM_ROUTE()}/lol/summoner/v4/summoners/by-puuid/${encodeURIComponent(puuid)}`
+  );
+  return { profileIconId: dto.profileIconId };
+}
+
+// ---------------------------------------------------------------------------
 // Spectator-V5: capturar o id enquanto o custom esta em andamento
 // ---------------------------------------------------------------------------
 

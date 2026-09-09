@@ -18,6 +18,10 @@ export interface PlayerDTO {
   roles: RoleInput[];
   internalRating: number;
   active: boolean;
+  /** null = ainda nao reivindicou a conta (issue #3). Nunca expor passwordHash. */
+  email: string | null;
+  photoUrl: string | null;
+  photoSource: 'LOL_ICON' | 'UPLOAD' | 'NONE';
 }
 
 type PlayerWithRoles = {
@@ -26,6 +30,9 @@ type PlayerWithRoles = {
   riotId: string | null;
   internalRating: number;
   active: boolean;
+  email: string | null;
+  photoUrl: string | null;
+  photoSource: string;
   roles: { role: string; priority: number }[];
 };
 
@@ -39,6 +46,9 @@ export function toPlayerDTO(player: PlayerWithRoles): PlayerDTO {
       .map((entry) => entry.role as RoleInput),
     internalRating: player.internalRating,
     active: player.active,
+    email: player.email,
+    photoUrl: player.photoUrl,
+    photoSource: player.photoSource as PlayerDTO['photoSource'],
   };
 }
 
@@ -52,7 +62,7 @@ export function toDraftablePlayer(player: PlayerDTO): DraftablePlayer {
   };
 }
 
-const withRoles = { roles: { orderBy: { priority: 'asc' as const } } };
+export const withRoles = { roles: { orderBy: { priority: 'asc' as const } } };
 
 export async function listPlayers(options: { includeInactive?: boolean } = {}) {
   const players = await prisma.player.findMany({

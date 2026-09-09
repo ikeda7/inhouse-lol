@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import express, { type Express } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { env } from './lib/env.js';
 import { errorHandler } from './routes/helpers.js';
 import { playersRouter } from './routes/players.js';
@@ -11,6 +12,8 @@ import { seriesRouter } from './routes/series.js';
 import { statsRouter } from './routes/stats.js';
 import { riotRouter } from './routes/riot.js';
 import { ingestRouter } from './routes/ingest.js';
+import { authRouter } from './routes/auth.js';
+import { accountsRouter } from './routes/accounts.js';
 
 /**
  * Monta o app SEM escutar porta.
@@ -27,7 +30,11 @@ import { ingestRouter } from './routes/ingest.js';
 export function createApp(): Express {
   const app = express();
 
-  app.use(cors({ origin: env.corsOrigin }));
+  // credentials:true e o cookieParser sao o que fazem o cookie de sessao
+  // (issue #3) ir e voltar entre o Vite (:5173) e a API (:3333) em dev --
+  // em producao os dois ja saem do mesmo host, entao nao muda nada.
+  app.use(cors({ origin: env.corsOrigin, credentials: true }));
+  app.use(cookieParser());
   // O payload de um jogo do LCU/replay passa de 100 KB. 1 MB seria apertado.
   app.use(express.json({ limit: '4mb' }));
 
@@ -41,6 +48,8 @@ export function createApp(): Express {
   app.use('/api/stats', statsRouter);
   app.use('/api/riot', riotRouter);
   app.use('/api/ingest', ingestRouter);
+  app.use('/api/auth', authRouter);
+  app.use('/api/accounts', accountsRouter);
 
   montarFrontend(app);
 
