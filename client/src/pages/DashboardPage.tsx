@@ -119,9 +119,17 @@ export function DashboardPage() {
       </Card>
 
       {data && data.length > 0 && (
-        <p className="px-1 text-center text-xs text-ink-faint">
-          Empate se resolve por KDA, depois winrate, depois nº de jogos · 🏆 = MD3 vencida
-        </p>
+        <div className="space-y-1 px-1 text-center text-xs text-ink-faint">
+          <p>Empate se resolve por KDA, depois winrate, depois nº de jogos · 🏆 = MD3 vencida</p>
+          {/* A ausência do selo precisa ser legível: sem esta linha, um selo que
+              ninguém tem parece feature quebrada em vez de resultado honesto. */}
+          {!data.some((entry) => entry.isKdaPlayer) && (
+            <p className="text-ink-faint/70">
+              O selo <span className="font-semibold">KDA player</span> vai para quem tem KDA acima
+              da média do grupo com participação em abates abaixo. Hoje ninguém se qualifica.
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
@@ -142,6 +150,7 @@ function LinhaTabela({ entry, posicao }: { entry: LeaderboardEntry; posicao: num
           {entry.name}
         </Link>
         <Trofeus quantidade={entry.seriesWon} recente={entry.wonLastSeries} />
+        {entry.isKdaPlayer && <SeloKdaPlayer />}
       </td>
 
       <td className="py-2.5 pr-2">
@@ -206,6 +215,24 @@ function LinhaTabela({ entry, posicao }: { entry: LeaderboardEntry; posicao: num
 }
 
 /**
+ * O selo de "KDA player" (issue #16, pedido do grupo).
+ *
+ * É zoeira, e a tela precisa deixar isso óbvio -- selo ambíguo num ranking de
+ * verdade vira briga no grupo. Por isso não usa o ouro, que aqui significa
+ * mérito, e o título explica a conta em vez de só rotular.
+ */
+function SeloKdaPlayer() {
+  return (
+    <span
+      className="ml-1.5 rounded bg-overlay px-1.5 py-px text-[10px] font-bold text-ink-faint"
+      title="KDA player: KDA acima da média do grupo, mas dano e participação em abates abaixo. É brincadeira."
+    >
+      KDA player
+    </span>
+  );
+}
+
+/**
  * Um troféu por MD3 vencida -- mesmo formato que o grupo já usa no zap
  * ("VINI 🏆🏆"). Acima de 4 vira "🏆xN" para não estourar a linha.
  */
@@ -247,6 +274,7 @@ function LinhaCelular({ entry, posicao }: { entry: LeaderboardEntry; posicao: nu
           <p className="truncate text-[15px] font-medium text-ink">
             {entry.name}
             <Trofeus quantidade={entry.seriesWon} recente={entry.wonLastSeries} />
+            {entry.isKdaPlayer && <SeloKdaPlayer />}
           </p>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-ink-faint">
             <span className="tabular">
