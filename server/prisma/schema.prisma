@@ -164,6 +164,42 @@ model MatchTeamStat {
 }
 
 /**
+ * Sala de draft ao vivo (issue #6).
+ *
+ * O modo Capitaes normal guarda o estado no CLIENTE: cada escolha manda o
+ * estado inteiro e recebe o proximo. Isso e simples e sobrevive a F5, mas o
+ * estado e de UMA pessoa -- ninguem mais ve o draft acontecendo.
+ *
+ * Para todo mundo ver, o estado precisa morar num lugar so. Fica no banco e nao
+ * em memoria porque a producao roda em funcao serverless: cada requisicao pode
+ * cair numa instancia diferente, e memoria de processo nao atravessa isso.
+ */
+model DraftRoom {
+  /// Codigo curto. E o que vai no link mandado pro grupo.
+  code String @id
+
+  /// CaptainsDraftState serializado. Ver lib/captainsDraft.ts.
+  state String
+
+  /**
+   * Sobe a cada escolha.
+   *
+   * Faz dois trabalhos: o cliente compara para saber se mudou algo desde a
+   * ultima consulta, e a escolha manda a versao que viu -- se nao bater, dois
+   * capitaes clicaram junto e a segunda e recusada em vez de sobrescrever.
+   */
+  version Int @default(0)
+
+  /// Sala e efemera: serve para uma noite. Depois nao significa mais nada.
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+/**
  * Bans do draft de torneio (issue #8).
  *
  * O grupo joga com bans, e eles vinham no payload do cliente desde sempre --

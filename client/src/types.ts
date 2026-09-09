@@ -375,3 +375,21 @@ export interface CaptainsDraftState {
 }
 
 export type CaptainSelectionMode = 'TOP_WINRATE' | 'LAST_LOSERS' | 'RANDOM';
+
+/** Sala de draft ao vivo (issue #6). */
+export interface DraftRoom {
+  code: string;
+  version: number;
+  state: CaptainsDraftState;
+  /** Preenchido só quando o draft fecha. */
+  teams: { blueTeam: BalancedTeam; redTeam: BalancedTeam } | null;
+  expiresAt: string;
+  /** Só vem na criação; o cliente guarda para desenhar a fila. */
+  pickOrder?: CaptainsPick[];
+}
+
+/** Resposta da consulta barata quando nada mudou desde a versão informada. */
+export interface DraftRoomUnchanged {
+  unchanged: true;
+  version: number;
+}

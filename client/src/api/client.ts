@@ -13,6 +13,8 @@ import type {
   BurnedChampion,
   CaptainSelectionMode,
   CaptainsDraftState,
+  DraftRoom,
+  DraftRoomUnchanged,
   ChampionManifest,
   Highlights,
   LeaderboardEntry,
@@ -123,6 +125,23 @@ export const draftApi = {
 
   pick: (state: CaptainsDraftState, playerId: string) =>
     post<CaptainsDraftState>('/draft/captains/pick', { state, playerId }),
+
+  // --- draft ao vivo (issue #6) ---
+
+  criarSala: (playerIds: string[], mode: CaptainSelectionMode = 'TOP_WINRATE', seriesId?: string) =>
+    post<DraftRoom>('/draft/rooms', { playerIds, mode, seriesId }),
+
+  /**
+   * Consulta a sala. Mandando `since`, o servidor responde so "nao mudou" --
+   * e o que torna aceitavel consultar de poucos em poucos segundos.
+   */
+  verSala: (code: string, since?: number) =>
+    request<DraftRoom | DraftRoomUnchanged>(
+      `/draft/rooms/${encodeURIComponent(code)}` + (since === undefined ? '' : `?since=${since}`)
+    ),
+
+  escolherNaSala: (code: string, playerId: string, version: number) =>
+    post<DraftRoom>(`/draft/rooms/${encodeURIComponent(code)}/pick`, { playerId, version }),
 };
 
 // ---------------------------------------------------------------------------
