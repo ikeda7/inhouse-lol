@@ -12,3 +12,12 @@ import { afterEach } from 'vitest';
 afterEach(() => {
   cleanup();
 });
+
+/**
+ * `scrollIntoView` não existe em jsdom.
+ *
+ * O `Select` chama isso para manter a opção ativa visível ao navegar de seta.
+ * Sem o stub, qualquer teste que ABRA um select quebra com "not a function" --
+ * um detalhe do ambiente de teste aparecendo como falha do componente.
+ */
+Element.prototype.scrollIntoView = () => {};

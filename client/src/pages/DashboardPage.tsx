@@ -90,9 +90,11 @@ export function DashboardPage() {
         padding={false}
         title={<CardTitle icon={Trophy}>Classificação geral</CardTitle>}
         action={
-          <div className="flex flex-wrap items-center gap-2">
+          // No celular a ação ocupa a linha inteira e distribui o espaço; no
+          // desktop volta a ser um bloco encostado à direita do título.
+          <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
             <div
-              className="flex gap-0.5 rounded-md bg-raised p-0.5"
+              className="flex flex-wrap gap-0.5 rounded-md bg-raised p-0.5"
               role="group"
               aria-label="Ordenar por"
             >
@@ -101,7 +103,9 @@ export function DashboardPage() {
                   key={key}
                   onClick={() => setSortBy(key)}
                   aria-pressed={sortBy === key}
-                  className={`rounded px-3 py-1.5 text-xs font-semibold transition ${
+                  // px menor no celular: com quatro abas, px-3 estourava a
+                  // largura e "Pontos" saía pela borda da tela.
+                  className={`rounded px-2.5 py-1.5 text-xs font-semibold transition sm:px-3 ${
                     sortBy === key
                       ? 'bg-overlay text-ink shadow-sm'
                       : 'text-ink-faint hover:text-ink-muted'

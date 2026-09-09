@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { Highlights } from '../components/Highlights';
 import { ItemRow } from '../components/BuildIcons';
 import { MatchObjectives, MatchBans } from '../components/MatchObjectives';
+import { Avatar } from '../components/ui';
 import type { MatchBan, MatchTeamStat } from '../types';
 
 /**
@@ -175,5 +176,36 @@ describe('MatchBans', () => {
     render(<MatchBans bans={[ban(1, 'BLUE', null)]} />);
 
     expect(screen.getByTitle(/Campeão 101/)).toBeInTheDocument();
+  });
+});
+
+describe('Avatar', () => {
+  it('mostra as iniciais quando o jogador não tem foto', () => {
+    render(<Avatar name="Ikeda" />);
+
+    expect(screen.getByText('IK')).toBeInTheDocument();
+  });
+
+  it('usa a primeira e a última inicial em nome composto', () => {
+    render(<Avatar name="Lucas Ikeda" />);
+
+    expect(screen.getByText('LI')).toBeInTheDocument();
+  });
+
+  it('dá a mesma cor para o mesmo nome -- o avatar não pode mudar a cada render', () => {
+    const primeiro = render(<Avatar name="Cangosul" />).container.firstElementChild;
+    const segundo = render(<Avatar name="Cangosul" />).container.firstElementChild;
+
+    expect(primeiro?.className).toBe(segundo?.className);
+  });
+
+  it('cai nas iniciais quando a imagem quebra', () => {
+    // Ícone do Data Dragon some entre patches. Melhor a inicial do que o
+    // retângulo de imagem quebrada do navegador.
+    render(<Avatar name="Ikeda" photoUrl="https://exemplo.invalido/sumiu.png" />);
+
+    fireEvent.error(screen.getByRole('img'));
+
+    expect(screen.getByText('IK')).toBeInTheDocument();
   });
 });

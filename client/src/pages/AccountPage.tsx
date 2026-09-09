@@ -1,0 +1,257 @@
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { Navigate } from 'react-router-dom';
+import { Check, Image, KeyRound, LogOut, Upload, User } from 'lucide-react';
+import { accountApi } from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import { useAction } from '../hooks/useAsync';
+import { resizeToDataUrl } from '../lib/imageResize';
+import { Avatar, Button, Card, CardTitle, ErrorState, Input, LoadingState } from '../components/ui';
+import type { Player } from '../types';
+
+/** Cada seção recebe o jogador e como avisar o resto do app que ele mudou. */
+interface SecaoProps {
+  player: Player;
+  onChanged: (player: Player) => void;
+}
+
+export function AccountPage() {
+  const { player, loading, logout, setPlayer } = useAuth();
+
+  if (loading) return <LoadingState />;
+  if (!player) return <Navigate to="/entrar" replace />;
+
+  return (
+    <div className="mx-auto w-full max-w-2xl space-y-4 py-2 sm:py-6">
+      <SecaoFoto player={player} onChanged={setPlayer} />
+      <SecaoPerfil player={player} onChanged={setPlayer} />
+      <SecaoSenha />
+
+      <div className="flex justify-end">
+        <Button variant="ghost" onClick={() => void logout()}>
+          <LogOut size={14} />
+          Sair
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function SecaoFoto({ player, onChanged }: SecaoProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [erroLocal, setErroLocal] = useState<Error | null>(null);
+
+  const enviar = useAction(accountApi.uploadPhoto);
+  const usarLol = useAction(accountApi.syncLolPhoto);
+
+  const escolherArquivo = async (evento: ChangeEvent<HTMLInputElement>) => {
+    const arquivo = evento.target.files?.[0];
+    // Zera o input para permitir reescolher o MESMO arquivo depois de um erro:
+    // sem isso o onChange nao dispara de novo.
+    evento.target.value = '';
+    if (!arquivo) return;
+
+    setErroLocal(null);
+    try {
+      const redimensionada = await resizeToDataUrl(arquivo);
+      const atualizado = await enviar.run(redimensionada);
+      if (atualizado) onChanged(atualizado);
+    } catch (erro) {
+      setErroLocal(erro instanceof Error ? erro : new Error(String(erro)));
+    }
+  };
+
+  const trocarPeloLol = async () => {
+    const atualizado = await usarLol.run();
+    if (atualizado) onChanged(atualizado);
+  };
+
+  const erro = enviar.error ?? usarLol.error ?? erroLocal;
+
+  return (
+    <Card>
+      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-5">
+        <Avatar photoUrl={player.photoUrl} name={player.name} size="lg" />
+
+        <div className="min-w-0 flex-1 text-center sm:text-left">
+          <p className="text-lg font-bold tracking-tight text-ink">{player.name}</p>
+          <p className="mt-0.5 truncate text-xs text-ink-muted">{player.email}</p>
+
+          <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/*"
+              onChange={escolherArquivo}
+              className="hidden"
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              loading={enviar.loading}
+              onClick={() => inputRef.current?.click()}
+            >
+              <Upload size={13} />
+              Enviar foto
+            </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              loading={usarLol.loading}
+              disabled={!player.riotId}
+              title={
+                player.riotId
+                  ? 'Busca o ícone de invocador atual da sua conta do LoL'
+                  : 'Preencha o Riot ID abaixo para usar o ícone do LoL'
+              }
+              onClick={() => void trocarPeloLol()}
+            >
+              <Image size={13} />
+              Usar ícone do LoL
+            </Button>
+          </div>
+
+          <p className="mt-2 text-[11px] text-ink-faint">
+            A imagem é recortada em quadrado e reduzida no seu navegador antes de subir.
+          </p>
+        </div>
+      </div>
+
+      {erro && (
+        <div className="mt-3">
+          <ErrorState error={erro} />
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function SecaoPerfil({ player, onChanged }: SecaoProps) {
+  const [nome, setNome] = useState(player.name);
+  const [riotId, setRiotId] = useState(player.riotId ?? '');
+  const [salvo, setSalvo] = useState(false);
+
+  const salvar = useAction(accountApi.update);
+
+  const enviar = async (evento: FormEvent) => {
+    evento.preventDefault();
+    setSalvo(false);
+    const atualizado = await salvar.run({ name: nome.trim(), riotId: riotId.trim() || null });
+    if (atualizado) {
+      onChanged(atualizado);
+      setSalvo(true);
+    }
+  };
+
+  return (
+    <Card title={<CardTitle icon={User}>Perfil</CardTitle>}>
+      <form onSubmit={enviar} className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Nome"
+            value={nome}
+            onChange={(evento) => setNome(evento.target.value)}
+            required
+          />
+          <Input
+            label="Riot ID"
+            value={riotId}
+            onChange={(evento) => setRiotId(evento.target.value)}
+            placeholder="Cangosul#PCBR"
+          />
+        </div>
+
+        <p className="text-[11px] text-ink-faint">
+          O Riot ID é o que liga você ao histórico do cliente do LoL: sem ele, a importação
+          automática não sabe quem é quem no scoreboard. Ele também é o que libera o ícone do LoL
+          como foto.
+        </p>
+
+        <div className="flex items-center gap-3">
+          <Button type="submit" size="sm" loading={salvar.loading}>
+            <Check size={14} />
+            Salvar
+          </Button>
+          {salvo && !salvar.loading && <span className="text-xs text-win">Salvo.</span>}
+        </div>
+
+        {salvar.error && <ErrorState error={salvar.error} />}
+      </form>
+    </Card>
+  );
+}
+
+function SecaoSenha() {
+  const [atual, setAtual] = useState('');
+  const [nova, setNova] = useState('');
+  const [confirmacao, setConfirmacao] = useState('');
+  const [trocada, setTrocada] = useState(false);
+
+  const trocar = useAction(accountApi.changePassword);
+  const senhasBatem = nova === confirmacao;
+
+  const enviar = async (evento: FormEvent) => {
+    evento.preventDefault();
+    if (!senhasBatem) return;
+    setTrocada(false);
+
+    if (await trocar.run({ currentPassword: atual, newPassword: nova })) {
+      setAtual('');
+      setNova('');
+      setConfirmacao('');
+      setTrocada(true);
+    }
+  };
+
+  return (
+    <Card title={<CardTitle icon={KeyRound}>Senha</CardTitle>}>
+      <form onSubmit={enviar} className="space-y-4">
+        <Input
+          label="Senha atual"
+          type="password"
+          value={atual}
+          onChange={(evento) => setAtual(evento.target.value)}
+          autoComplete="current-password"
+          required
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Nova senha"
+            type="password"
+            value={nova}
+            onChange={(evento) => setNova(evento.target.value)}
+            autoComplete="new-password"
+            minLength={8}
+            placeholder="pelo menos 8 caracteres"
+            required
+          />
+          <div>
+            <Input
+              label="Repita a nova"
+              type="password"
+              value={confirmacao}
+              onChange={(evento) => setConfirmacao(evento.target.value)}
+              autoComplete="new-password"
+              invalid={confirmacao.length > 0 && !senhasBatem}
+              required
+            />
+            {confirmacao.length > 0 && !senhasBatem && (
+              <p className="mt-1.5 text-[11px] text-warn">As duas senhas não são iguais.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button type="submit" size="sm" loading={trocar.loading} disabled={!senhasBatem}>
+            <Check size={14} />
+            Trocar senha
+          </Button>
+          {trocada && !trocar.loading && <span className="text-xs text-win">Senha trocada.</span>}
+        </div>
+
+        {trocar.error && <ErrorState error={trocar.error} />}
+      </form>
+    </Card>
+  );
+}

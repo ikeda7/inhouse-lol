@@ -53,6 +53,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${BASE_URL}${path}`, {
       headers: { 'Content-Type': 'application/json' },
+      // O cookie de sessao (issue #3) precisa ir e voltar mesmo quando front
+      // (:5173) e API (:3333) estao em portas diferentes, em dev.
+      credentials: 'include',
       ...init,
     });
   } catch {
@@ -205,6 +208,44 @@ export const statsApi = {
     request<LeaderboardEntry[]>(`/stats/leaderboard?sortBy=${sortBy}&minGames=${minGames}`),
 
   highlights: () => request<Highlights>('/stats/highlights'),
+};
+
+// ---------------------------------------------------------------------------
+// Contas de jogador (issue #3)
+// ---------------------------------------------------------------------------
+
+export const authApi = {
+  /** Jogadores do elenco que ainda nao tem conta. */
+  claimable: () => request<Player[]>('/auth/claimable'),
+
+  register: (input: { playerId: string; email: string; password: string }) =>
+    post<Player>('/auth/register', input),
+
+  login: (input: { email: string; password: string }) => post<Player>('/auth/login', input),
+
+  logout: () => post<null>('/auth/logout', {}),
+
+  /** 401 aqui e resposta esperada (visitante deslogado), nao erro de rede. */
+  me: () =>
+    request<Player>('/auth/me').catch((error: unknown) => {
+      if (error instanceof ApiError && error.status === 401) return null;
+      throw error;
+    }),
+};
+
+export const accountApi = {
+  update: (input: Partial<{ name: string; riotId: string | null }>) =>
+    request<Player>('/accounts/me', { method: 'PATCH', body: JSON.stringify(input) }),
+
+  /** Resolve `true` no sucesso: a rota nao devolve corpo, e `null` ja e o que
+   *  `useAction` retorna quando deu erro -- sem isso os dois casos se confundem. */
+  changePassword: (input: { currentPassword: string; newPassword: string }) =>
+    post<null>('/accounts/me/password', input).then(() => true),
+
+  /** A imagem chega ja redimensionada pelo client (ver lib/imageResize.ts). */
+  uploadPhoto: (imageBase64: string) => post<Player>('/accounts/me/photo', { imageBase64 }),
+
+  syncLolPhoto: () => post<Player>('/accounts/me/photo/sync-lol', {}),
 };
 
 export const riotApi = {

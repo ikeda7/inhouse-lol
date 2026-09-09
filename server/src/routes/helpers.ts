@@ -4,6 +4,7 @@ import { DraftError } from '../lib/autoBalance.js';
 import { RiotApiError } from '../lib/riot.js';
 import { SeriesError } from '../services/series.js';
 import { LcuError } from '../lib/lcu.js';
+import { AuthError } from '../services/auth.js';
 
 /**
  * Express 4 nao encaminha rejeicao de Promise para o error handler sozinho.
@@ -83,7 +84,22 @@ function translate(error: unknown): ErrorPayload {
     };
   }
 
-  // Violacao de unique do Prisma (nome ou riotId repetido).
+  if (error instanceof AuthError) {
+    const statusByCode: Record<string, number> = {
+      PLAYER_NOT_FOUND: 404,
+      ALREADY_CLAIMED: 409,
+      INVALID_CREDENTIALS: 401,
+      PHOTO_TOO_LARGE: 413,
+      INVALID_IMAGE: 400,
+      NO_RIOT_ID: 400,
+    };
+    return {
+      status: statusByCode[error.code] ?? 400,
+      body: { success: false, error: error.message, code: error.code },
+    };
+  }
+
+  // Violacao de unique do Prisma (nome, riotId ou email repetido).
   if (
     typeof error === 'object' &&
     error !== null &&
@@ -93,7 +109,7 @@ function translate(error: unknown): ErrorPayload {
       status: 409,
       body: {
         success: false,
-        error: 'Ja existe um registro com esse valor unico (nome ou Riot ID).',
+        error: 'Ja existe um registro com esse valor unico (nome, Riot ID ou e-mail).',
         code: 'UNIQUE_VIOLATION',
       },
     };

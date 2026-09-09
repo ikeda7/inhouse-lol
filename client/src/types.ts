@@ -28,6 +28,9 @@ export interface ApiResponse<T> {
   details?: unknown;
 }
 
+/** De onde veio a foto do jogador (issue #3). */
+export type PhotoSource = 'LOL_ICON' | 'UPLOAD' | 'NONE';
+
 export interface Player {
   id: string;
   name: string;
@@ -35,6 +38,10 @@ export interface Player {
   roles: RoleInput[];
   internalRating: number;
   active: boolean;
+  /** null = ainda nao reivindicou a conta. */
+  email: string | null;
+  photoUrl: string | null;
+  photoSource: PhotoSource;
 }
 
 export interface AssignedPlayer {

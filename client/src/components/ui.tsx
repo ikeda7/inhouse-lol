@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AlertTriangle, Loader2, Inbox } from 'lucide-react';
 import { ApiError } from '../api/client';
 import { ROLE_LABEL, type RoleInput } from '../types';
@@ -29,7 +29,10 @@ export function Card({
       className={`surgir overflow-hidden rounded-lg border border-line/60 bg-surface/80 backdrop-blur-sm ${className}`}
     >
       {(title || action) && (
-        <header className="flex items-center justify-between gap-3 border-b border-line/50 px-4 py-3 sm:px-5">
+        // flex-wrap: quando a ação é pesada (as abas de ordenação + os botões
+        // de imagem no ranking), ela desce para a própria linha em vez de
+        // espremer o título em duas linhas e vazar para fora da tela.
+        <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line/50 px-4 py-3 sm:px-5">
           {typeof title === 'string' ? (
             <h2 className="text-[13px] font-semibold tracking-tight text-ink">{title}</h2>
           ) : (
@@ -115,6 +118,89 @@ export function Input({
       </span>
       {campo}
     </label>
+  );
+}
+
+/**
+ * Cores do avatar sem foto (issue #3).
+ *
+ * Paleta propria de proposito: `gold` e acento, `blue`/`red` identificam TIME.
+ * Pintar avatar com esses tokens diria uma coisa que nao e verdade -- um
+ * jogador de avatar azul nao esta no time azul. Todos os tons abaixo passam
+ * AA com o texto claro por cima.
+ */
+const CORES_DE_AVATAR = [
+  'bg-slate-600',
+  'bg-teal-700',
+  'bg-indigo-700',
+  'bg-cyan-800',
+  'bg-violet-800',
+  'bg-emerald-800',
+];
+
+function corDoNome(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  return CORES_DE_AVATAR[Math.abs(hash) % CORES_DE_AVATAR.length];
+}
+
+function iniciais(name: string): string {
+  const partes = name.trim().split(/\s+/);
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+const TAMANHO_DO_AVATAR = {
+  sm: 'h-6 w-6 text-[9px]',
+  md: 'h-10 w-10 text-xs',
+  lg: 'h-24 w-24 text-2xl',
+};
+
+/**
+ * Foto do jogador, com iniciais como fallback.
+ *
+ * Iniciais em vez de icone generico de pessoa: numa lista de 10, silhuetas
+ * iguais nao distinguem ninguem -- "IK" distingue.
+ */
+export function Avatar({
+  photoUrl,
+  name,
+  size = 'md',
+  className = '',
+}: {
+  photoUrl?: string | null;
+  name: string;
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}) {
+  const [quebrou, setQuebrou] = useState(false);
+  const [carregou, setCarregou] = useState(false);
+  const base = `${TAMANHO_DO_AVATAR[size]} shrink-0 rounded-full ${className}`;
+
+  // URL quebrada (icone do LoL que sumiu num patch) cai nas iniciais em vez
+  // de mostrar o retangulo de imagem quebrada do navegador.
+  if (photoUrl && !quebrou) {
+    return (
+      <img
+        src={photoUrl}
+        alt={name}
+        onError={() => setQuebrou(true)}
+        onLoad={() => setCarregou(true)}
+        className={`${base} border border-line/60 bg-raised object-cover transition-opacity duration-300 ${
+          carregou ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+    );
+  }
+
+  return (
+    <span
+      aria-hidden="true"
+      title={name}
+      className={`${base} ${corDoNome(name)} inline-flex items-center justify-center font-semibold tracking-wide text-white/90`}
+    >
+      {iniciais(name)}
+    </span>
   );
 }
 

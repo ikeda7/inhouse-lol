@@ -1,0 +1,168 @@
+/**
+ * CONTAS DE JOGADOR (issue #3)
+ *
+ * "Criar uma conta" aqui e "dar login a um jogador que ja existe" -- nao ha
+ * tabela de usuario separada. O jogador ja e a identidade central (dono de
+ * MatchPlayerStat, PlayerRole...), entao a conta so preenche email/senha/foto
+ * num Player que a aba Jogadores ja cadastrou. Ver ARCHITECTURE.md.
+ */
+
+import { prisma } from '../lib/prisma.js';
+import { hashPassword, verifyPassword } from '../lib/auth.js';
+import { getSummonerByPuuid } from '../lib/riot.js';
+import { getProfileIconUrl } from '../lib/ddragon.js';
+import { toPlayerDTO, withRoles, type PlayerDTO } from './players.js';
+
+export class AuthError extends Error {
+  constructor(
+    message: string,
+    readonly code:
+      | 'PLAYER_NOT_FOUND'
+      | 'ALREADY_CLAIMED'
+      | 'INVALID_CREDENTIALS'
+      | 'PHOTO_TOO_LARGE'
+      | 'INVALID_IMAGE'
+      | 'NO_RIOT_ID'
+  ) {
+    super(message);
+    this.name = 'AuthError';
+  }
+}
+
+/** Jogadores ativos que ainda nao tem conta -- alimenta o Select de cadastro. */
+export async function listClaimablePlayers(): Promise<PlayerDTO[]> {
+  const players = await prisma.player.findMany({
+    where: { active: true, passwordHash: null },
+    include: withRoles,
+    orderBy: { name: 'asc' },
+  });
+  return players.map(toPlayerDTO);
+}
+
+export interface RegisterInput {
+  playerId: string;
+  email: string;
+  password: string;
+}
+
+export async function registerAccount(input: RegisterInput): Promise<PlayerDTO> {
+  const existing = await prisma.player.findUnique({ where: { id: input.playerId } });
+  if (!existing) {
+    throw new AuthError('Jogador nao encontrado.', 'PLAYER_NOT_FOUND');
+  }
+  if (existing.passwordHash) {
+    throw new AuthError('Esse jogador ja tem uma conta.', 'ALREADY_CLAIMED');
+  }
+
+  const passwordHash = await hashPassword(input.password);
+
+  const player = await prisma.player.update({
+    where: { id: input.playerId },
+    data: { email: input.email.trim().toLowerCase(), passwordHash },
+    include: withRoles,
+  });
+
+  // Conveniencia, nao requisito: se a Riot API falhar (sem chave, rate
+  // limit), o cadastro segue -- o jogador so troca a foto depois em /conta.
+  if (player.puuid) {
+    try {
+      await syncLolPhoto(player.id);
+    } catch {
+      // silenciado de proposito
+    }
+  }
+
+  const refreshed = await prisma.player.findUniqueOrThrow({
+    where: { id: player.id },
+    include: withRoles,
+  });
+  return toPlayerDTO(refreshed);
+}
+
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+export async function loginAccount(input: LoginInput): Promise<PlayerDTO> {
+  const player = await prisma.player.findUnique({
+    where: { email: input.email.trim().toLowerCase() },
+    include: withRoles,
+  });
+
+  // Mensagem generica de proposito: nao revela se o e-mail existe.
+  if (!player || !player.passwordHash || !(await verifyPassword(input.password, player.passwordHash))) {
+    throw new AuthError('E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
+  }
+
+  return toPlayerDTO(player);
+}
+
+export async function getAccountById(playerId: string): Promise<PlayerDTO | null> {
+  const player = await prisma.player.findUnique({ where: { id: playerId }, include: withRoles });
+  return player ? toPlayerDTO(player) : null;
+}
+
+export interface ChangePasswordInput {
+  playerId: string;
+  currentPassword: string;
+  newPassword: string;
+}
+
+export async function changePassword(input: ChangePasswordInput): Promise<void> {
+  const player = await prisma.player.findUniqueOrThrow({ where: { id: input.playerId } });
+
+  if (!player.passwordHash || !(await verifyPassword(input.currentPassword, player.passwordHash))) {
+    throw new AuthError('Senha atual incorreta.', 'INVALID_CREDENTIALS');
+  }
+
+  const passwordHash = await hashPassword(input.newPassword);
+  await prisma.player.update({ where: { id: input.playerId }, data: { passwordHash } });
+}
+
+/** Busca o icone de invocador atual na Riot e o grava como foto. */
+export async function syncLolPhoto(playerId: string): Promise<PlayerDTO> {
+  const existing = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
+  if (!existing.puuid) {
+    throw new AuthError('Esse jogador ainda nao tem Riot ID vinculado.', 'NO_RIOT_ID');
+  }
+
+  const { profileIconId } = await getSummonerByPuuid(existing.puuid);
+  const photoUrl = await getProfileIconUrl(profileIconId);
+
+  const player = await prisma.player.update({
+    where: { id: playerId },
+    data: { profileIconId, photoUrl, photoSource: 'LOL_ICON' },
+    include: withRoles,
+  });
+  return toPlayerDTO(player);
+}
+
+const MAX_PHOTO_BYTES = 300 * 1024;
+const IMAGE_DATA_URL = /^data:image\/(jpeg|png|webp);base64,([a-zA-Z0-9+/]+=*)$/;
+
+/**
+ * Guarda a foto enviada como `data:` URI direto na coluna, sem multer/disco/S3:
+ * o Vercel tem filesystem efemero (mesma razao pela qual o SQLite em producao
+ * e o Turso, nao arquivo -- ver DEPLOY.md), entao guardar como string no
+ * mesmo banco funciona identico em dev e producao, sem infra nova. O
+ * redimensionamento para caber no limite acontece no client, antes do POST.
+ */
+export async function setUploadedPhoto(playerId: string, imageBase64: string): Promise<PlayerDTO> {
+  const match = IMAGE_DATA_URL.exec(imageBase64);
+  if (!match) {
+    throw new AuthError('Formato de imagem invalido. Use JPEG, PNG ou WebP.', 'INVALID_IMAGE');
+  }
+
+  const byteLength = Buffer.from(match[2], 'base64').length;
+  if (byteLength > MAX_PHOTO_BYTES) {
+    throw new AuthError('Imagem grande demais (limite de 300 KB apos compressao).', 'PHOTO_TOO_LARGE');
+  }
+
+  const player = await prisma.player.update({
+    where: { id: playerId },
+    data: { photoUrl: imageBase64, photoSource: 'UPLOAD' },
+    include: withRoles,
+  });
+  return toPlayerDTO(player);
+}
