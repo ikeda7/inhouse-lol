@@ -7,6 +7,64 @@ import { Button, Card, EmptyState, ErrorState, LoadingState } from '../component
 import { CaptainsDraft } from '../components/CaptainsDraft';
 import { TeamCard } from '../components/TeamCard';
 import { fromCaptains, saveActiveDraft } from '../lib/activeDraft';
+import type { TeamSide } from '../types';
+
+/**
+ * Pegar ou liberar um lado.
+ *
+ * A trava é contra ACIDENTE, não contra gente: quem está assistindo não deve
+ * escolher sem querer. Por isso liberar é aberto a qualquer um -- num grupo de
+ * amigos, o capitão ficar sem bateria é problema muito mais provável que
+ * sabotagem, e ficar travado seria pior que aquilo que a trava resolve.
+ */
+function AcoesDoLado({
+  side,
+  temDono,
+  souEu,
+  onPegar,
+  onLiberar,
+}: {
+  side: TeamSide;
+  temDono: boolean;
+  souEu: boolean;
+  onPegar: () => void;
+  onLiberar: () => void;
+}) {
+  if (souEu) {
+    return (
+      <div className="flex items-center justify-between gap-2 rounded-md bg-gold/10 px-2 py-1">
+        <span className="text-[11px] font-semibold text-gold">Você é o capitão</span>
+        <button onClick={onLiberar} className="text-[11px] text-ink-faint hover:text-ink-muted">
+          liberar
+        </button>
+      </div>
+    );
+  }
+
+  if (temDono) {
+    return (
+      <div className="flex items-center justify-between gap-2 rounded-md bg-overlay px-2 py-1">
+        <span className="text-[11px] text-ink-muted">Capitão definido</span>
+        <button onClick={onLiberar} className="text-[11px] text-ink-faint hover:text-ink-muted">
+          liberar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={onPegar}
+      className={`w-full rounded-md border border-dashed px-2 py-1 text-[11px] font-semibold transition ${
+        side === 'BLUE'
+          ? 'border-blue/40 text-blue hover:bg-blue/10'
+          : 'border-red/40 text-red hover:bg-red/10'
+      }`}
+    >
+      Sou o capitão
+    </button>
+  );
+}
 
 /**
  * Draft ao vivo (issue #6): todo mundo com o link vê a escolha acontecer.
@@ -22,13 +80,28 @@ import { fromCaptains, saveActiveDraft } from '../lib/activeDraft';
 export function LiveDraftPage() {
   const { code } = useParams();
   const navigate = useNavigate();
-  const { sala, carregando, erro, conectado, escolher, escolhendo } = useDraftRoom(code);
+  const {
+    sala,
+    carregando,
+    erro,
+    conectado,
+    escolher,
+    escolhendo,
+    meusLados,
+    pegarLado,
+    liberarLado,
+  } = useDraftRoom(code);
   const [copiado, setCopiado] = useState(false);
   const [confirmado, setConfirmado] = useState(false);
 
   if (carregando) return <LoadingState label="Entrando na sala..." />;
   if (erro && !sala) return <ErrorState error={erro} />;
   if (!sala) return <EmptyState label="Sala não encontrada ou expirada." />;
+
+  // Quem pode clicar no pote: o dono do lado da vez. Se esse lado não tem dono,
+  // qualquer um pode -- a trava é opcional, e a sala nunca fica presa.
+  const daVez = sala?.state.onTheClock ?? null;
+  const podeEscolher = !daVez || !sala?.claimed[daVez] || meusLados.includes(daVez);
 
   const copiarLink = async () => {
     await navigator.clipboard.writeText(window.location.href);
@@ -90,6 +163,16 @@ export function LiveDraftPage() {
         erro={erro}
         onReiniciar={() => navigate('/sorteio')}
         reiniciarRotulo="Sair da sala"
+        podeEscolher={podeEscolher}
+        acoesDoTime={(side) => (
+          <AcoesDoLado
+            side={side}
+            temDono={sala.claimed[side]}
+            souEu={meusLados.includes(side)}
+            onPegar={() => pegarLado(side)}
+            onLiberar={() => liberarLado(side)}
+          />
+        )}
       />
 
       {sala.teams && (

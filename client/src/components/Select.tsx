@@ -230,7 +230,7 @@ export function Select({
                   className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition
                     ${
                       option.disabled
-                        ? 'cursor-not-allowed text-ink-faint/50'
+                        ? 'cursor-not-allowed text-ink-faint'
                         : ativo
                           ? 'bg-gold/15 text-ink'
                           : 'text-ink-muted'

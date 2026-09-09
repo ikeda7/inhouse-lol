@@ -26,7 +26,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 };
 
 /** Ouro, prata e bronze nos três primeiros; o resto só o número. */
-const MEDAL = ['text-gold', 'text-slate-300', 'text-amber-700'];
+const MEDAL = ['text-gold', 'text-silver', 'text-bronze'];
 
 /**
  * Ranking geral. +3 por mapa vencido, +1 de bônus por vencer a MD3.
@@ -214,7 +214,7 @@ export function DashboardPage() {
           {/* A ausência do selo precisa ser legível: sem esta linha, um selo que
               ninguém tem parece feature quebrada em vez de resultado honesto. */}
           {!data.some((entry) => entry.isKdaPlayer) && (
-            <p className="text-ink-faint/70">
+            <p className="text-ink-faint">
               O selo <span className="font-semibold">KDA player</span> vai para quem tem KDA acima
               da média do grupo com participação em abates abaixo. Hoje ninguém se qualifica.
             </p>

@@ -1,6 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { draftApi } from '../api/client';
-import type { DraftRoom } from '../types';
+import type { DraftRoom, TeamSide } from '../types';
+
+/**
+ * Onde o segredo do capitao mora.
+ *
+ * localStorage e nao memoria: o capitao pode dar F5 no meio do draft, e perder
+ * o lado por causa disso seria pior que nao ter trava nenhuma. Por sala, porque
+ * duas salas na mesma noite sao possiveis.
+ */
+const chaveDoLado = (code: string, side: TeamSide) => `inhouse-lol:draft:${code}:${side}`;
+
+function lerToken(code: string, side: TeamSide): string | null {
+  try {
+    return localStorage.getItem(chaveDoLado(code, side));
+  } catch {
+    // Navegador com armazenamento bloqueado: sem trava, mas o draft funciona.
+    return null;
+  }
+}
 
 /**
  * Acompanha uma sala de draft ao vivo.
@@ -30,6 +48,10 @@ export interface EstadoDaSala {
   conectado: boolean;
   escolher: (playerId: string) => Promise<void>;
   escolhendo: boolean;
+  /** De quais lados este navegador tem o segredo. */
+  meusLados: TeamSide[];
+  pegarLado: (side: TeamSide) => Promise<void>;
+  liberarLado: (side: TeamSide) => Promise<void>;
 }
 
 export function useDraftRoom(code: string | undefined): EstadoDaSala {
@@ -107,13 +129,52 @@ export function useDraftRoom(code: string | undefined): EstadoDaSala {
     };
   }, [code, aplicar]);
 
+  const meusLados = ((): TeamSide[] => {
+    if (!code) return [];
+    return (['BLUE', 'RED'] as TeamSide[]).filter((side) => lerToken(code, side) !== null);
+  })();
+
+  const pegarLado = useCallback(
+    async (side: TeamSide) => {
+      if (!code) return;
+      setErro(null);
+      try {
+        const { sala: nova, token } = await draftApi.pegarLado(code, side);
+        localStorage.setItem(chaveDoLado(code, side), token);
+        aplicar(nova);
+      } catch (falha) {
+        setErro(falha as Error);
+      }
+    },
+    [code, aplicar]
+  );
+
+  const liberarLado = useCallback(
+    async (side: TeamSide) => {
+      if (!code) return;
+      setErro(null);
+      try {
+        const nova = await draftApi.liberarLado(code, side);
+        localStorage.removeItem(chaveDoLado(code, side));
+        aplicar(nova);
+      } catch (falha) {
+        setErro(falha as Error);
+      }
+    },
+    [code, aplicar]
+  );
+
   const escolher = useCallback(
     async (playerId: string) => {
       if (!code || versao.current === null) return;
       setEscolhendo(true);
       setErro(null);
       try {
-        aplicar(await draftApi.escolherNaSala(code, playerId, versao.current));
+        // Manda o segredo do lado DA VEZ. Sem dono, o servidor aceita mesmo
+        // assim -- a trava é opcional, e a sala não pode ficar presa.
+        const daVez = sala?.state.onTheClock;
+        const token = daVez ? (lerToken(code, daVez) ?? undefined) : undefined;
+        aplicar(await draftApi.escolherNaSala(code, playerId, versao.current, token));
       } catch (falha) {
         // Conflito de versão significa que outro capitão escolheu primeiro. A
         // próxima consulta já traz o estado certo, então a mensagem aparece e
@@ -123,8 +184,18 @@ export function useDraftRoom(code: string | undefined): EstadoDaSala {
         setEscolhendo(false);
       }
     },
-    [code, aplicar]
+    [code, aplicar, sala]
   );
 
-  return { sala, carregando, erro, conectado, escolher, escolhendo };
+  return {
+    sala,
+    carregando,
+    erro,
+    conectado,
+    escolher,
+    escolhendo,
+    meusLados,
+    pegarLado,
+    liberarLado,
+  };
 }

@@ -190,6 +190,20 @@ model DraftRoom {
    */
   version Int @default(0)
 
+  /**
+   * Quem "pegou" cada lado, se alguem pegou.
+   *
+   * Nao e autenticacao -- e uma TRAVA CONTRA ACIDENTE. Sem ela, quem esta so
+   * assistindo pode clicar num jogador e escolher pelo time dos outros sem
+   * querer. Com ela, o capitao clica "sou eu" uma vez, o navegador dele guarda
+   * o segredo, e o resto da sala vira plateia.
+   *
+   * Lado sem dono continua aberto a qualquer um: se ninguem pegar, o draft
+   * funciona como antes, em vez de travar esperando alguem clicar.
+   */
+  blueToken String?
+  redToken  String?
+
   /// Sala e efemera: serve para uma noite. Depois nao significa mais nada.
   expiresAt DateTime
 

@@ -21,14 +21,25 @@
   --color-overlay: #1a2536;
   --color-line: #22304a;
 
-  /* Texto: três níveis bastam. Mais que isso vira sopa. */
+  /* Texto: três níveis bastam. Mais que isso vira sopa.
+     Os três passam WCAG AA (4.5:1) no fundo MAIS CLARO em que aparecem, que é
+     o overlay. O valor antigo de --color-ink-faint (#5c6b85) dava 2.86:1 ali e
+     era justamente onde eu mais usava texto de 10-11px -- o "camufla" que o
+     Lucas apontou tinha número. Ao arrumar só o faint, ele encostava no muted e
+     a hierarquia sumia, então os dois subiram juntos. */
   --color-ink: #e9eef7;
-  --color-ink-muted: #93a3bd;
-  --color-ink-faint: #5c6b85;
+  --color-ink-muted: #aab8cd;
+  --color-ink-faint: #7d8da8;
 
   /* Acento */
   --color-gold: #d4b26a;
   --color-gold-soft: #8a7440;
+
+  /* Pódio. O bronze era amber-700 (#b45309) e dava 3.40:1 -- o número do 3º
+     lugar ficava ilegível. Bronze de verdade passa em 5.43:1 e ainda é o mais
+     distinguível do ouro. */
+  --color-silver: #cbd5e1;
+  --color-bronze: #cd7f32;
 
   /* Times */
   --color-blue: #4a9eff;

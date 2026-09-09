@@ -380,6 +380,8 @@ export type CaptainSelectionMode = 'TOP_WINRATE' | 'LAST_LOSERS' | 'RANDOM';
 export interface DraftRoom {
   code: string;
   version: number;
+  /** Quais lados já têm capitão. Os segredos nunca vêm do servidor. */
+  claimed: Record<TeamSide, boolean>;
   state: CaptainsDraftState;
   /** Preenchido só quando o draft fecha. */
   teams: { blueTeam: BalancedTeam; redTeam: BalancedTeam } | null;

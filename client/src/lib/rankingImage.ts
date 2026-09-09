@@ -33,18 +33,20 @@ const MAX_LINHAS = 15;
 /** Largura reservada à direita para V–D, WR, KDA e PTS. */
 const RESERVA_DAS_COLUNAS = 360;
 
+// Mesmos valores dos tokens em index.css. Repetidos porque canvas não lê CSS
+// custom property -- se um mudar lá, muda aqui.
 const COR = {
   fundo: '#0d1420',
   fundoAlterna: '#131c2b',
   linha: '#22304a',
   texto: '#e9eef7',
-  apagado: '#93a3bd',
-  fraco: '#5c6b85',
+  apagado: '#aab8cd',
+  fraco: '#7d8da8',
   ouro: '#d4b26a',
   vitoria: '#3ddc97',
   derrota: '#ff6b6b',
   prata: '#cbd5e1',
-  bronze: '#b45309',
+  bronze: '#cd7f32',
 };
 
 const FONTE = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif';

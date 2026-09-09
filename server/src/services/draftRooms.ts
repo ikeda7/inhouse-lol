@@ -23,6 +23,8 @@ import {
   type CaptainsDraftState,
 } from '../lib/captainsDraft.js';
 import { DraftError } from '../lib/autoBalance.js';
+import { randomUUID } from 'node:crypto';
+import type { TeamSide } from '../lib/roles.js';
 
 /**
  * Alfabeto do codigo, sem 0/O/1/I/L.
@@ -50,6 +52,8 @@ function sortearCodigo(): string {
 export interface SalaDeDraft {
   code: string;
   version: number;
+  /** Quais lados ja tem dono. Os segredos em si NUNCA saem daqui. */
+  claimed: Record<TeamSide, boolean>;
   state: CaptainsDraftState;
   /** Preenchido so quando o draft fecha. */
   teams: ReturnType<typeof finalizeCaptainsDraft> | null;
@@ -61,11 +65,14 @@ function montar(row: {
   version: number;
   state: string;
   expiresAt: Date;
+  blueToken: string | null;
+  redToken: string | null;
 }): SalaDeDraft {
   const state = JSON.parse(row.state) as CaptainsDraftState;
   return {
     code: row.code,
     version: row.version,
+    claimed: { BLUE: row.blueToken !== null, RED: row.redToken !== null },
     state,
     // Os times saem do estado, nao sao guardados: guardar seria duplicar a
     // verdade e abrir espaco para os dois discordarem.
@@ -76,6 +83,13 @@ function montar(row: {
 
 export async function criarSala(state: CaptainsDraftState): Promise<SalaDeDraft> {
   const expiresAt = new Date(Date.now() + VALIDADE_HORAS * 60 * 60 * 1000);
+
+  // Varre as vencidas de carona. Nao existe cron aqui, e abrir sala e o unico
+  // momento em que alguem se importa com o assunto -- acontece uma vez por
+  // noite, e libera os codigos das salas antigas para sorteio.
+  await prisma.draftRoom
+    .deleteMany({ where: { expiresAt: { lt: new Date() } } })
+    .catch(() => undefined);
 
   for (let tentativa = 0; tentativa < TENTATIVAS_DE_CODIGO; tentativa++) {
     const code = sortearCodigo();
@@ -108,21 +122,85 @@ export async function buscarSala(code: string): Promise<SalaDeDraft | null> {
 }
 
 /**
- * Aplica uma escolha na sala.
+ * Pega um lado do draft.
  *
- * `versaoVista` e o que impede escolha dupla: os dois capitaes podem clicar no
- * mesmo segundo, e sem isso a segunda gravacao sobrescreveria a primeira -- o
- * jogador escolhido pelo primeiro voltaria para o pote, e ninguem entenderia
- * por que.
+ * Devolve um segredo que o navegador do capitao guarda. Nao e login: e trava
+ * contra acidente, para quem esta assistindo nao escolher sem querer.
  */
+export async function pegarLado(
+  code: string,
+  side: TeamSide
+): Promise<{ sala: SalaDeDraft; token: string }> {
+  const atual = await prisma.draftRoom.findUnique({ where: { code: code.toUpperCase() } });
+  if (!atual || atual.expiresAt.getTime() < Date.now()) {
+    throw new DraftError('Sala nao encontrada ou expirada.', 'ROOM_NOT_FOUND');
+  }
+
+  const campo = side === 'BLUE' ? 'blueToken' : 'redToken';
+  if (atual[campo] !== null) {
+    throw new DraftError(
+      `O lado ${side === 'BLUE' ? 'azul' : 'vermelho'} ja tem capitao. Peca para liberar.`,
+      'SIDE_ALREADY_CLAIMED'
+    );
+  }
+
+  const token = randomUUID();
+  // Repete a condicao "ainda sem dono" na escrita: dois clicando junto no mesmo
+  // lado terminariam com dois segredos validos se so a leitura decidisse.
+  const alterados = await prisma.draftRoom.updateMany({
+    where: { code: atual.code, [campo]: null },
+    data: { [campo]: token },
+  });
+
+  if (alterados.count === 0) {
+    throw new DraftError('Alguem pegou esse lado primeiro.', 'SIDE_ALREADY_CLAIMED');
+  }
+
+  return { sala: (await buscarSala(atual.code))!, token };
+}
+
+/**
+ * Libera um lado.
+ *
+ * Qualquer um libera, de proposito. A trava existe contra ACIDENTE, nao contra
+ * gente mal-intencionada -- e num grupo de amigos, ficar travado porque o
+ * celular do capitao morreu e um problema muito mais provavel que sabotagem.
+ */
+export async function liberarLado(code: string, side: TeamSide): Promise<SalaDeDraft> {
+  const sala = await buscarSala(code);
+  if (!sala) throw new DraftError('Sala nao encontrada ou expirada.', 'ROOM_NOT_FOUND');
+
+  await prisma.draftRoom.update({
+    where: { code: sala.code },
+    data: { [side === 'BLUE' ? 'blueToken' : 'redToken']: null },
+  });
+
+  return (await buscarSala(sala.code))!;
+}
+
 export async function escolherNaSala(
   code: string,
   playerId: string,
-  versaoVista: number
+  versaoVista: number,
+  token?: string
 ): Promise<SalaDeDraft> {
-  const sala = await buscarSala(code);
-  if (!sala) {
+  const linha = await prisma.draftRoom.findUnique({ where: { code: code.toUpperCase() } });
+  if (!linha || linha.expiresAt.getTime() < Date.now()) {
     throw new DraftError('Sala nao encontrada ou expirada.', 'ROOM_NOT_FOUND');
+  }
+  const sala = montar(linha);
+
+  // A vez e de quem? So o dono DAQUELE lado escolhe -- e se o lado nao tem
+  // dono, continua aberto, para a sala nao travar esperando alguem clicar.
+  const daVez = sala.state.onTheClock;
+  if (daVez) {
+    const esperado = daVez === 'BLUE' ? linha.blueToken : linha.redToken;
+    if (esperado !== null && esperado !== token) {
+      throw new DraftError(
+        `A vez e do capitao ${daVez === 'BLUE' ? 'azul' : 'vermelho'}.`,
+        'NOT_YOUR_TURN'
+      );
+    }
   }
 
   if (sala.version !== versaoVista) {
@@ -152,6 +230,7 @@ export async function escolherNaSala(
   return {
     code: sala.code,
     version: versaoVista + 1,
+    claimed: sala.claimed,
     state: proximo,
     teams: proximo.finished ? finalizeCaptainsDraft(proximo) : null,
     expiresAt: sala.expiresAt,
