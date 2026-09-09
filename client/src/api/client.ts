@@ -140,8 +140,16 @@ export const draftApi = {
       `/draft/rooms/${encodeURIComponent(code)}` + (since === undefined ? '' : `?since=${since}`)
     ),
 
-  escolherNaSala: (code: string, playerId: string, version: number) =>
-    post<DraftRoom>(`/draft/rooms/${encodeURIComponent(code)}/pick`, { playerId, version }),
+  escolherNaSala: (code: string, playerId: string, version: number, token?: string) =>
+    post<DraftRoom>(`/draft/rooms/${encodeURIComponent(code)}/pick`, { playerId, version, token }),
+
+  pegarLado: (code: string, side: TeamSide) =>
+    post<{ sala: DraftRoom; token: string }>(`/draft/rooms/${encodeURIComponent(code)}/claim`, {
+      side,
+    }),
+
+  liberarLado: (code: string, side: TeamSide) =>
+    post<DraftRoom>(`/draft/rooms/${encodeURIComponent(code)}/release`, { side }),
 };
 
 // ---------------------------------------------------------------------------

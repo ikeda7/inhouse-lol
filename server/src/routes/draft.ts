@@ -12,7 +12,13 @@ import {
 import { findPlayersByIds, toDraftablePlayer } from '../services/players.js';
 import { getLastGameLosers } from '../services/series.js';
 import { getWinRates } from '../services/stats.js';
-import { buscarSala, criarSala, escolherNaSala } from '../services/draftRooms.js';
+import {
+  buscarSala,
+  criarSala,
+  escolherNaSala,
+  liberarLado,
+  pegarLado,
+} from '../services/draftRooms.js';
 import { asyncHandler } from './helpers.js';
 
 export const draftRouter = Router();
@@ -217,10 +223,45 @@ draftRouter.post(
 draftRouter.post(
   '/rooms/:code/pick',
   asyncHandler(async (req, res) => {
-    const { playerId, version } = z
-      .object({ playerId: z.string().min(1), version: z.number().int().min(0) })
+    const { playerId, version, token } = z
+      .object({
+        playerId: z.string().min(1),
+        version: z.number().int().min(0),
+        /** Segredo de quem pegou o lado. Ausente = so vale se o lado esta livre. */
+        token: z.string().optional(),
+      })
       .parse(req.body);
 
-    res.json({ success: true, data: await escolherNaSala(req.params.code, playerId, version) });
+    res.json({
+      success: true,
+      data: await escolherNaSala(req.params.code, playerId, version, token),
+    });
+  })
+);
+
+const ladoSchema = z.object({ side: z.enum(['BLUE', 'RED']) });
+
+/**
+ * POST /api/draft/rooms/:code/claim
+ * Pega um lado. Devolve o segredo que o navegador do capitao guarda.
+ */
+draftRouter.post(
+  '/rooms/:code/claim',
+  asyncHandler(async (req, res) => {
+    const { side } = ladoSchema.parse(req.body);
+    res.json({ success: true, data: await pegarLado(req.params.code, side) });
+  })
+);
+
+/**
+ * POST /api/draft/rooms/:code/release
+ * Libera um lado. Qualquer um pode -- a trava e contra acidente, nao contra
+ * gente; ficar travado porque o celular do capitao morreu seria pior.
+ */
+draftRouter.post(
+  '/rooms/:code/release',
+  asyncHandler(async (req, res) => {
+    const { side } = ladoSchema.parse(req.body);
+    res.json({ success: true, data: await liberarLado(req.params.code, side) });
   })
 );
