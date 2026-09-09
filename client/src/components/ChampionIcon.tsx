@@ -64,3 +64,19 @@ export function ordenarPorLane<T extends { rolePlayed: Role }>(itens: T[]): T[] 
     (a, b) => ROLES.indexOf(a.rolePlayed) - ROLES.indexOf(b.rolePlayed)
   );
 }
+
+/**
+ * Tratamento visual de campeão INDISPONÍVEL -- banido no draft, queimado pelo
+ * Fearless, ou bloqueado no seletor.
+ *
+ * A regra: indisponível não é invisível. As três telas usavam algo perto de
+ * `opacity-40 grayscale`, e num tema escuro isso apaga o ícone -- dava para ver
+ * que existia um ban, não QUAL era, que é a única informação que aquele bloco
+ * carrega. Um campeão queimado que ninguém reconhece não impede ninguém de
+ * escolher ele.
+ *
+ * O sinal de "não dá para usar" tem que vir de outra coisa: o risco por cima,
+ * a posição na tela, o cursor. A dessaturação aqui é só um empurrão, não o
+ * recado inteiro.
+ */
+export const ICONE_INDISPONIVEL = 'opacity-90 grayscale-40';

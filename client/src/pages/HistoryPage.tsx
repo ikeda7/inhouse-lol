@@ -122,7 +122,7 @@ function MatchCard({ match }: { match: Match }) {
         )}
         {match.gameVersion && (
           <span
-            className="font-normal normal-case tracking-normal text-ink-faint/70"
+            className="font-normal normal-case tracking-normal"
             title="Patch em que a partida foi jogada"
           >
             patch {match.gameVersion.split('.').slice(0, 2).join('.')}

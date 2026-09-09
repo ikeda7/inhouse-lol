@@ -1,4 +1,4 @@
-import { ChampionIcon } from './ChampionIcon';
+import { ChampionIcon, ICONE_INDISPONIVEL } from './ChampionIcon';
 import type { MatchBan, MatchTeamStat } from '../types';
 
 /**
@@ -107,9 +107,13 @@ function Primeiros({ azul, vermelho }: { azul: MatchTeamStat; vermelho: MatchTea
 /**
  * Os bans do draft, na ordem em que foram feitos.
  *
- * Ficam apagados e riscados: banido é campeão que NÃO jogou, e a tela precisa
- * dizer isso de relance -- senão viram só mais dez ícones competindo com os
- * campeões que de fato entraram.
+ * Riscados na cor de quem baniu: banido é campeão que NÃO jogou, e a tela
+ * precisa dizer isso de relance -- senão viram só mais dez ícones competindo
+ * com os campeões que de fato entraram.
+ *
+ * O risco carrega esse recado sozinho. A primeira versão apagava o ícone junto
+ * (`opacity-45 grayscale`) e o resultado foi um bloco onde dava para ver que
+ * houve ban, mas não qual -- ver `ICONE_INDISPONIVEL`.
  */
 export function MatchBans({ bans }: { bans: MatchBan[] }) {
   if (bans.length === 0) return null;
@@ -156,10 +160,15 @@ function BanIcon({ ban }: { ban: MatchBan }) {
         ban.teamSide === 'BLUE' ? 'azul' : 'vermelho'
       } (${ban.pickTurn}º do draft)`}
     >
+      {/* Indisponível NÃO é invisível.
+          Estava em `opacity-45 grayscale`, e num fundo escuro isso apaga o
+          ícone: dava para ver que houve um ban, não QUAL foi -- que é a única
+          informação que o bloco carrega. O sinal de "não jogou" vem do risco e
+          de uma dessaturação leve; o campeão continua reconhecível. */}
       <ChampionIcon
         championName={ban.championName ?? String(ban.championId)}
         size={34}
-        className="opacity-45 grayscale"
+        className={ICONE_INDISPONIVEL}
       />
       {/* Barra diagonal cobrindo o ícone: lê como "proibido" de relance, sem
           precisar de legenda. Em 18px isso era um risco ilegível. */}

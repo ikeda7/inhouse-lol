@@ -102,7 +102,7 @@ export function Input({
   const campo = (
     <input
       {...props}
-      className={`w-full rounded-md border px-3 py-2 text-sm text-ink transition placeholder:text-ink-faint/60 focus:outline-none ${
+      className={`w-full rounded-md border px-3 py-2 text-sm text-ink transition placeholder:text-ink-faint focus:outline-none ${
         invalid
           ? 'border-warn/50 bg-warn/5'
           : 'border-line bg-raised focus:border-gold/60 focus:bg-overlay'

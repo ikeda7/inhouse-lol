@@ -80,6 +80,12 @@ export function CaptainsDraft({
  *
  * Cada quadradinho é uma escolha; a atual pulsa. Sem isso, "1-2-2-2-1" é uma
  * regra que alguém precisa lembrar de cabeça enquanto o draft acontece.
+ *
+ * "Já escolheu" é marcado no FUNDO, não apagando o número. O número é 11px em
+ * azul ou vermelho: a `opacity-40` que estava aqui derrubava o contraste para
+ * 2.0:1 (azul) e 1.8:1 (vermelho) sobre o overlay -- reprova AA por larga
+ * margem e some na tela de quem estiver com brilho baixo. Cor de time em texto
+ * pequeno só passa em opacidade cheia.
  */
 function FilaDeEscolhas({ state }: { state: CaptainsDraftState }) {
   const fila = state.pickOrder ?? [];
@@ -106,7 +112,9 @@ function FilaDeEscolhas({ state }: { state: CaptainsDraftState }) {
                   ? 'bg-blue/25 ring-2 ring-blue'
                   : 'bg-red/25 ring-2 ring-red'
                 : jaFoi
-                  ? 'bg-overlay opacity-40'
+                  ? pick.side === 'BLUE'
+                    ? 'bg-blue/15'
+                    : 'bg-red/15'
                   : 'bg-overlay/60'
             }`}
           >
@@ -177,7 +185,7 @@ function ColunaDoTime({
         {Array.from({ length: Math.max(0, 5 - escolhidos.length) }).map((_, index) => (
           <li
             key={`vazio-${index}`}
-            className="rounded-md border border-dashed border-line/40 px-2 py-1.5 text-sm text-ink-faint/50"
+            className="rounded-md border border-dashed border-line/40 px-2 py-1.5 text-sm text-ink-faint"
           >
             —
           </li>

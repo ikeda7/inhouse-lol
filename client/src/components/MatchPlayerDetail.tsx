@@ -290,7 +290,7 @@ function Metrica({
       {largura !== null && (
         <span className="block h-1.5 overflow-hidden rounded-full bg-overlay">
           <span
-            className={`block h-full rounded-full ${ehOMaior ? 'bg-gold' : 'bg-ink-faint/50'}`}
+            className={`block h-full rounded-full ${ehOMaior ? 'bg-gold' : 'bg-ink-faint'}`}
             style={{ width: `${largura}%` }}
           />
         </span>
@@ -320,7 +320,7 @@ function QuebraDeDano({
   const partes = [
     { rotulo: 'físico', valor: fisico, classe: 'bg-red/70' },
     { rotulo: 'mágico', valor: magico, classe: 'bg-blue/70' },
-    { rotulo: 'verdadeiro', valor: verdadeiro, classe: 'bg-ink-faint/60' },
+    { rotulo: 'verdadeiro', valor: verdadeiro, classe: 'bg-ink-faint' },
   ].filter((parte) => parte.valor > 0);
 
   return (
