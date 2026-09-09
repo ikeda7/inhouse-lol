@@ -7,6 +7,7 @@ import { PlayersPage } from './pages/PlayersPage';
 import { PlayerProfilePage } from './pages/PlayerProfilePage';
 import { HistoryPage } from './pages/HistoryPage';
 import { HighlightsPage } from './pages/HighlightsPage';
+import { LiveDraftPage } from './pages/LiveDraftPage';
 
 const NAV = [
   { to: '/', label: 'Ranking', short: 'Ranking', icon: Trophy, end: true },
@@ -75,6 +76,9 @@ export function App() {
           <Route path="/serie" element={<SeriesPage />} />
           {/* Rota antiga: quem tiver o link salvo continua chegando. */}
           <Route path="/noite" element={<Navigate to="/serie" replace />} />
+          {/* Sala de draft ao vivo: rota propria porque o link vai pro grupo
+              e precisa abrir direto no draft, sem passar pelo sorteio. */}
+          <Route path="/draft/:code" element={<LiveDraftPage />} />
           <Route path="/destaques" element={<HighlightsPage />} />
           <Route path="/historico" element={<HistoryPage />} />
           <Route path="/jogadores" element={<PlayersPage />} />
