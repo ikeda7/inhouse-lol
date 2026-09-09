@@ -178,9 +178,14 @@ function MatchCard({ match }: { match: Match }) {
       {/* Aqui é o contrário das colunas de time: os dois blocos SE ESTICAM para
           a mesma altura. Objetivos rende até 6 linhas e bans rende 2, e o
           `items-start` que estava aqui deixava meio painel de buraco ao lado de
-          um card cheio. */}
+          um card cheio.
+
+          `lg` e não `md`: com a quebra em 768px o layout PIORAVA ao crescer --
+          a 700px os ícones de ban tinham 84px e a 820px caíam para 40px, porque
+          as duas colunas espremiam um card de 740px em dois de 328px. Empilhado
+          até 1024px eles seguem grandes o caminho inteiro. */}
       {(match.teams?.length ?? 0) > 0 && (
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <div className="mt-3 grid gap-3 lg:grid-cols-2">
           <MatchObjectives teams={match.teams} />
           <MatchBans bans={match.bans ?? []} />
         </div>

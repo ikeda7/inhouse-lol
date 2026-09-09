@@ -313,9 +313,18 @@ botão primário o mesmo acidente produziu "texto escuro sobre o dourado", que
 por coincidência era o certo e por isso ninguém desconfiou. Nas outras cinco
 ocorrências havia uma classe de cor explícita depois, que sobrescrevia.
 
-Daí `canvas`: não colide com utility nenhuma. Ao mexer em token novo, confira
-antes se o nome já existe como utility do Tailwind (`text-*`, `font-*`,
-`leading-*`).
+Daí `canvas`: não colide com utility nenhuma.
+
+**Isso agora é teste, não recomendação.** `client/src/__tests__/tokens.test.ts`
+lê os tokens direto do `index.css` e falha se algum nome colidir com uma
+utility de tamanho de fonte, ou se algum nível de texto reprovar AA no fundo
+mais claro em que aparece. Verificado contra as três regressões reais desta
+base — renomear o token de volta para `base`, devolver `ink-faint` para
+`#5c6b85` (2.86:1) e devolver o bronze para amber-700 (3.40:1) fazem o teste
+quebrar com a razão medida na mensagem.
+
+É teste puro: lê CSS, faz a conta do WCAG, não abre navegador. A regra "medir,
+não achar bonito" só vale se alguém medir — então quem mede é o CI.
 
 **Os três níveis de texto passam WCAG AA no fundo mais claro em que aparecem.**
 Isso não era verdade até 09/09: `ink-faint` era `#5c6b85`, que dá **2.86:1** no

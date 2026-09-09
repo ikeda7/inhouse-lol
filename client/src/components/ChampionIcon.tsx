@@ -15,23 +15,37 @@ export function ChampionIcon({
   championName,
   size = 24,
   className = '',
+  fluid = false,
 }: {
   championName: string;
   size?: number;
   className?: string;
+  /**
+   * Deixa o CSS mandar no tamanho em vez do `size`.
+   *
+   * O padrão crava `style={{width,height}}`, e estilo inline ganha de qualquer
+   * classe -- então sem isto um ícone dentro de um grid responsivo ficaria preso
+   * no número. Os atributos `width`/`height` continuam saindo: eles não pintam
+   * tamanho aqui, só entregam a proporção ao navegador antes da imagem chegar,
+   * o que evita a linha pular quando ela carrega.
+   */
+  fluid?: boolean;
 }) {
   const { manifest } = useChampions();
 
   const champion = manifest?.champions.find(
     (c) => c.name.toLowerCase() === championName.toLowerCase()
   );
+  const medida = fluid ? undefined : { width: size, height: size };
 
   if (!champion) {
     return (
       <span
         title={championName}
-        style={{ width: size, height: size }}
-        className={`inline-flex shrink-0 items-center justify-center rounded bg-raised text-[8px] font-semibold text-ink-faint ${className}`}
+        style={medida}
+        className={`inline-flex items-center justify-center rounded bg-raised text-[8px] font-semibold text-ink-faint ${
+          fluid ? 'aspect-square w-full' : 'shrink-0'
+        } ${className}`}
       >
         {championName.slice(0, 3)}
       </span>
@@ -46,8 +60,8 @@ export function ChampionIcon({
       width={size}
       height={size}
       loading="lazy"
-      style={{ width: size, height: size }}
-      className={`shrink-0 rounded ${className}`}
+      style={medida}
+      className={`rounded ${fluid ? 'aspect-square w-full' : 'shrink-0'} ${className}`}
     />
   );
 }

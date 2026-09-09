@@ -133,21 +133,32 @@ export function MatchBans({ bans }: { bans: MatchBan[] }) {
       {/* Separados por time em vez de uma fila só de dez: o que interessa num
           ban é QUEM tirou o quê do adversário, e uma fila única perde isso.
 
-          `flex-1` + `justify-around`: este card tem 2 linhas contra as até 6 do
-          painel de objetivos ao lado. Antes ele parava na altura do próprio
-          conteúdo e sobrava meio painel de buraco. Agora ele acompanha a altura
-          do vizinho e as duas fileiras se distribuem nesse espaço. */}
+          Os ícones NÃO têm tamanho fixo: são um grid de 5 colunas que divide a
+          largura sobrando, então crescem com o card e encolhem no celular
+          sozinhos. Com tamanho fixo eles ficavam pequenos num painel largo --
+          justo a informação que o bloco existe para mostrar, miniaturizada.
+
+          As duas fileiras assim ocupadas também resolvem a altura: elas se
+          aproximam naturalmente do painel de objetivos ao lado, que rende até
+          6 linhas. */}
       <div className="flex flex-1 flex-col justify-around gap-2">
+        {/* No celular o rótulo sobe para a própria linha. Ao lado dos ícones ele
+            comia ~60px de uma largura de 278px, e os cinco retratos caíam para
+            38px -- MENOS do que tinham antes de tudo isto. Em cima, eles ficam
+            com a largura inteira. */}
         {(['BLUE', 'RED'] as const).map((side) => (
-          <div key={side} className="flex items-center gap-3">
+          <div key={side} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
             <span
-              className={`w-16 shrink-0 text-[11px] font-bold uppercase ${
+              className={`shrink-0 text-[11px] font-bold uppercase sm:w-16 ${
                 side === 'BLUE' ? 'text-blue' : 'text-red'
               }`}
             >
               {side === 'BLUE' ? 'Azul' : 'Vermelho'}
             </span>
-            <div className="flex flex-wrap gap-2">
+            {/* Sempre 5 colunas, mesmo com menos de 5 bans: assim o tamanho do
+                ícone não muda de um jogo para o outro e os dois times ficam
+                alinhados em coluna. */}
+            <div className="grid min-w-0 flex-1 grid-cols-5 gap-1.5 sm:gap-2">
               {porLado(side).map((ban) => (
                 <BanIcon key={ban.pickTurn} ban={ban} />
               ))}
@@ -164,7 +175,7 @@ function BanIcon({ ban }: { ban: MatchBan }) {
 
   return (
     <span
-      className="relative inline-block"
+      className="relative block"
       title={`${nome} · banido pelo time ${
         ban.teamSide === 'BLUE' ? 'azul' : 'vermelho'
       } (${ban.pickTurn}º do draft)`}
@@ -173,20 +184,26 @@ function BanIcon({ ban }: { ban: MatchBan }) {
           Estava em `opacity-45 grayscale`, e num fundo escuro isso apaga o
           ícone: dava para ver que houve um ban, não QUAL foi -- que é a única
           informação que o bloco carrega. O sinal de "não jogou" vem do risco e
-          de uma dessaturação leve; o campeão continua reconhecível. */}
+          de uma dessaturação leve; o campeão continua reconhecível.
+
+          `fluid`: quem manda no tamanho é o grid do MatchBans. O 48 fica só
+          como proporção enquanto a imagem não chegou. */}
       <ChampionIcon
         championName={ban.championName ?? String(ban.championId)}
         size={48}
+        fluid
         className={ICONE_INDISPONIVEL}
       />
       {/* Barra diagonal cobrindo o ícone: lê como "proibido" de relance, sem
-          precisar de legenda. Em 18px isso era um risco ilegível. */}
+          precisar de legenda. Em 18px isso era um risco ilegível. A espessura
+          acompanha o ícone -- um fio de 2px sobre um retrato grande vira
+          arranhão em vez de proibição. */}
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 overflow-hidden rounded"
       >
         <span
-          className={`absolute left-1/2 top-1/2 h-[2px] w-[150%] -translate-x-1/2 -translate-y-1/2 rotate-45 ${
+          className={`absolute left-1/2 top-1/2 h-[2px] w-[150%] -translate-x-1/2 -translate-y-1/2 rotate-45 sm:h-[3px] ${
             ban.teamSide === 'BLUE' ? 'bg-blue/80' : 'bg-red/80'
           }`}
         />
