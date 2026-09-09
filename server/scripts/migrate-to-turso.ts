@@ -178,10 +178,24 @@ async function main() {
     );
   }
 
-  for (const comando of comandos) {
+  // Índice vem DEPOIS da coluna existir.
+  //
+  // Numa base que já tem as tabelas, o `CREATE TABLE IF NOT EXISTS` é no-op e
+  // as colunas novas só entram no passo 1b, por ALTER TABLE. Aplicar os índices
+  // junto com o resto quebrava justamente a coluna nova que tem `@unique`:
+  //
+  //   CREATE UNIQUE INDEX "Player_email_key" ON "Player"("email")
+  //   -> SQL_INPUT_ERROR: no such column: "email"
+  //
+  // E como isso acontecia ANTES do 1b, nenhuma coluna chegava ao destino.
+  const ehIndice = (c: string) => /^CREATE (UNIQUE )?INDEX/i.test(c);
+  const estrutura = comandos.filter((c) => !ehIndice(c));
+  const indices = comandos.filter(ehIndice);
+
+  for (const comando of estrutura) {
     await executar(turso, comando);
   }
-  console.log(`  ${comandos.length} comando(s) aplicado(s)`);
+  console.log(`  ${estrutura.length} comando(s) de estrutura aplicado(s)`);
 
   // --- 1b. colunas que apareceram no schema depois da criação das tabelas ---
   let adicionadas = 0;
@@ -204,6 +218,12 @@ async function main() {
     }
   }
   if (adicionadas === 0) console.log('  nenhuma coluna nova a adicionar');
+
+  // --- 1c. agora sim os índices, com todas as colunas no lugar ---
+  for (const comando of indices) {
+    await executar(turso, comando);
+  }
+  console.log(`  ${indices.length} indice(s) aplicado(s)`);
 
   if (schemaOnly) {
     console.log('\n--schema-only: dados não foram copiados.');

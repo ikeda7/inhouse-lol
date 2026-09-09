@@ -195,6 +195,21 @@ pelo cliente libSQL — é o que `scripts/migrate-to-turso.ts` faz.
 > Foi preciso usar `sqlite_master` porque **`PRAGMA table_info` não passa no
 > parser do libSQL** (`SQL_PARSE_ERROR: near LP`).
 
+> **Pegadinha irmã, encontrada ao publicar as contas:** o índice tem que vir
+> **depois** da coluna. O `prisma migrate diff` devolve `CREATE TABLE` e
+> `CREATE INDEX` numa lista só, e aplicá-la inteira antes do passo de
+> `ALTER TABLE` quebra na primeira coluna nova que tenha `@unique`:
+>
+> ```
+> CREATE UNIQUE INDEX "Player_email_key" ON "Player"("email")
+> -> SQL_INPUT_ERROR: no such column: "email"
+> ```
+>
+> E como isso acontecia antes de qualquer `ALTER TABLE`, o script morria sem
+> aplicar **nenhuma** coluna. O destino ficava intacto, o que salvou o banco,
+> mas o deploy simplesmente não acontecia. Agora a ordem é: tabelas → colunas
+> que faltam → índices.
+
 Rodar sem flag copia dados de local → Turso e **recusa sobrescrever** sem
 `--force`. Para só mexer na estrutura: `npm run db:turso -- --schema-only`.
 
