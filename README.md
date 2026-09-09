@@ -26,6 +26,10 @@ pool restrito (quem só joga Top/ADC entra antes) e usa quem marcou **Fill** por
 perdeu o último mapa, ou aleatório) e conduz o snake draft `1-2-2-2-1`. No
 fim, distribui as roles dentro de cada time.
 
+**Draft ao vivo** — o mesmo draft, mas numa sala com link: todo mundo do grupo
+acompanha as escolhas acontecendo. Cada capitão clica "Sou o capitão" uma vez e
+só ele escolhe pelo lado dele; o resto assiste.
+
 **Fearless Draft** — os campeões usados no Jogo 1 e no Jogo 2 ficam travados
 para o resto da MD3. A aba Série mostra os "queimados" com os
 ícones oficiais do Data Dragon.
@@ -56,6 +60,9 @@ O nível do jogador existe para **não depender do cliente do LoL aberto**: tudo
 que a tela de fim de partida mostrava fica gravado e consultável. Cada número
 grande vem com uma barra comparando com o melhor da partida — "37k de dano" não
 diz nada sozinho, 37k *sendo o maior do jogo* diz tudo.
+
+**Ranking como imagem** — botão que gera um PNG da classificação desenhado para
+ser lido no celular, para mandar no grupo. Copia, baixa ou compartilha.
 
 Pontuação: **+3** por mapa vencido, **+1** de bônus para quem vence a MD3.
 
@@ -95,7 +102,8 @@ npm run db:recompute                # aplica
 
 Monorepo com npm workspaces: [`server/`](server/) e [`client/`](client/).
 
-**Documentação:** [ARCHITECTURE.md](ARCHITECTURE.md) (por que o código é assim) ·
+**Documentação:** [COMECE-AQUI.md](COMECE-AQUI.md) (subir numa máquina nova) ·
+[ARCHITECTURE.md](ARCHITECTURE.md) (por que o código é assim) ·
 [DEPLOY.md](DEPLOY.md) (como publicar) · [CONTRIBUTING.md](CONTRIBUTING.md) (como contribuir)
 
 ---

@@ -23,6 +23,13 @@ interface Props {
   onReiniciar: () => void;
   /** O rotulo muda entre "recomecar" (local) e "sair" (sala ao vivo). */
   reiniciarRotulo?: string;
+  /**
+   * So na sala ao vivo. Quando informado, quem nao e capitao do lado da vez
+   * ve o pote em modo leitura -- e a razao de existir a trava.
+   */
+  podeEscolher?: boolean;
+  /** Cabecalho de cada time na sala ao vivo (pegar/liberar o lado). */
+  acoesDoTime?: (side: TeamSide) => React.ReactNode;
 }
 
 export function CaptainsDraft({
@@ -32,6 +39,8 @@ export function CaptainsDraft({
   erro,
   onReiniciar,
   reiniciarRotulo = 'Recomeçar o draft',
+  podeEscolher = true,
+  acoesDoTime,
 }: Props) {
   const daVez = state.onTheClock;
 
@@ -40,18 +49,19 @@ export function CaptainsDraft({
       <FilaDeEscolhas state={state} />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1fr)]">
-        <ColunaDoTime side="BLUE" state={state} ativo={daVez === 'BLUE'} />
+        <ColunaDoTime side="BLUE" state={state} ativo={daVez === 'BLUE'} acoes={acoesDoTime} />
 
         <div className="order-first lg:order-none">
           <Pote
             state={state}
             onPick={onPick}
             escolhendo={escolhendo}
-            desabilitado={state.finished}
+            desabilitado={state.finished || !podeEscolher}
+            somenteLeitura={!podeEscolher && !state.finished}
           />
         </div>
 
-        <ColunaDoTime side="RED" state={state} ativo={daVez === 'RED'} />
+        <ColunaDoTime side="RED" state={state} ativo={daVez === 'RED'} acoes={acoesDoTime} />
       </div>
 
       {erro && <ErrorState error={erro} />}
@@ -112,10 +122,12 @@ function ColunaDoTime({
   side,
   state,
   ativo,
+  acoes,
 }: {
   side: TeamSide;
   state: CaptainsDraftState;
   ativo: boolean;
+  acoes?: (side: TeamSide) => React.ReactNode;
 }) {
   const escolhidos = state.picks[side] ?? [];
   const capitao = state.captains[side];
@@ -145,6 +157,8 @@ function ColunaDoTime({
         )}
         {!ativo && <span className="tabular text-xs text-ink-faint">{escolhidos.length}/5</span>}
       </p>
+
+      {acoes && <div className="mb-2">{acoes(side)}</div>}
 
       <ul className="space-y-1.5">
         {escolhidos.map((jogador) => (
@@ -178,11 +192,14 @@ function Pote({
   onPick,
   escolhendo,
   desabilitado,
+  somenteLeitura = false,
 }: {
   state: CaptainsDraftState;
   onPick: (playerId: string) => void;
   escolhendo: boolean;
   desabilitado: boolean;
+  /** Sala ao vivo: não é a vez de quem está olhando. O pote vira leitura. */
+  somenteLeitura?: boolean;
 }) {
   const restantes = [...state.available].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -201,7 +218,7 @@ function Pote({
       <p className="mb-2 flex items-center justify-between text-sm font-bold uppercase text-ink-muted">
         No pote
         <span className="tabular text-xs font-normal text-ink-faint">
-          {restantes.length} restante{restantes.length === 1 ? '' : 's'}
+          {somenteLeitura ? 'assistindo' : `${restantes.length} restante${restantes.length === 1 ? '' : 's'}`}
         </span>
       </p>
 
