@@ -89,7 +89,7 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
         <SpellPair spell1Id={stat.spell1Id} spell2Id={stat.spell2Id} />
         <RunePair keystoneId={stat.keystoneId} subStyleId={stat.subStyleId} />
         {stat.champLevel > 0 && (
-          <span className="rounded bg-overlay px-2 py-0.5 text-[11px] font-semibold text-ink-muted sm:order-last sm:ml-auto">
+          <span className="ml-auto rounded bg-overlay px-2 py-0.5 text-[11px] font-semibold text-ink-muted sm:order-last">
             nível {stat.champLevel}
           </span>
         )}
