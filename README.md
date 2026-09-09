@@ -23,7 +23,7 @@ pool restrito (quem só joga Top/ADC entra antes) e usa quem marcou **Fill** por
 último, para tapar as lacunas. Nunca repete role no mesmo time.
 
 **Modo Capitães** — escolhe os 2 capitães (maior winrate, sorteio entre quem
-perdeu o último mapa, ou aleatório) e conduz o snake draft `1-2-2-2-2-1`. No
+perdeu o último mapa, ou aleatório) e conduz o snake draft `1-2-2-2-1`. No
 fim, distribui as roles dentro de cada time.
 
 **Fearless Draft** — os campeões usados no Jogo 1 e no Jogo 2 ficam travados
@@ -356,7 +356,7 @@ inhouse-lol/
 │     ├─ index.ts             escuta porta (local, VPS, Docker)
 │     ├─ lib/                 ← lógica pura, sem framework
 │     │  ├─ autoBalance.ts       o algoritmo de sorteio
-│     │  ├─ captainsDraft.ts     snake draft 1-2-2-2-2-1
+│     │  ├─ captainsDraft.ts     snake draft 1-2-2-2-1
 │     │  ├─ lcu.ts               histórico do cliente do LoL
 │     │  ├─ rofl.ts              arquivos de replay
 │     │  ├─ riot.ts              API pública da Riot

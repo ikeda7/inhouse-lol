@@ -2,7 +2,7 @@
  * MODO CAPITAES
  *
  * Alternativa ao auto-balance: dois capitaes escolhem o time na mao, em ordem
- * snake 1-2-2-2-2-1. O sistema so (a) escolhe os capitaes, (b) diz de quem e a
+ * snake 1-2-2-2-1. O sistema so (a) escolhe os capitaes, (b) diz de quem e a
  * vez e (c) no fim distribui as roles dentro de cada time via
  * `assignRolesWithinTeam`.
  *

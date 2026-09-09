@@ -11,6 +11,8 @@ import type {
   AutoBalanceResult,
   BuildManifest,
   BurnedChampion,
+  CaptainSelectionMode,
+  CaptainsDraftState,
   ChampionManifest,
   Highlights,
   LeaderboardEntry,
@@ -115,12 +117,12 @@ export const draftApi = {
 
   startCaptains: (
     playerIds: string[],
-    mode: 'TOP_WINRATE' | 'LAST_LOSERS' | 'RANDOM' = 'TOP_WINRATE',
+    mode: CaptainSelectionMode = 'TOP_WINRATE',
     seriesId?: string
-  ) => post<unknown>('/draft/captains/start', { playerIds, mode, seriesId }),
+  ) => post<CaptainsDraftState>('/draft/captains/start', { playerIds, mode, seriesId }),
 
-  pick: (state: unknown, playerId: string) =>
-    post<unknown>('/draft/captains/pick', { state, playerId }),
+  pick: (state: CaptainsDraftState, playerId: string) =>
+    post<CaptainsDraftState>('/draft/captains/pick', { state, playerId }),
 };
 
 // ---------------------------------------------------------------------------
