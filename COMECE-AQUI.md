@@ -81,17 +81,53 @@ git push -u origin feat/nome-curto
 gh pr create --base develop
 ```
 
-Depois do PR aprovado e mergeado em `develop`, para publicar:
+Para publicar, `develop` vai para `main` **também por PR**:
 
 ```bash
-git checkout main
-git merge origin/develop
-git push origin main                 # <- isto publica
+gh pr create --base main --head develop --title "deploy: <o que vai no ar>"
+gh pr merge --merge                  # <- isto publica
 ```
 
 > **Cuidado que já custou tempo:** push em `develop` gera *preview* na Vercel,
 > não produção. Se a mudança não aparece no site, provavelmente ela está só em
 > `develop`.
+
+### As duas branches são protegidas
+
+`git push origin develop` e `git push origin main` **são recusados pelo
+servidor**. Não é convenção, é regra do GitHub:
+
+```
+remote: error: GH006: Protected branch update failed for refs/heads/develop.
+remote: - Changes must be made through a pull request.
+remote: - 2 of 2 required status checks are expected.
+```
+
+O que está ligado nas duas:
+
+| Regra | Por quê |
+|---|---|
+| PR obrigatório, **0 aprovações** | força o fluxo sem travar quem trabalha sozinho — não dá para aprovar o próprio PR |
+| CI obrigatório (testes + segredos) | nada entra vermelho |
+| Vale para admin também | sem isso a proteção não protegeria justamente de quem mais empurra código |
+| Sem force push, sem apagar branch | histórico de `main` é o que está no ar |
+| Conversas resolvidas | comentário de review não some no merge |
+
+Uma diferença entre as duas: `develop` exige a branch **atualizada** antes do
+merge (evita "verde sozinho, quebrado depois do merge"); `main` não exige,
+porque ela tem commits de merge que nunca voltam para `develop` e a regra
+deixaria o deploy permanentemente bloqueado.
+
+**Emergência.** Você é admin: dá para suspender a proteção pelo painel
+(*Settings → Branches*) ou por linha de comando, publicar, e religar. É
+deliberado que não exista bypass silencioso — desligar aparece no histórico do
+repositório, um push direto não apareceria.
+
+```bash
+gh api -X DELETE repos/ikeda7/inhouse-lol/branches/main/protection   # desliga
+# ... publica ...
+# religa depois: ver o JSON em Settings → Branches, ou peça para o Claude
+```
 
 ---
 
