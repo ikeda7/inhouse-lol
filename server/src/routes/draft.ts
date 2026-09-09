@@ -75,7 +75,7 @@ const captainsSchema = z.object({
 
 /**
  * POST /api/draft/captains/start
- * Escolhe os capitaes e devolve o estado inicial + a ordem snake 1-2-2-2-2-1.
+ * Escolhe os capitaes e devolve o estado inicial + a ordem snake 1-2-2-2-1.
  */
 draftRouter.post(
   '/captains/start',

@@ -1,12 +1,18 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dices, Users, RefreshCw, ArrowRight, Check, Crown } from 'lucide-react';
+import { Dices, Users, RefreshCw, ArrowRight, Check, Crown, Swords } from 'lucide-react';
 import { draftApi, playersApi } from '../api/client';
 import { useAction, useAsync } from '../hooks/useAsync';
 import { Button, Card, ErrorState, LoadingState, RoleBadge } from '../components/ui';
 import { TeamCard } from '../components/TeamCard';
-import { fromAutoBalance, saveActiveDraft } from '../lib/activeDraft';
-import type { AutoBalanceResult, Player } from '../types';
+import { CaptainsDraft } from '../components/CaptainsDraft';
+import { fromAutoBalance, fromCaptains, saveActiveDraft } from '../lib/activeDraft';
+import type {
+  AutoBalanceResult,
+  CaptainSelectionMode,
+  CaptainsDraftState,
+  Player,
+} from '../types';
 
 const REQUIRED_PLAYERS = 10;
 
@@ -24,7 +30,18 @@ export function DraftPage() {
   const [result, setResult] = useState<AutoBalanceResult | null>(null);
   const [confirmed, setConfirmed] = useState(false);
 
+  // O modo Capitães divide a tela com o sorteio em vez de ter aba própria: o
+  // começo é idêntico (marcar quem veio hoje), e o grupo decide DEPOIS de ter
+  // os 10 se vai sortear ou draftar. Aba separada duplicaria essa lista.
+  const [modoCapitaes, setModoCapitaes] = useState(false);
+  const [criterio, setCriterio] = useState<CaptainSelectionMode>('TOP_WINRATE');
+  const [draft, setDraft] = useState<CaptainsDraftState | null>(null);
+
   const draw = useAction(draftApi.autoBalance);
+  const iniciar = useAction(draftApi.startCaptains);
+  const escolher = useAction(draftApi.pick);
+
+  const times = draft?.teams ?? null;
 
   const sortedPlayers = useMemo(
     () => [...(players ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
@@ -60,6 +77,34 @@ export function DraftPage() {
     saveActiveDraft(fromAutoBalance(result));
     setConfirmed(true);
     navigate('/serie');
+  };
+
+  const handleIniciarCapitaes = async () => {
+    const inicial = await iniciar.run([...selected], criterio);
+    if (inicial) setDraft(inicial);
+  };
+
+  const handleEscolher = async (playerId: string) => {
+    if (!draft) return;
+    const proximo = await escolher.run(draft, playerId);
+    // O servidor devolve o estado inteiro e só manda `pickOrder` no /start.
+    // Sem carregar a fila adiante, o desenho do snake sumiria na 1ª escolha.
+    if (proximo) setDraft({ ...proximo, pickOrder: draft.pickOrder });
+  };
+
+  const handleUsarTimesDoDraft = () => {
+    if (!times) return;
+    saveActiveDraft(fromCaptains(times));
+    setConfirmed(true);
+    navigate('/serie');
+  };
+
+  /** Trocar de modo joga fora o resultado do outro -- misturar confundiria. */
+  const trocarModo = (paraCapitaes: boolean) => {
+    setModoCapitaes(paraCapitaes);
+    setResult(null);
+    setDraft(null);
+    setConfirmed(false);
   };
 
   if (loading) return <LoadingState label="Carregando jogadores..." />;
@@ -111,25 +156,121 @@ export function DraftPage() {
           </p>
         )}
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={handleDraw} disabled={!canDraw} loading={draw.loading}>
-            <Dices size={16} />
-            {result ? 'Sortear de novo' : 'Sortear times'}
-          </Button>
-          {result && (
-            <Button variant="ghost" onClick={handleDraw} loading={draw.loading}>
-              <RefreshCw size={16} />
-              Nao gostei, tenta outro
-            </Button>
-          )}
+        {/* Escolha de modo: os dois começam com os mesmos 10, e é aqui que o
+            caminho se separa. */}
+        <div className="mt-4 flex gap-0.5 rounded-lg bg-raised p-0.5" role="group" aria-label="Modo">
+          {[
+            { valor: false, rotulo: 'Sorteio automático', icone: Dices },
+            { valor: true, rotulo: 'Modo capitães', icone: Crown },
+          ].map(({ valor, rotulo, icone: Icone }) => (
+            <button
+              key={rotulo}
+              onClick={() => trocarModo(valor)}
+              aria-pressed={modoCapitaes === valor}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                modoCapitaes === valor
+                  ? 'bg-overlay text-ink shadow-sm'
+                  : 'text-ink-faint hover:text-ink-muted'
+              }`}
+            >
+              <Icone size={15} />
+              {rotulo}
+            </button>
+          ))}
         </div>
 
-        {draw.error && (
+        {!modoCapitaes && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button onClick={handleDraw} disabled={!canDraw} loading={draw.loading}>
+              <Dices size={16} />
+              {result ? 'Sortear de novo' : 'Sortear times'}
+            </Button>
+            {result && (
+              <Button variant="ghost" onClick={handleDraw} loading={draw.loading}>
+                <RefreshCw size={16} />
+                Não gostei, tenta outro
+              </Button>
+            )}
+          </div>
+        )}
+
+        {modoCapitaes && !draft && (
+          <div className="mt-4 space-y-3">
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-ink-faint">
+                Como escolher os capitães
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    ['TOP_WINRATE', 'Maior winrate'],
+                    ['LAST_LOSERS', 'Quem perdeu o último'],
+                    ['RANDOM', 'Aleatório'],
+                  ] as [CaptainSelectionMode, string][]
+                ).map(([valor, rotulo]) => (
+                  <button
+                    key={valor}
+                    onClick={() => setCriterio(valor)}
+                    aria-pressed={criterio === valor}
+                    className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
+                      criterio === valor
+                        ? 'border-gold/60 bg-gold/10 text-gold'
+                        : 'border-line/60 bg-raised/40 text-ink-faint hover:border-line'
+                    }`}
+                  >
+                    {rotulo}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button onClick={handleIniciarCapitaes} disabled={!canDraw} loading={iniciar.loading}>
+              <Swords size={16} />
+              Começar o draft
+            </Button>
+          </div>
+        )}
+
+        {(draw.error || iniciar.error) && (
           <div className="mt-3">
-            <ErrorState error={draw.error} />
+            <ErrorState error={draw.error ?? iniciar.error!} />
           </div>
         )}
       </Card>
+
+      {modoCapitaes && draft && (
+        <CaptainsDraft
+          state={draft}
+          onPick={handleEscolher}
+          escolhendo={escolher.loading}
+          erro={escolher.error}
+          onReiniciar={() => setDraft(null)}
+        />
+      )}
+
+      {times && (
+        <div className="space-y-3">
+          <div className="grid gap-4 md:grid-cols-2">
+            <TeamCard team={times.blueTeam} />
+            <TeamCard team={times.redTeam} />
+          </div>
+
+          <div className="flex justify-center">
+            <Button onClick={handleUsarTimesDoDraft}>
+              {confirmed ? <Check size={16} /> : <ArrowRight size={16} />}
+              Usar esses times na série
+            </Button>
+          </div>
+
+          {/* As roles saem do mesmo distribuidor do sorteio: os capitães
+              escolhem PESSOAS, e quem resolve quem joga o quê dentro do time é
+              o pool declarado de cada um. */}
+          <p className="text-center text-xs text-ink-faint">
+            Os capitães escolheram os times; as roles foram distribuídas dentro de cada um pelo
+            pool declarado.
+          </p>
+        </div>
+      )}
 
       {result && (
         <div className="space-y-3">

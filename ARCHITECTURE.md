@@ -40,7 +40,7 @@ reescrever:
 | `autoBalance.ts` | Sorteio de times. Hall + MRV + restarts. 14 testes. |
 | `lcu.ts` | Parser do histórico do cliente do LoL |
 | `rofl.ts` | Parser de replay (formato descoberto por engenharia reversa) |
-| `captainsDraft.ts` | Snake draft 1-2-2-2-2-1 |
+| `captainsDraft.ts` | Snake draft 1-2-2-2-1 |
 | `roles.ts` | Roles canônicas e normalização |
 | `ddragon.ts` | Assets oficiais |
 
