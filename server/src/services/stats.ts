@@ -295,6 +295,30 @@ export interface ChampionPodiumEntry {
   avgKda: number;
 }
 
+/** Uma partida na lista do perfil. */
+export interface RecentMatch {
+  matchId: string;
+  matchNumber: number;
+  seriesId: string;
+  seriesName: string | null;
+  playedAt: string;
+  gameDurationSec: number | null;
+  championName: string;
+  ddragonId: string | null;
+  rolePlayed: Role;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  cs: number;
+  visionScore: number;
+  goldEarned: number;
+  win: boolean;
+  largestMultiKill: number;
+  largestKillingSpree: number;
+  firstBloodKill: boolean;
+}
+
 export interface PlayerProfile {
   playerId: string;
   name: string;
@@ -305,8 +329,76 @@ export interface PlayerProfile {
   avgDamagePerMinute: number;
   avgVisionScore: number;
   byRole: { role: Role; games: number; wins: number; winRate: number; avgKda: number }[];
+  avgCsPerMinute: number;
+  totalKills: number;
+  totalDeaths: number;
+  totalAssists: number;
+  /** MD3 vencidas -- o mesmo trofeu que aparece na classificacao. */
+  seriesWon: number;
   /** Top 3 campeoes mais jogados, com o id do Data Dragon para o icone. */
   championPodium: ChampionPodiumEntry[];
+  /** As ultimas partidas, para o perfil responder "como ele vem jogando". */
+  recentMatches: RecentMatch[];
+}
+
+/** Quantas partidas o perfil lista. Uma noite tem 2-3; dez cobre ~4 noites. */
+const PARTIDAS_NO_PERFIL = 10;
+
+/**
+ * As ultimas partidas da pessoa, da mais recente para a mais antiga.
+ *
+ * Query propria em vez de alargar `loadStatRows`: aquela roda para TODOS os
+ * jogadores no leaderboard, e carregar nome de serie e data de cada linha ali
+ * seria peso em toda listagem para um dado que so o perfil usa.
+ */
+async function loadRecentMatches(playerId: string): Promise<RecentMatch[]> {
+  const rows = await prisma.matchPlayerStat.findMany({
+    where: { playerId },
+    orderBy: { match: { playedAt: 'desc' } },
+    take: PARTIDAS_NO_PERFIL,
+    include: {
+      match: {
+        select: {
+          id: true,
+          matchNumber: true,
+          gameDurationSec: true,
+          playedAt: true,
+          seriesId: true,
+          series: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  return Promise.all(
+    rows.map(async (row) => {
+      const asset = await resolveChampion(row.championId ?? row.championName).catch(() => null);
+      return {
+        matchId: row.match.id,
+        matchNumber: row.match.matchNumber,
+        seriesId: row.match.seriesId,
+        seriesName: row.match.series.name,
+        playedAt: row.match.playedAt.toISOString(),
+        gameDurationSec: row.match.gameDurationSec,
+        championName: row.championName,
+        ddragonId: asset?.id ?? null,
+        rolePlayed: row.rolePlayed as Role,
+        kills: row.kills,
+        deaths: row.deaths,
+        assists: row.assists,
+        damage: row.damage,
+        cs: row.cs,
+        visionScore: row.visionScore,
+        goldEarned: row.goldEarned,
+        win: row.win,
+        // Os mesmos campos que o histórico usa para os selos, para o perfil
+        // poder reaproveitar o componente em vez de ter uma regra própria.
+        largestMultiKill: row.largestMultiKill,
+        largestKillingSpree: row.largestKillingSpree,
+        firstBloodKill: row.firstBloodKill,
+      };
+    })
+  );
 }
 
 export async function getPlayerProfile(playerId: string): Promise<PlayerProfile | null> {
@@ -316,7 +408,11 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile 
   });
   if (!player) return null;
 
-  const rows = await loadStatRows({ playerId });
+  const [rows, recentMatches, seriesBonus] = await Promise.all([
+    loadStatRows({ playerId }),
+    loadRecentMatches(playerId),
+    loadSeriesWinBonus(),
+  ]);
 
   let wins = 0;
   let kills = 0;
@@ -324,6 +420,7 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile 
   let assists = 0;
   let damage = 0;
   let vision = 0;
+  let cs = 0;
   let minutes = 0;
 
   const roleAcc = new Map<Role, { games: number; wins: number; k: number; d: number; a: number }>();
@@ -339,6 +436,7 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile 
     assists += row.assists;
     damage += row.damage;
     vision += row.visionScore;
+    cs += row.cs;
     minutes += (row.match.gameDurationSec ?? 1500) / 60;
 
     const role = row.rolePlayed as Role;
@@ -395,6 +493,12 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile 
     avgKda: computeKda(kills, deaths, assists),
     avgDamagePerMinute: Math.round(safeDivide(damage, minutes)),
     avgVisionScore: round(safeDivide(vision, games), 1),
+    avgCsPerMinute: round(safeDivide(cs, minutes), 1),
+    totalKills: kills,
+    totalDeaths: deaths,
+    totalAssists: assists,
+    seriesWon: (seriesBonus.get(playerId) ?? 0) / POINTS_PER_SERIES_WIN,
+    recentMatches,
     // Mantem as 5 roles na ordem canonica, inclusive as com 0 jogos: a UI
     // desenha o grafico completo sem precisar preencher buracos.
     byRole: ROLES.map((role) => {
