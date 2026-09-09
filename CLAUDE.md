@@ -67,12 +67,37 @@ remote libSQL, and `PRAGMA table_info` doesn't parse there either).
 
 ### Git workflow
 
-GitFlow. `develop` is the integration branch; `main` is production — every
-push to `main` deploys to Vercel. Push to `develop` only creates a preview.
+GitFlow, and **both `develop` and `main` are protected: direct pushes are
+refused by the server**, admins included.
+
+```
+remote: error: GH006: Protected branch update failed for refs/heads/develop.
+remote: - Changes must be made through a pull request.
+```
+
+Everything reaches them through a PR with green CI (both jobs — "Testes,
+tipos e build" and "Segredos e dependências" — are required checks). Zero
+approvals are required, because there is one maintainer and nobody approves
+their own PR; the gate is the PR plus CI, not review.
+
 Branch from `develop` as `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`,
-`test/`; PR back into `develop`; CI must be green. Conventional Commits, body
-explains *why* not *what*. Run `npm test && npm run typecheck && npm run
-build` before opening a PR.
+`test/`; PR back into `develop`. Conventional Commits, body explains *why*
+not *what*. Run `npm test && npm run typecheck && npm run build` before
+opening a PR.
+
+**Publishing is also a PR** — `git push origin main` no longer works:
+
+```bash
+gh pr create --base main --head develop --title "deploy: <what ships>"
+gh pr merge --merge          # this is what deploys production
+```
+
+`develop` requires the branch to be up to date before merging; `main`
+deliberately does not. `main` accumulates merge commits that never travel
+back to `develop`, so with that rule on, `develop` would never count as up
+to date and production would be permanently unmergeable.
+
+Merging is the maintainer's call: open PRs, don't merge them unless asked.
 
 ## Architecture
 
@@ -96,11 +121,14 @@ migration unmodified. Never add a framework import to it.
 | `lib/rofl.ts` | Parses `.rofl` replay files (binary format found by reverse engineering) |
 | `lib/riot.ts` | Public Riot API (only used for Match-ID/spectator import) |
 | `lib/ddragon.ts` / `ddragonBuild.ts` | Data Dragon assets, items/spells/runes |
+| `lib/auth.ts` | Password hashing (bcryptjs) and session JWT — pure, no Prisma |
 | `lib/roles.ts` | Canonical roles — the source of truth since the schema has no `enum` (sqlite provider doesn't support it) |
 | `services/series.ts` | Bo3 lifecycle, Fearless burns, match ingest/refresh |
 | `services/stats.ts` | Leaderboard, player profile |
 | `services/highlights.ts` | Records/highlights (`CATEGORIAS` table) |
 | `services/draftRooms.ts` | Live-draft room state machine |
+| `services/auth.ts` | Account claim, login, photo (LoL icon or upload) |
+| `middleware/auth.ts` | `requireAuth` and the session-cookie options |
 
 ### One ingest pipeline, three sources
 
@@ -183,10 +211,36 @@ poll every ~2s, sending the last-seen `version`; the server replies `{
 unchanged: true }` when nothing changed. A room's `version` column is also
 the concurrency guard: a captain's pick includes the version it was read at,
 and the write repeats that check in an `updateMany` so two simultaneous picks
-can't silently overwrite each other. There's no login — "I'm the captain"
-just claims a per-browser secret, which guards against accidental clicks by
-spectators, not against a determined person. Releasing the captain claim is
+can't silently overwrite each other. Player accounts exist now, but the room
+still ignores them on purpose — "I'm the captain" just claims a per-browser
+secret, which guards against accidental clicks by spectators, not against a
+determined person. Wiring real identity into the draft is a pending decision,
+not an oversight. Releasing the captain claim is
 intentionally open to anyone, and an unclaimed side just drafts unrestricted.
+
+### Player accounts (issue #3)
+
+An account is **not** a separate user record — it is a claim on an existing
+`Player`. Registration takes a `playerId` from `GET /api/auth/claimable`
+(active players whose `passwordHash` is null) and fills in `email` and
+`passwordHash`. The roster stays curated in the Jogadores tab, and an account
+is born already attached to that person's match history. There is no
+self-signup that creates a new `Player`.
+
+Session is a JWT in an httpOnly cookie (`inhouse_session`); passwords use
+bcryptjs (JS-only, so `npm install` needs no native toolchain on Windows).
+`cors({credentials:true})` plus `cookie-parser` in `app.ts` are what let the
+cookie survive the split origin in dev (front `:5173`, API `:3333`); in
+production both are served from the same host. Login failures return one
+generic message on purpose — it never reveals whether an e-mail exists.
+
+Photos default to the LoL summoner icon (Summoner-V4 → the already-existing
+`getProfileIconUrl`). An uploaded photo is stored **as a `data:` URI in
+`Player.photoUrl`** — no multer, no disk, no object storage, because the
+serverless filesystem is ephemeral (the same reason production runs on Turso
+instead of a file). The browser resizes to 256px JPEG before POSTing; the
+server rejects anything over 300 KB and any type outside jpeg/png/webp (SVG
+is refused deliberately — it can carry script).
 
 ### Frontend
 
@@ -215,6 +269,11 @@ intentionally open to anyone, and an unclaimed side just drafts unrestricted.
 - **`RIOT_API_KEY` is optional.** The primary import path (LCU) needs no key;
   the key only matters for Match-ID/spectator import, and dev keys expire
   every 24h.
+- **`JWT_SECRET` is required only when `NODE_ENV=production`.** Elsewhere it
+  falls back to a constant, so CI and a fresh clone run with no `.env` at
+  all. On Vercel `NODE_ENV` *is* production, so the variable must exist there
+  — `env.ts` throws at import, which takes down the whole API, not just the
+  account routes.
 - **This repo is public.** Real names, Riot IDs, and PUUIDs live only in the
   DB (`dev.db`, gitignored) — never in `seed.ts` (uses generic nicknames). CI
   fails the build on a committed `RGAPI-` key or a committed `.env`.
