@@ -220,12 +220,21 @@ const MIN_JOGOS_PARA_SELO = 3;
  */
 const MARGEM_DO_SELO = 1.15;
 
-interface CandidatoAoSelo {
+export interface CandidatoAoSelo {
   playerId: string;
   games: number;
   kda: number;
   /** (abates + assistências) / abates do time, média das partidas. */
   killParticipation: number;
+}
+
+/** O mínimo que a participação precisa de cada linha do scoreboard. */
+export interface LinhaParaParticipacao {
+  playerId: string;
+  kills: number;
+  assists: number;
+  teamSide: string;
+  match: { id: string };
 }
 
 /**
@@ -235,7 +244,7 @@ interface CandidatoAoSelo {
  * player do carregador. Precisa dos abates do TIME em cada partida, que saem da
  * soma dos 5 do mesmo lado -- sem coluna nova no banco.
  */
-function calcularKillParticipation(rows: StatRow[]): Map<string, number> {
+export function calcularKillParticipation(rows: LinhaParaParticipacao[]): Map<string, number> {
   const abatesDoTime = new Map<string, number>();
   for (const row of rows) {
     const chave = `${row.match.id}:${row.teamSide}`;
@@ -269,7 +278,7 @@ function calcularKillParticipation(rows: StatRow[]): Map<string, number> {
  * média do grupo, dividido por quanto a contribuição dela está. Acima de 1
  * significa "colhe mais do que planta"; abaixo da margem, ninguém leva.
  */
-function escolherKdaPlayer(candidatos: CandidatoAoSelo[]): string | null {
+export function escolherKdaPlayer(candidatos: CandidatoAoSelo[]): string | null {
   const elegiveis = candidatos.filter((c) => c.games >= MIN_JOGOS_PARA_SELO);
   if (elegiveis.length < 2) return null;
 
