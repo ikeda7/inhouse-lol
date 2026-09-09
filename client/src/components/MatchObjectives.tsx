@@ -31,27 +31,30 @@ export function MatchObjectives({ teams }: { teams: MatchTeamStat[] }) {
 
   return (
     <div className="rounded-lg border border-line/40 bg-base/40 p-2.5">
-      <ul className="space-y-1">
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
+        Objetivos
+      </p>
+      <ul className="space-y-1.5">
         {OBJETIVOS.map(({ chave, icone, rotulo }) => {
           const a = Number(azul[chave] ?? 0);
           const v = Number(vermelho[chave] ?? 0);
           if (a === 0 && v === 0) return null;
 
           return (
-            <li key={chave} className="flex items-center gap-2 text-xs">
+            <li key={chave} className="flex items-center gap-3 text-sm">
               <span
-                className={`tabular w-6 text-right font-bold ${
+                className={`tabular w-7 text-right text-base font-bold ${
                   a > v ? 'text-blue' : 'text-ink-faint'
                 }`}
               >
                 {a}
               </span>
-              <span className="flex flex-1 items-center justify-center gap-1.5 text-[10px] text-ink-faint">
+              <span className="flex flex-1 items-center justify-center gap-2 text-[12px] text-ink-faint">
                 <span aria-hidden="true">{icone}</span>
                 {rotulo}
               </span>
               <span
-                className={`tabular w-6 font-bold ${v > a ? 'text-red' : 'text-ink-faint'}`}
+                className={`tabular w-7 text-base font-bold ${v > a ? 'text-red' : 'text-ink-faint'}`}
               >
                 {v}
               </span>
@@ -90,7 +93,7 @@ function Primeiros({ azul, vermelho }: { azul: MatchTeamStat; vermelho: MatchTea
       {marcos.map((marco) => (
         <li
           key={marco.rotulo}
-          className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${
+          className={`rounded px-2 py-0.5 text-[11px] font-semibold ${
             marco.dono === 'BLUE' ? 'bg-blue/15 text-blue' : 'bg-red/15 text-red'
           }`}
         >
@@ -111,35 +114,65 @@ function Primeiros({ azul, vermelho }: { azul: MatchTeamStat; vermelho: MatchTea
 export function MatchBans({ bans }: { bans: MatchBan[] }) {
   if (bans.length === 0) return null;
 
+  const porLado = (side: 'BLUE' | 'RED') => bans.filter((ban) => ban.teamSide === side);
+
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-[9px] font-semibold uppercase tracking-widest text-ink-faint">
-        Bans
-      </span>
-      {bans.map((ban) => (
-        <span
-          key={`${ban.teamSide}-${ban.pickTurn}`}
-          className="relative"
-          title={`${ban.championName ?? `Campeão ${ban.championId}`} · banido pelo time ${
-            ban.teamSide === 'BLUE' ? 'azul' : 'vermelho'
-          } (${ban.pickTurn}º)`}
-        >
-          <ChampionIcon
-            championName={ban.championName ?? String(ban.championId)}
-            size={18}
-            className="opacity-40 grayscale"
-          />
-          {/* Risco na diagonal: lê como "proibido" sem precisar de legenda. */}
-          <span
-            aria-hidden="true"
-            className={`pointer-events-none absolute inset-0 flex items-center justify-center text-[13px] font-bold leading-none ${
-              ban.teamSide === 'BLUE' ? 'text-blue/70' : 'text-red/70'
-            }`}
-          >
-            /
-          </span>
-        </span>
-      ))}
+    <div className="rounded-lg border border-line/40 bg-base/40 p-2.5">
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
+        Bans do draft
+      </p>
+
+      {/* Separados por time em vez de uma fila só de dez: o que interessa num
+          ban é QUEM tirou o quê do adversário, e uma fila única perde isso. */}
+      <div className="space-y-2">
+        {(['BLUE', 'RED'] as const).map((side) => (
+          <div key={side} className="flex items-center gap-2">
+            <span
+              className={`w-16 shrink-0 text-[11px] font-bold uppercase ${
+                side === 'BLUE' ? 'text-blue' : 'text-red'
+              }`}
+            >
+              {side === 'BLUE' ? 'Azul' : 'Vermelho'}
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {porLado(side).map((ban) => (
+                <BanIcon key={ban.pickTurn} ban={ban} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
+  );
+}
+
+function BanIcon({ ban }: { ban: MatchBan }) {
+  const nome = ban.championName ?? `Campeão ${ban.championId}`;
+
+  return (
+    <span
+      className="relative inline-block"
+      title={`${nome} · banido pelo time ${
+        ban.teamSide === 'BLUE' ? 'azul' : 'vermelho'
+      } (${ban.pickTurn}º do draft)`}
+    >
+      <ChampionIcon
+        championName={ban.championName ?? String(ban.championId)}
+        size={34}
+        className="opacity-45 grayscale"
+      />
+      {/* Barra diagonal cobrindo o ícone: lê como "proibido" de relance, sem
+          precisar de legenda. Em 18px isso era um risco ilegível. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded"
+      >
+        <span
+          className={`absolute left-1/2 top-1/2 h-[2px] w-[150%] -translate-x-1/2 -translate-y-1/2 rotate-45 ${
+            ban.teamSide === 'BLUE' ? 'bg-blue/80' : 'bg-red/80'
+          }`}
+        />
+      </span>
+    </span>
   );
 }

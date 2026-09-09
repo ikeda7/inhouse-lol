@@ -149,9 +149,30 @@ export interface LeaderboardEntry {
   seriesWon: number;
   /** Venceu a MD3 mais recente. */
   wonLastSeries: boolean;
+  /**
+   * Os campeoes mais jogados, do mais para o menos. A tabela mostra os tres
+   * primeiros -- "quem e essa pessoa" se responde melhor com os campeoes dela
+   * do que com mais uma coluna de numero.
+   */
+  topChampions: { championName: string; games: number }[];
+  /** Role mais jogada. Null quando ha empate ou ninguem jogou. */
+  mainRole: string | null;
 }
 
 export type LeaderboardSort = 'wins' | 'winRate' | 'avgKda' | 'points';
+
+/**
+ * As `quantos` chaves mais frequentes, da maior para a menor.
+ *
+ * Empate resolve por ordem alfabetica em vez de ordem de insercao: assim a
+ * tabela nao muda de aparencia entre dois carregamentos so porque o banco
+ * devolveu as linhas em outra ordem.
+ */
+function maisFrequentes(contagem: Map<string, number>, quantos: number): [string, number][] {
+  return [...contagem.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, quantos);
+}
 
 export async function getLeaderboard(
   options: { sortBy?: LeaderboardSort; minGames?: number } = {}
@@ -175,6 +196,9 @@ export async function getLeaderboard(
     vision: number;
     cs: number;
     minutes: number;
+    /** Contagem por campeao e por role, para derivar main e top 3. */
+    champions: Map<string, number>;
+    roles: Map<string, number>;
   }
 
   const byPlayer = new Map<string, Acc>();
@@ -191,6 +215,8 @@ export async function getLeaderboard(
       vision: 0,
       cs: 0,
       minutes: 0,
+      champions: new Map<string, number>(),
+      roles: new Map<string, number>(),
     };
 
     acc.games += 1;
@@ -204,6 +230,8 @@ export async function getLeaderboard(
     // Sem duracao (registro manual apressado), assume 25min para nao zerar
     // a metrica por minuto do jogador inteiro.
     acc.minutes += (row.match.gameDurationSec ?? 1500) / 60;
+    acc.champions.set(row.championName, (acc.champions.get(row.championName) ?? 0) + 1);
+    acc.roles.set(row.rolePlayed, (acc.roles.get(row.rolePlayed) ?? 0) + 1);
 
     byPlayer.set(row.playerId, acc);
   }
@@ -226,6 +254,11 @@ export async function getLeaderboard(
       avgCsPerMinute: round(safeDivide(acc.cs, acc.minutes), 1),
       seriesWon: (seriesBonus.get(playerId) ?? 0) / POINTS_PER_SERIES_WIN,
       wonLastSeries: ultimosCampeoes.has(playerId),
+      topChampions: maisFrequentes(acc.champions, 3).map(([championName, games]) => ({
+        championName,
+        games,
+      })),
+      mainRole: maisFrequentes(acc.roles, 1)[0]?.[0] ?? null,
     }))
     .filter((entry) => entry.games >= minGames);
 

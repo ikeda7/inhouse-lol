@@ -9,6 +9,7 @@ import {
   Skull,
   Sparkles,
   Swords,
+  Timer,
   TrendingUp,
   Wheat,
   Zap,
@@ -18,7 +19,8 @@ import { statsApi } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon } from '../components/ChampionIcon';
-import { ROLE_LABEL, type MomentEntry, type RecordEntry } from '../types';
+import { nomeDaSequencia } from '../lib/lolTerms';
+import { ROLE_LABEL, type MomentEntry, type MomentType, type RecordEntry } from '../types';
 
 /**
  * Destaques (ideia do Vinim, issue #14).
@@ -26,21 +28,14 @@ import { ROLE_LABEL, type MomentEntry, type RecordEntry } from '../types';
  * Duas leituras do mesmo dado, com pesos diferentes de propósito:
  *
  *   RECORDES é a parte que o grupo vai discutir no zap, então ganha o espaço
- *   nobre: número grande, cartão inteiro, campeão junto. Todo recorde aponta
- *   para UMA partida -- a graça é poder dizer em que jogo aconteceu.
+ *   nobre. Todo recorde aponta para UMA partida -- a graça é poder dizer em que
+ *   jogo aconteceu.
  *
- *   MOMENTOS é linha do tempo: quadra, penta e sequência longa em ordem, do
- *   mais recente pro mais antigo. Lista densa, porque aqui o valor está no
- *   acúmulo, não em cada linha.
+ *   MOMENTOS é linha do tempo, agrupada por noite. Cada cartão usa a palavra
+ *   que o próprio jogo grita ("LEGENDARY", "QUADRA KILL") em vez de descrever
+ *   o número: "10 seguidos" é descrição, "LEGENDARY" é reconhecimento imediato.
  */
 
-/**
- * Rótulo e ícone de cada recorde.
- *
- * A ordem daqui é a ordem na tela, e ela não é alfabética: abates, KDA e dano
- * são o que se comenta primeiro; farm, ouro e visão são detalhe; morte fecha,
- * porque é piada e não mérito.
- */
 const CATEGORIA: Record<string, { label: string; icon: LucideIcon; tom?: 'zoeira' }> = {
   kills: { label: 'Mais abates', icon: Swords },
   kda: { label: 'Melhor KDA', icon: TrendingUp },
@@ -52,6 +47,7 @@ const CATEGORIA: Record<string, { label: string; icon: LucideIcon; tom?: 'zoeira
   gold: { label: 'Mais ouro', icon: Coins },
   damageTaken: { label: 'Mais dano sofrido', icon: Shield },
   vision: { label: 'Mais visão', icon: Eye },
+  cc: { label: 'Mais controle', icon: Timer },
   deaths: { label: 'Mais mortes', icon: Skull, tom: 'zoeira' },
 };
 
@@ -69,14 +65,24 @@ export function HighlightsPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <Card padding={false} title={<CardTitle icon={Award}>Recordes</CardTitle>}>
+    <div className="space-y-6">
+      <Card
+        padding={false}
+        title={<CardTitle icon={Award}>Recordes</CardTitle>}
+        action={
+          <span className="text-[11px] text-ink-faint">
+            de {data.partidas} partida{data.partidas === 1 ? '' : 's'}
+          </span>
+        }
+      >
         {data.recordes.length === 0 ? (
           <div className="p-4">
             <EmptyState label="Sem recordes por enquanto." />
           </div>
         ) : (
-          <div className="grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-3">
+          // 12 categorias: fecha exatamente em 2, 3 ou 4 colunas, sem cartão
+          // órfão numa última linha pela metade.
+          <div className="grid gap-2.5 p-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {data.recordes.map((recorde) => (
               <CartaoDeRecorde key={recorde.categoria} recorde={recorde} />
             ))}
@@ -87,36 +93,23 @@ export function HighlightsPage() {
       <Card padding={false} title={<CardTitle icon={Flame}>Momentos</CardTitle>}>
         {data.momentos.length === 0 ? (
           <div className="p-4">
-            <EmptyState label="Nenhuma quadra, penta ou sequência longa registrada ainda." />
-            {/* As partidas importadas antes desta tela existir entraram sem esse
-                dado -- a coluna fica em zero até reimportar. Sem esta linha, a
-                tela vazia mentiria dizendo que ninguém pentou. */}
+            <EmptyState label="Nenhum momento registrado ainda." />
             <p className="mt-2 text-center text-[11px] text-ink-faint">
               Partidas importadas antes desta tela não trazem esse dado. Rode o agente com{' '}
-              <code className="rounded bg-overlay px-1 py-px">--refresh</code> para preencher.
+              <code className="rounded bg-overlay px-1 py-px">--refresh-all</code> para preencher.
             </p>
           </div>
         ) : (
-          <ul className="divide-y divide-line/30">
-            {data.momentos.map((momento, index) => (
-              <LinhaDeMomento key={`${momento.matchId}-${momento.playerId}-${index}`} momento={momento} />
-            ))}
-          </ul>
+          <LinhaDoTempo momentos={data.momentos} />
         )}
       </Card>
-
-      <p className="px-1 text-center text-[11px] text-ink-faint">
-        Baseado em {data.partidas} partida{data.partidas === 1 ? '' : 's'} registrada
-        {data.partidas === 1 ? '' : 's'}
-      </p>
     </div>
   );
 }
 
 /** Onde o feito aconteceu: "Domingo 07/09 · Jogo 2". */
 function ondeFoi(entry: { seriesName: string | null; playedAt: string; matchNumber: number }) {
-  const quando =
-    entry.seriesName ?? new Date(entry.playedAt).toLocaleDateString('pt-BR');
+  const quando = entry.seriesName ?? new Date(entry.playedAt).toLocaleDateString('pt-BR');
   return `${quando} · Jogo ${entry.matchNumber}`;
 }
 
@@ -132,25 +125,25 @@ function CartaoDeRecorde({ recorde }: { recorde: RecordEntry }) {
       to={`/jogadores/${recorde.playerId}`}
       className="group flex items-center gap-3 rounded-lg border border-line/40 bg-raised/40 p-3 transition hover:border-line hover:bg-raised"
     >
-      <ChampionIcon championName={recorde.championName} size={38} />
+      <ChampionIcon championName={recorde.championName} size={44} />
 
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-ink-faint">
-          <Icone size={11} />
+        <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-ink-faint">
+          <Icone size={12} />
           {meta.label}
         </p>
-        <p className="truncate text-sm font-semibold text-ink transition group-hover:text-gold">
+        <p className="truncate text-[15px] font-semibold text-ink transition group-hover:text-gold">
           {recorde.playerName}
         </p>
-        <p className="truncate text-[10px] text-ink-faint">
+        <p className="truncate text-[11px] text-ink-faint">
           {ROLE_LABEL[recorde.rolePlayed]} · {ondeFoi(recorde)}
         </p>
       </div>
 
-      {/* O número é o assunto do cartão, então é ele que recebe o peso.
-          "Mais mortes" sai do ouro: virar troféu de morte confundiria. */}
+      {/* O número é o assunto do cartão. "Mais mortes" sai do ouro: virar
+          troféu de morte confundiria o que é mérito. */}
       <span
-        className={`tabular shrink-0 text-xl font-bold leading-none ${
+        className={`tabular shrink-0 text-2xl font-bold leading-none ${
           zoeira ? 'text-loss' : 'text-gold'
         }`}
       >
@@ -160,47 +153,165 @@ function CartaoDeRecorde({ recorde }: { recorde: RecordEntry }) {
   );
 }
 
-const TIPO_DO_MOMENTO: Record<MomentEntry['tipo'], { rotulo: string; classe: string }> = {
-  PENTA: { rotulo: 'PENTAKILL', classe: 'bg-gold/20 text-gold ring-1 ring-gold/40' },
-  QUADRA: { rotulo: 'QUADRA', classe: 'bg-gold/10 text-gold' },
-  SPREE: { rotulo: 'SEQUÊNCIA', classe: 'bg-overlay text-ink-muted' },
+// ---------------------------------------------------------------------------
+// Momentos
+// ---------------------------------------------------------------------------
+
+/**
+ * Como cada tipo de momento se apresenta.
+ *
+ * `titulo` recebe o valor porque vários dependem dele -- a sequência vira
+ * LEGENDARY ou RAMPAGE conforme o tamanho, não um rótulo fixo.
+ *
+ * `frase` é o que dá personalidade: sem ela o cartão é um número com nome do
+ * lado, e a linha do tempo inteira lê igual.
+ */
+const MOMENTO: Record<
+  MomentType,
+  {
+    titulo: (valor: number) => string;
+    frase: (m: MomentEntry) => string;
+    classe: string;
+    /** Só o topo da raridade ganha anel -- se tudo brilha, nada brilha. */
+    destaque?: boolean;
+  }
+> = {
+  PENTA: {
+    titulo: () => 'PENTAKILL',
+    frase: (m) => `derrubou o time inteiro de ${m.championName}`,
+    classe: 'bg-gold/20 text-gold ring-1 ring-gold/50',
+    destaque: true,
+  },
+  QUADRA: {
+    titulo: () => 'QUADRA KILL',
+    frase: (m) => `quatro de uma vez, de ${m.championName}`,
+    classe: 'bg-gold/15 text-gold ring-1 ring-gold/30',
+    destaque: true,
+  },
+  SPREE: {
+    titulo: (v) => nomeDaSequencia(v),
+    frase: (m) => `${m.valor} abates sem morrer uma vez`,
+    classe: 'bg-warn/15 text-warn',
+  },
+  SEM_MORRER: {
+    titulo: () => 'SEM MORRER',
+    frase: (m) => `fechou o jogo em ${m.kills}/${m.deaths}/${m.assists}`,
+    classe: 'bg-win/15 text-win',
+  },
+  CARRY: {
+    titulo: () => 'CARREGOU',
+    frase: (m) =>
+      `maior dano da partida: ${Math.round(m.valor / 1000)}k` + (m.win ? '' : ' — e ainda perdeu'),
+    classe: 'bg-red/15 text-red',
+  },
+  MURALHA: {
+    titulo: () => 'MURALHA',
+    frase: (m) => `segurou ${Math.round(m.valor / 1000)}k de dano na frente`,
+    classe: 'bg-blue/15 text-blue',
+  },
+  VISAO: {
+    titulo: () => 'OLHO NO MAPA',
+    frase: (m) => `${m.valor} pontos de visão, o maior do jogo`,
+    classe: 'bg-overlay text-ink-muted',
+  },
+  FARM: {
+    titulo: () => 'FAZENDEIRO',
+    frase: (m) => `${m.valor} de farm por minuto`,
+    classe: 'bg-overlay text-ink-muted',
+  },
+  FIRST_BLOOD: {
+    titulo: () => 'FIRST BLOOD',
+    frase: () => 'abriu o placar da partida',
+    classe: 'bg-overlay text-ink-faint',
+  },
 };
 
-function LinhaDeMomento({ momento }: { momento: MomentEntry }) {
-  const tipo = TIPO_DO_MOMENTO[momento.tipo];
+/**
+ * Linha do tempo agrupada por noite.
+ *
+ * Sem o agrupamento a lista vira uma sequência de cartões sem respiro, e a
+ * pergunta que ela responde ("o que rolou na quinta?") fica difícil de ler.
+ */
+function LinhaDoTempo({ momentos }: { momentos: MomentEntry[] }) {
+  const noites: { chave: string; titulo: string; itens: MomentEntry[] }[] = [];
+
+  for (const momento of momentos) {
+    const chave = momento.seriesId;
+    const atual = noites.find((noite) => noite.chave === chave);
+    if (atual) atual.itens.push(momento);
+    else {
+      noites.push({
+        chave,
+        titulo: momento.seriesName ?? new Date(momento.playedAt).toLocaleDateString('pt-BR'),
+        itens: [momento],
+      });
+    }
+  }
 
   return (
-    <li>
-      <Link
-        to={`/jogadores/${momento.playerId}`}
-        className="group flex items-center gap-2.5 px-3 py-2.5 transition hover:bg-raised/50"
-      >
-        <ChampionIcon championName={momento.championName} size={26} />
+    <div className="space-y-5 p-3">
+      {noites.map((noite) => (
+        <section key={noite.chave}>
+          <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
+            {noite.titulo}
+            <span className="h-px flex-1 bg-line/40" />
+            <span className="font-normal normal-case tracking-normal">
+              {noite.itens.length} momento{noite.itens.length === 1 ? '' : 's'}
+            </span>
+          </h3>
 
+          <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+            {noite.itens.map((momento, index) => (
+              <CartaoDeMomento
+                key={`${momento.matchId}-${momento.playerId}-${momento.tipo}-${index}`}
+                momento={momento}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function CartaoDeMomento({ momento }: { momento: MomentEntry }) {
+  const meta = MOMENTO[momento.tipo];
+  if (!meta) return null;
+
+  return (
+    <Link
+      to={`/jogadores/${momento.playerId}`}
+      className={`group flex items-center gap-3 rounded-lg border p-3 transition hover:bg-raised ${
+        meta.destaque
+          ? 'border-gold/30 bg-gold/[0.04]'
+          : 'border-line/40 bg-raised/40 hover:border-line'
+      }`}
+    >
+      <ChampionIcon championName={momento.championName} size={46} />
+
+      <div className="min-w-0 flex-1">
         <span
-          className={`tabular shrink-0 rounded px-1.5 py-px text-[9px] font-bold tracking-wide ${tipo.classe}`}
+          className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide ${meta.classe}`}
         >
-          {momento.tipo === 'SPREE' ? `${momento.valor} SEGUIDOS` : tipo.rotulo}
+          {meta.titulo(momento.valor)}
         </span>
+        <p className="mt-1 truncate text-[15px] font-semibold text-ink transition group-hover:text-gold">
+          {momento.playerName}
+        </p>
+        <p className="truncate text-[11px] text-ink-faint">{meta.frase(momento)}</p>
+      </div>
 
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-ink transition group-hover:text-gold">
-            {momento.playerName}
-          </p>
-          <p className="truncate text-[10px] text-ink-faint">{ondeFoi(momento)}</p>
-        </div>
-
-        <span className="tabular shrink-0 text-xs text-ink-muted">
+      <div className="shrink-0 text-right">
+        <p className="tabular text-sm font-semibold text-ink-muted">
           {momento.kills}/{momento.deaths}/{momento.assists}
-        </span>
-        <span
-          className={`shrink-0 text-[10px] font-semibold ${
-            momento.win ? 'text-win' : 'text-loss'
-          }`}
+        </p>
+        <p
+          className={`text-[10px] font-bold uppercase ${momento.win ? 'text-win' : 'text-loss'}`}
         >
-          {momento.win ? 'V' : 'D'}
-        </span>
-      </Link>
-    </li>
+          {momento.win ? 'vitória' : 'derrota'}
+        </p>
+        <p className="text-[10px] text-ink-faint">Jogo {momento.matchNumber}</p>
+      </div>
+    </Link>
   );
 }

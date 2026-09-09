@@ -29,10 +29,10 @@ export function App() {
   return (
     <div className="min-h-screen pb-20 sm:pb-0">
       <header className="sticky top-0 z-30 border-b border-line/50 bg-base/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-4 py-3.5 sm:px-6">
+        <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-6 px-4 py-3.5 sm:px-6 lg:px-8">
           <NavLink to="/" className="group flex items-baseline gap-1.5">
-            <span className="text-base font-bold tracking-tight text-ink">InHouse</span>
-            <span className="text-base font-bold tracking-tight text-gold">LoL</span>
+            <span className="text-lg font-bold tracking-tight text-ink">InHouse</span>
+            <span className="text-lg font-bold tracking-tight text-gold">LoL</span>
           </NavLink>
 
           <nav className="hidden gap-0.5 sm:flex" aria-label="Navegação principal">
@@ -42,14 +42,14 @@ export function App() {
                 to={to}
                 end={end}
                 className={({ isActive }) =>
-                  `relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition ${
+                  `relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
                     isActive ? 'text-ink' : 'text-ink-faint hover:text-ink-muted'
                   }`
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <Icon size={14} />
+                    <Icon size={15} />
                     {label}
                     {/* Sublinhado do item ativo: marca a posição sem pintar
                         um bloco inteiro de cor. */}
@@ -64,7 +64,11 @@ export function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      {/* A largura acompanha a tela ate 1536px. Antes travava em 1024 e num
+          monitor de 1080p sobrava meia tela vazia dos dois lados -- parecia
+          layout de celular esticado. As paginas preenchem essa largura
+          ganhando COLUNA, nao esticando a mesma coluna. */}
+      <main className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/sorteio" element={<DraftPage />} />
