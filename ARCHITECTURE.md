@@ -41,6 +41,7 @@ reescrever:
 | `lcu.ts` | Parser do histórico do cliente do LoL |
 | `rofl.ts` | Parser de replay (formato descoberto por engenharia reversa) |
 | `captainsDraft.ts` | Snake draft 1-2-2-2-1 |
+| `ddragonBuild.ts` | Itens, feiticos e runas |
 | `roles.ts` | Roles canônicas e normalização |
 | `ddragon.ts` | Assets oficiais |
 
@@ -232,6 +233,46 @@ atualizar a scoreboard dela não faz sentido.
 
 ---
 
+## Draft ao vivo: consulta, não evento
+
+O modo Capitães normal guarda o estado no **cliente** — cada escolha manda o
+estado inteiro e recebe o próximo. É simples, sobrevive a F5 e não precisa de
+tabela. Mas o estado é de uma pessoa: ninguém mais vê o draft acontecendo.
+
+A sala move esse estado para o banco, sob um código curto que vira link.
+
+**Por que consulta e não SSE.** O caminho canônico seria SSE ou WebSocket. Não
+serve aqui: a produção roda em função serverless, onde conexão longa é cortada
+pelo limite de duração e não existe processo vivo para segurar assinatura.
+Consultar de 2 em 2 segundos é feio no papel e funciona hoje, no plano grátis.
+
+Três coisas tornam isso barato o bastante: a consulta manda a versão que já tem
+e recebe `{ unchanged: true }` quando nada mudou; para quando a aba sai da
+frente; e para quando o draft fecha.
+
+**A coluna `version` faz dois trabalhos.** Além de dizer ao cliente se mudou
+algo, ela impede escolha dupla. Os dois capitães podem clicar no mesmo segundo,
+e sem isso a segunda gravação sobrescreveria a primeira — o jogador escolhido
+pelo primeiro voltaria para o pote sem ninguém entender por quê. A escolha manda
+a versão que viu, e a gravação **repete essa condição no `updateMany`**: entre
+ler e escrever ainda cabe outra requisição, então quem decide a ordem é o banco.
+
+**A trava de capitão é contra acidente, não contra gente.** Não há login: cada
+capitão clica "Sou o capitão" e recebe um segredo que fica no navegador dele.
+Isso impede que quem está assistindo clique num jogador sem querer — e nada
+além disso. Daí duas decisões que parecem frouxas e são deliberadas:
+
+- **liberar é aberto a qualquer um.** Num grupo de amigos, o capitão ficar sem
+  bateria é muito mais provável que sabotagem, e ficar travado seria pior que o
+  problema que a trava resolve.
+- **lado sem dono continua aberto.** Se ninguém clicar, o draft funciona como
+  antes, em vez de travar esperando alguém se identificar.
+
+Sala expira em 12h e some da API; as vencidas são varridas ao abrir uma sala
+nova, porque não existe cron aqui e é o único momento em que alguém se importa.
+
+---
+
 ## Frontend
 
 **Tokens em camadas**, não borda em tudo:
@@ -242,6 +283,25 @@ base → surface → raised → overlay
 
 Hierarquia vem de escala e espaço. O dourado é **acento**, nunca texto corrido.
 Azul e vermelho identificam **só** time.
+
+**Os três níveis de texto passam WCAG AA no fundo mais claro em que aparecem.**
+Isso não era verdade até 09/09: `ink-faint` era `#5c6b85`, que dá **2.86:1** no
+overlay — e era justamente o token usado nos textos de 10-11px, onde mais
+precisa de contraste. Arrumar só ele o deixava colado no `ink-muted` e a
+hierarquia sumia, então os dois subiram juntos:
+
+| token | antes | depois | pior caso |
+|---|---|---|---|
+| `ink-muted` | `#93a3bd` | `#aab8cd` | 7.67:1 |
+| `ink-faint` | `#5c6b85` | `#7d8da8` | 4.59:1 |
+
+Ao mexer em cor, **meça** antes de decidir — o cálculo é rápido e a intuição
+erra em fundo escuro. Foi assim que o bronze do pódio (`amber-700`, 3.40:1)
+apareceu como problema junto.
+
+Duas coisas repetem esses valores e precisam andar juntas: os tokens em
+`index.css` e as constantes em `lib/rankingImage.ts` — canvas não lê custom
+property do CSS.
 
 **`Select` próprio** porque o nativo não aceita estilo no menu — no Windows abre
 a lista branca do sistema no meio de uma interface escura. O componente
@@ -303,6 +363,8 @@ descreve a MD3 de 07/09/2026 que quebrou.
 | Novo campo no banco | `prisma/schema.prisma` → `npm run db:push` |
 | Cor, espaçamento, fonte | `client/src/index.css` (tokens) |
 | Comando do agente | `companion/inhouse-companion.mjs` |
+| Regra do draft ao vivo | `services/draftRooms.ts` |
+| Cor, contraste | `client/src/index.css` **e** `lib/rankingImage.ts` |
 | Novo destaque ou recorde | `services/highlights.ts` (tabela `CATEGORIAS`) |
 | Novo campo no scoreboard | `lib/lcu.ts` → `colunasDeScoreboard` em `services/series.ts` → schema |
 | Levar coluna nova pro Turso | `npm run db:turso -- --schema-only` |
