@@ -9,7 +9,7 @@ import { parseItems, useBuild } from '../hooks/useBuild';
  */
 
 /** Tamanho padrão dos slots. Item e feitiço usam a mesma grade. */
-const SLOT = 22;
+const SLOT = 30;
 
 function Vazio({ size = SLOT, titulo }: { size?: number; titulo?: string }) {
   return (
@@ -58,7 +58,7 @@ export function ItemRow({ items, size = SLOT }: { items: string | null; size?: n
   const slots = parseItems(items);
 
   if (!slots) {
-    return <span className="text-[10px] italic text-ink-faint">build indisponível</span>;
+    return <span className="text-[11px] italic text-ink-faint">build indisponível</span>;
   }
 
   const principais = slots.slice(0, 6);
@@ -95,7 +95,7 @@ export function ItemRow({ items, size = SLOT }: { items: string | null; size?: n
 export function SpellPair({
   spell1Id,
   spell2Id,
-  size = 18,
+  size = 22,
 }: {
   spell1Id: number | null;
   spell2Id: number | null;
@@ -122,7 +122,7 @@ export function SpellPair({
 export function RunePair({
   keystoneId,
   subStyleId,
-  size = 20,
+  size = 26,
 }: {
   keystoneId: number | null;
   subStyleId: number | null;

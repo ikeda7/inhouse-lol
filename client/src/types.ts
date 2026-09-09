@@ -218,6 +218,10 @@ export interface LeaderboardEntry {
   avgCsPerMinute: number;
   seriesWon: number;
   wonLastSeries: boolean;
+  /** Os três campeões mais jogados, do mais para o menos. */
+  topChampions: { championName: string; games: number }[];
+  /** Role mais jogada. */
+  mainRole: Role | null;
 }
 
 export interface PlayerProfile {
@@ -272,9 +276,22 @@ export interface RecordEntry extends HighlightContext {
   exibicao: string;
 }
 
+export type MomentType =
+  | 'PENTA'
+  | 'QUADRA'
+  | 'SPREE'
+  | 'SEM_MORRER'
+  | 'CARRY'
+  | 'MURALHA'
+  | 'VISAO'
+  | 'FARM'
+  | 'FIRST_BLOOD';
+
 export interface MomentEntry extends HighlightContext {
-  tipo: 'PENTA' | 'QUADRA' | 'SPREE';
+  tipo: MomentType;
   valor: number;
+  /** Raridade: ordena os momentos dentro da mesma noite. */
+  peso: number;
   kills: number;
   deaths: number;
   assists: number;
