@@ -49,15 +49,15 @@ export function HistoryPage() {
               <button
                 onClick={() => setExpanded(isOpen ? null : series.id)}
                 aria-expanded={isOpen}
-                className="flex w-full items-center gap-3 py-3 text-left hover:text-gold"
+                className="flex w-full items-center gap-3 py-3.5 text-left hover:text-gold"
               >
                 {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                <span className="flex-1 text-sm font-medium">
+                <span className="flex-1 text-base font-semibold">
                   {series.name ?? new Date(series.date).toLocaleDateString('pt-BR')}
                 </span>
-                <span className="tabular text-sm font-bold text-gold">{series.scoreline}</span>
+                <span className="tabular text-lg font-bold text-gold">{series.scoreline}</span>
                 <span
-                  className={`w-24 text-right text-xs ${
+                  className={`w-28 text-right text-[13px] ${
                     series.status === 'ONGOING' ? 'text-amber-400' : 'text-ink-faint'
                   }`}
                 >
@@ -112,8 +112,8 @@ function MatchCard({ match }: { match: Match }) {
   const maximos = calcularMaximos(match.stats);
 
   return (
-    <div className="rounded-lg border border-line/50 bg-raised/30 p-3">
-      <p className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-faint">
+    <div className="rounded-lg border border-line/50 bg-raised/30 p-3 sm:p-4">
+      <p className="mb-2.5 flex flex-wrap items-center gap-2.5 text-[13px] font-semibold uppercase tracking-wider text-ink-faint">
         <span>Jogo {match.matchNumber}</span>
         {match.gameDurationSec && (
           <span className="tabular font-normal normal-case tracking-normal">
@@ -189,19 +189,19 @@ function TeamColumn({
       }`}
     >
       <p
-        className={`mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase ${
+        className={`mb-1.5 flex items-center gap-2 text-[13px] font-bold uppercase ${
           side === 'BLUE' ? 'text-blue' : 'text-red'
         }`}
       >
         {side === 'BLUE' ? 'Azul' : 'Vermelho'}
         {match.winner === side && (
-          <span className="rounded bg-win/15 px-1.5 py-px text-[9px] font-bold tracking-wide text-win">
+          <span className="rounded bg-win/15 px-2 py-0.5 text-[10px] font-bold tracking-wide text-win">
             VENCEU
           </span>
         )}
       </p>
 
-      <ul className="space-y-0.5 text-xs">
+      <ul className="space-y-1 text-sm">
         {doLado.map((stat) => (
           <li key={stat.id}>
             <PlayerRow
@@ -236,23 +236,23 @@ function PlayerRow({
     <button
       onClick={onToggle}
       aria-expanded={expandido}
-      className={`flex w-full items-center gap-2 rounded px-1 py-1 text-left transition hover:bg-raised/60 ${
+      className={`flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left transition hover:bg-raised/60 ${
         expandido ? 'bg-raised/60' : ''
       }`}
     >
-      <ChampionIcon championName={stat.championName} size={22} />
-      <span className="w-11 shrink-0 text-[10px] font-medium uppercase tracking-wide text-ink-faint">
+      <ChampionIcon championName={stat.championName} size={32} />
+      <span className="w-14 shrink-0 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
         {ROLE_LABEL[stat.rolePlayed]}
       </span>
-      <span className="min-w-0 flex-1 truncate font-medium">{stat.player.name}</span>
+      <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{stat.player.name}</span>
       <Highlights stat={stat} />
-      <span className="tabular shrink-0 text-ink-muted">
+      <span className="tabular shrink-0 text-[15px] font-semibold text-ink-muted">
         {stat.kills}/{stat.deaths}/{stat.assists}
       </span>
       {/* A seta é o único indício de que a linha abre. Sem ela ninguém descobre
           que existe um nível a mais de detalhe atrás do clique. */}
       <ChevronRight
-        size={12}
+        size={14}
         className={`shrink-0 text-ink-faint transition-transform ${expandido ? 'rotate-90' : ''}`}
       />
     </button>

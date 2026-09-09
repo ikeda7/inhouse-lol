@@ -78,7 +78,7 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
     stat.physicalDamageToChampions + stat.magicDamageToChampions + stat.trueDamageToChampions;
 
   return (
-    <div className="space-y-3 border-l-2 border-gold/30 bg-base/40 px-3 py-3">
+    <div className="space-y-4 border-l-2 border-gold/40 bg-base/50 px-3 py-3.5 sm:px-4">
       {/* --- build --- */}
       <div className="flex flex-wrap items-center gap-2">
         <SpellPair spell1Id={stat.spell1Id} spell2Id={stat.spell2Id} />
@@ -86,7 +86,7 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
         <span className="mx-1 h-6 w-px bg-line/50" />
         <ItemRow items={stat.items} />
         {stat.champLevel > 0 && (
-          <span className="ml-auto rounded bg-overlay px-1.5 py-0.5 text-[10px] font-semibold text-ink-muted">
+          <span className="ml-auto rounded bg-overlay px-2 py-0.5 text-[11px] font-semibold text-ink-muted">
             nível {stat.champLevel}
           </span>
         )}
@@ -108,7 +108,7 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
             verdadeiro={stat.trueDamageToChampions}
           />
         )}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
           <Metrica
             rotulo="total (tudo)"
             valor={milhar(stat.totalDamageDealt)}
@@ -125,7 +125,7 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
 
       {/* --- aguentou --- */}
       <Bloco titulo="Aguentou">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
           <Metrica
             rotulo="dano sofrido"
             valor={milhar(stat.damageTaken)}
@@ -150,7 +150,7 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
 
       {/* --- economia e farm --- */}
       <Bloco titulo="Ouro e farm">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
           <Metrica
             rotulo="ouro ganho"
             valor={milhar(stat.goldEarned)}
@@ -183,7 +183,7 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
 
       {/* --- visão e utilidade --- */}
       <Bloco titulo="Visão e utilidade">
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
           <Metrica
             rotulo="pontos de visão"
             valor={String(stat.visionScore)}
@@ -215,7 +215,7 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
         stat.firstBloodKill ||
         stat.firstBloodAssist) && (
         <Bloco titulo="Abates">
-          <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
             {stat.pentaKills > 0 && <Pastilha destaque>{stat.pentaKills}× penta</Pastilha>}
             {stat.quadraKills > 0 && <Pastilha destaque>{stat.quadraKills}× quadra</Pastilha>}
             {stat.tripleKills > 0 && <Pastilha>{stat.tripleKills}× triple</Pastilha>}
@@ -238,7 +238,7 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
 function Bloco({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-[9px] font-semibold uppercase tracking-widest text-ink-faint">{titulo}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-faint">{titulo}</p>
       {children}
     </div>
   );
@@ -267,20 +267,23 @@ function Metrica({
   const ehOMaior = largura !== null && largura > 99.5;
 
   return (
-    <div className={destaque ? 'space-y-1' : ''}>
-      <p className="flex items-baseline gap-1.5">
+    <div className="space-y-1">
+      <p className="flex flex-wrap items-baseline gap-x-1.5">
         <span
           className={`tabular font-bold leading-none ${
-            destaque ? 'text-lg text-ink' : 'text-sm text-ink'
-          } ${ehOMaior ? 'text-gold' : ''}`}
+            destaque ? 'text-2xl' : 'text-base'
+          } ${ehOMaior ? 'text-gold' : 'text-ink'}`}
         >
           {valor}
         </span>
-        <span className="text-[10px] text-ink-faint">{rotulo}</span>
-        {detalhe && <span className="ml-auto text-[10px] text-ink-faint">{detalhe}</span>}
+        <span className="text-[11px] text-ink-faint">{rotulo}</span>
       </p>
+      {/* O detalhe fica na PRÓPRIA linha. Encostado à direita com ml-auto ele
+          colava no rótulo da métrica vizinha quando a coluna apertava --
+          "17k ouro ganho 559.4/m17k ouro gasto" virava uma palavra só. */}
+      {detalhe && <p className="text-[11px] leading-none text-ink-faint">{detalhe}</p>}
       {largura !== null && (
-        <span className="block h-1 overflow-hidden rounded-full bg-overlay">
+        <span className="block h-1.5 overflow-hidden rounded-full bg-overlay">
           <span
             className={`block h-full rounded-full ${ehOMaior ? 'bg-gold' : 'bg-ink-faint/50'}`}
             style={{ width: `${largura}%` }}
@@ -317,7 +320,7 @@ function QuebraDeDano({
 
   return (
     <div className="space-y-1">
-      <span className="flex h-1.5 overflow-hidden rounded-full bg-overlay">
+      <span className="flex h-2 overflow-hidden rounded-full bg-overlay">
         {partes.map((parte) => (
           <span
             key={parte.rotulo}
@@ -327,7 +330,7 @@ function QuebraDeDano({
           />
         ))}
       </span>
-      <p className="flex flex-wrap gap-x-3 text-[10px] text-ink-faint">
+      <p className="flex flex-wrap gap-x-4 text-[11px] text-ink-faint">
         {partes.map((parte) => (
           <span key={parte.rotulo} className="flex items-center gap-1">
             <span className={`inline-block h-1.5 w-1.5 rounded-full ${parte.classe}`} />
