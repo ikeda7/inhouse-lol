@@ -1,12 +1,17 @@
 import { ItemRow, RunePair, SpellPair } from './BuildIcons';
-import type { MatchStat } from '../types';
+import { ChampionIcon } from './ChampionIcon';
+import { ROLE_LABEL, type MatchStat } from '../types';
 
 /**
  * Scoreboard completo de UM jogador numa partida.
  *
- * Abre embaixo da linha dele no histórico. A ideia é responder sem o cliente do
- * LoL aberto: o que ele construiu, quanto de dano fez e de que tipo, de onde
- * veio o farm, quanto contribuiu de visão.
+ * Abre em largura cheia embaixo dos DOIS times, não dentro da coluna do time
+ * dele. Duas razões: dentro da coluna o painel tinha metade da largura e as
+ * barras de comparação ficavam espremidas; e a coluna crescia junto, o que
+ * inflava a faixa verde do vencedor do outro lado sem nada ter aberto nela.
+ *
+ * A ideia é responder sem o cliente do LoL aberto: o que ele construiu, quanto
+ * de dano fez e de que tipo, de onde veio o farm, quanto contribuiu de visão.
  *
  * Duas decisões que valem explicação:
  *
@@ -78,7 +83,22 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
     stat.physicalDamageToChampions + stat.magicDamageToChampions + stat.trueDamageToChampions;
 
   return (
-    <div className="space-y-4 border-l-2 border-gold/40 bg-base/50 px-3 py-3.5 sm:px-4">
+    <div className="space-y-4 border-l-2 border-gold/40 bg-canvas/50 px-3 py-3.5 sm:px-4">
+      {/* De quem é este painel.
+          Ele renderizava colado embaixo da linha do jogador, e ali o nome era
+          redundante. Agora abre em largura cheia sob os dois times -- longe da
+          linha clicada -- então precisa se identificar sozinho. */}
+      <div className="flex items-center gap-2.5">
+        <ChampionIcon championName={stat.championName} size={28} />
+        <span className="text-[15px] font-semibold text-ink">{stat.player.name}</span>
+        <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+          {ROLE_LABEL[stat.rolePlayed]} · {stat.championName}
+        </span>
+        <span className="tabular ml-auto text-[15px] font-semibold text-ink-muted">
+          {stat.kills}/{stat.deaths}/{stat.assists}
+        </span>
+      </div>
+
       {/* --- build --- */}
       {/* No celular os 7 itens não cabem ao lado dos feitiços e das runas, e a
           linha quebra deixando um buraco à direita deles. O nível preenche esse

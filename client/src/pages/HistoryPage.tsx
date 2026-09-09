@@ -6,7 +6,7 @@ import { Card, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon, ordenarPorLane } from '../components/ChampionIcon';
 import { Highlights } from '../components/Highlights';
 import { MatchBans, MatchObjectives } from '../components/MatchObjectives';
-import { calcularMaximos, MatchPlayerDetail, type Maximos } from '../components/MatchPlayerDetail';
+import { calcularMaximos, MatchPlayerDetail } from '../components/MatchPlayerDetail';
 import { ROLE_LABEL, type MatchStat, type SeriesDetail, type TeamSide } from '../types';
 
 /**
@@ -52,7 +52,11 @@ export function HistoryPage() {
                 className="flex w-full items-center gap-3 py-3.5 text-left hover:text-gold"
               >
                 {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                <span className="flex-1 text-base font-semibold">
+                {/* Cor explícita de propósito: esta linha é o nome da noite, o
+                    item mais importante da tela, e ela ficava INVISÍVEL porque
+                    `text-base` pintava com a cor de fundo (ver index.css). Se
+                    depender de herança, um acidente desses volta calado. */}
+                <span className="flex-1 text-[17px] font-semibold text-ink">
                   {series.name ?? new Date(series.date).toLocaleDateString('pt-BR')}
                 </span>
                 <span className="tabular text-lg font-bold text-gold">{series.scoreline}</span>
@@ -110,6 +114,7 @@ function MatchCard({ match }: { match: Match }) {
   // o time de baixo para fora da tela e a comparação, que é o ponto, se perde.
   const [aberto, setAberto] = useState<string | null>(null);
   const maximos = calcularMaximos(match.stats);
+  const statAberto = match.stats.find((stat) => stat.id === aberto) ?? null;
 
   return (
     <div className="rounded-lg border border-line/50 bg-raised/30 p-3 sm:p-4">
@@ -142,25 +147,42 @@ function MatchCard({ match }: { match: Match }) {
         )}
       </p>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      {/* `items-start` protege contra time desfalcado (4 contra 5): sem isso o
+          grid estica a coluna menor e a faixa verde do vencedor fica com um
+          rabo de vazio embaixo. */}
+      <div className="grid items-start gap-3 md:grid-cols-2">
         {(['BLUE', 'RED'] as const).map((side) => (
           <TeamColumn
             key={side}
             side={side}
             match={match}
-            maximos={maximos}
             aberto={aberto}
             onToggle={(id) => setAberto(aberto === id ? null : id)}
           />
         ))}
       </div>
 
+      {/* O detalhe do jogador vive AQUI, fora das colunas: em largura cheia ele
+          usa as quatro faixas de estatística sem espremer as barras, e abrir um
+          jogador não mexe mais na altura de nenhum dos dois times. */}
+      {statAberto && (
+        <div className="mt-3">
+          <MatchPlayerDetail
+            stat={statAberto}
+            gameDurationSec={match.gameDurationSec}
+            maximos={maximos}
+          />
+        </div>
+      )}
+
+      {/* Aqui é o contrário das colunas de time: os dois blocos SE ESTICAM para
+          a mesma altura. Objetivos rende até 6 linhas e bans rende 2, e o
+          `items-start` que estava aqui deixava meio painel de buraco ao lado de
+          um card cheio. */}
       {(match.teams?.length ?? 0) > 0 && (
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <MatchObjectives teams={match.teams} />
-          <div className="flex items-start">
-            <MatchBans bans={match.bans ?? []} />
-          </div>
+          <MatchBans bans={match.bans ?? []} />
         </div>
       )}
     </div>
@@ -170,13 +192,11 @@ function MatchCard({ match }: { match: Match }) {
 function TeamColumn({
   side,
   match,
-  maximos,
   aberto,
   onToggle,
 }: {
   side: TeamSide;
   match: Match;
-  maximos: Maximos;
   aberto: string | null;
   onToggle: (id: string) => void;
 }) {
@@ -209,13 +229,6 @@ function TeamColumn({
               expandido={aberto === stat.id}
               onToggle={() => onToggle(stat.id)}
             />
-            {aberto === stat.id && (
-              <MatchPlayerDetail
-                stat={stat}
-                gameDurationSec={match.gameDurationSec}
-                maximos={maximos}
-              />
-            )}
           </li>
         ))}
       </ul>

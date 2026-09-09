@@ -201,7 +201,7 @@ export function SeriesPage() {
           Quem lista e o proprio cliente do LoL. Rode o agente na maquina de quem hospedou a
           partida e ele manda o placar completo para ca:
         </p>
-        <pre className="overflow-x-auto rounded-lg border border-line/60 bg-base p-3 text-[11px] text-emerald-300">
+        <pre className="overflow-x-auto rounded-lg border border-line/60 bg-canvas p-3 text-[11px] text-emerald-300">
           node companion/inhouse-companion.mjs --watch
         </pre>
         <p className="mt-2 text-[11px] text-ink-faint">

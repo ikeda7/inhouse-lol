@@ -69,8 +69,12 @@ export function Button({
   loading?: boolean;
 }) {
   const variants = {
+    // `text-canvas` aqui é COR, não tamanho: escuro sobre o dourado (13.6:1).
+    // Estava escrito `text-base`, que parecia tamanho de fonte e só funcionava
+    // por acidente da colisão de nomes descrita em index.css -- o tamanho real
+    // sempre veio de `sizes`.
     primary:
-      'bg-gold text-base font-semibold hover:bg-gold/90 active:bg-gold/80 shadow-lg shadow-gold/10',
+      'bg-gold text-canvas font-semibold hover:bg-gold/90 active:bg-gold/80 shadow-lg shadow-gold/10',
     ghost: 'border border-line text-ink-muted hover:border-gold/50 hover:text-ink',
     subtle: 'bg-raised text-ink-muted hover:bg-overlay hover:text-ink',
     danger: 'bg-red/15 text-red hover:bg-red/25',

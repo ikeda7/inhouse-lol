@@ -256,7 +256,7 @@ function LinhaTabela({ entry, posicao }: { entry: LeaderboardEntry; posicao: num
               {/* Quantas vezes jogou, no canto. Três ícones sem número dizem
                   "joga esses"; com número dizem "esse é O campeão dele". */}
               {champion.games > 1 && (
-                <span className="tabular absolute -bottom-1 -right-1 rounded bg-base px-1 text-[9px] font-bold leading-tight text-ink-muted ring-1 ring-line/60">
+                <span className="tabular absolute -bottom-1 -right-1 rounded bg-canvas px-1 text-[9px] font-bold leading-tight text-ink-muted ring-1 ring-line/60">
                   {champion.games}
                 </span>
               )}

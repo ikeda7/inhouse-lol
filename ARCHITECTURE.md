@@ -293,11 +293,29 @@ nova, porque não existe cron aqui e é o único momento em que alguém se impor
 **Tokens em camadas**, não borda em tudo:
 
 ```
-base → surface → raised → overlay
+canvas → surface → raised → overlay
 ```
 
 Hierarquia vem de escala e espaço. O dourado é **acento**, nunca texto corrido.
 Azul e vermelho identificam **só** time.
+
+**O primeiro nível se chamava `base`, e o nome colidia com uma utility do
+Tailwind.** `--color-base` faz o Tailwind gerar uma utility de *cor*
+`text-base`, que tem exatamente o mesmo nome da utility de *tamanho de fonte*
+`text-base` que já existe. As duas regras convivem no CSS e a de cor ganha na
+cascata, então quem escrevia `text-base` querendo 16px levava junto
+`color: #080c14` — a cor de fundo mais escura da paleta.
+
+O estrago passou meses invisível porque nada disso aparece ao ler o código: a
+classe se parece com tamanho de fonte, o TypeScript não olha string de CSS, e o
+build não avisa. O nome da série no histórico ficava **preto no preto**; no
+botão primário o mesmo acidente produziu "texto escuro sobre o dourado", que
+por coincidência era o certo e por isso ninguém desconfiou. Nas outras cinco
+ocorrências havia uma classe de cor explícita depois, que sobrescrevia.
+
+Daí `canvas`: não colide com utility nenhuma. Ao mexer em token novo, confira
+antes se o nome já existe como utility do Tailwind (`text-*`, `font-*`,
+`leading-*`).
 
 **Os três níveis de texto passam WCAG AA no fundo mais claro em que aparecem.**
 Isso não era verdade até 09/09: `ink-faint` era `#5c6b85`, que dá **2.86:1** no

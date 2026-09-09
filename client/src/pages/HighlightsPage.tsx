@@ -252,10 +252,14 @@ function LinhaDoTempo({ momentos }: { momentos: MomentEntry[] }) {
     <div className="space-y-5 p-3">
       {noites.map((noite) => (
         <section key={noite.chave}>
-          <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
+          {/* A noite ("Domingo 07/09") é o que organiza o feed inteiro, e
+              estava em 11px no token mais fraco -- menor e mais apagada que os
+              cartões que ela agrupa, ou seja, hierarquia ao contrário. Passa a
+              nome de verdade; a CONTAGEM é que fica em segundo plano. */}
+          <h3 className="mb-2.5 flex items-center gap-2.5 text-[15px] font-bold tracking-tight text-ink">
             {noite.titulo}
             <span className="h-px flex-1 bg-line/40" />
-            <span className="font-normal normal-case tracking-normal">
+            <span className="text-[11px] font-normal uppercase tracking-widest text-ink-faint">
               {noite.itens.length} momento{noite.itens.length === 1 ? '' : 's'}
             </span>
           </h3>

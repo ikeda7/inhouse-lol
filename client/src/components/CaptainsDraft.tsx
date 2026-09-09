@@ -92,7 +92,7 @@ function FilaDeEscolhas({ state }: { state: CaptainsDraftState }) {
   if (fila.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-lg border border-line/40 bg-base/40 p-3">
+    <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-lg border border-line/40 bg-canvas/40 p-3">
       <span className="mr-2 text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
         Ordem
       </span>
@@ -172,7 +172,7 @@ function ColunaDoTime({
         {escolhidos.map((jogador) => (
           <li
             key={jogador.id}
-            className="flex items-center gap-2 rounded-md bg-base/50 px-2 py-1.5"
+            className="flex items-center gap-2 rounded-md bg-canvas/50 px-2 py-1.5"
           >
             {jogador.id === capitao?.id && (
               <Crown size={13} className="shrink-0 text-gold" aria-label="capitão" />
@@ -263,7 +263,7 @@ function BotaoDeEscolha({
       disabled={desabilitado}
       // A borda no hover é da cor de quem está escolhendo: confirma para onde o
       // jogador vai ANTES do clique, que é onde erro de draft ao vivo acontece.
-      className={`w-full rounded-lg border border-line/60 bg-base/50 p-2 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`w-full rounded-lg border border-line/60 bg-canvas/50 p-2 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${
         lado === 'BLUE' ? 'hover:border-blue hover:bg-blue/10' : 'hover:border-red hover:bg-red/10'
       }`}
     >

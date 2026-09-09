@@ -30,7 +30,7 @@ export function MatchObjectives({ teams }: { teams: MatchTeamStat[] }) {
   if (!azul || !vermelho) return null;
 
   return (
-    <div className="rounded-lg border border-line/40 bg-base/40 p-2.5">
+    <div className="flex h-full flex-col rounded-lg border border-line/40 bg-canvas/40 p-2.5">
       <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
         Objetivos
       </p>
@@ -63,7 +63,11 @@ export function MatchObjectives({ teams }: { teams: MatchTeamStat[] }) {
         })}
       </ul>
 
-      <Primeiros azul={azul} vermelho={vermelho} />
+      {/* mt-auto: os "primeiros" encostam no rodapé do card quando ele estica
+          para acompanhar o painel vizinho, em vez de deixar o vazio no fim. */}
+      <div className="mt-auto">
+        <Primeiros azul={azul} vermelho={vermelho} />
+      </div>
     </div>
   );
 }
@@ -121,16 +125,21 @@ export function MatchBans({ bans }: { bans: MatchBan[] }) {
   const porLado = (side: 'BLUE' | 'RED') => bans.filter((ban) => ban.teamSide === side);
 
   return (
-    <div className="rounded-lg border border-line/40 bg-base/40 p-2.5">
+    <div className="flex h-full flex-col rounded-lg border border-line/40 bg-canvas/40 p-2.5">
       <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
         Bans do draft
       </p>
 
       {/* Separados por time em vez de uma fila só de dez: o que interessa num
-          ban é QUEM tirou o quê do adversário, e uma fila única perde isso. */}
-      <div className="space-y-2">
+          ban é QUEM tirou o quê do adversário, e uma fila única perde isso.
+
+          `flex-1` + `justify-around`: este card tem 2 linhas contra as até 6 do
+          painel de objetivos ao lado. Antes ele parava na altura do próprio
+          conteúdo e sobrava meio painel de buraco. Agora ele acompanha a altura
+          do vizinho e as duas fileiras se distribuem nesse espaço. */}
+      <div className="flex flex-1 flex-col justify-around gap-2">
         {(['BLUE', 'RED'] as const).map((side) => (
-          <div key={side} className="flex items-center gap-2">
+          <div key={side} className="flex items-center gap-3">
             <span
               className={`w-16 shrink-0 text-[11px] font-bold uppercase ${
                 side === 'BLUE' ? 'text-blue' : 'text-red'
@@ -138,7 +147,7 @@ export function MatchBans({ bans }: { bans: MatchBan[] }) {
             >
               {side === 'BLUE' ? 'Azul' : 'Vermelho'}
             </span>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {porLado(side).map((ban) => (
                 <BanIcon key={ban.pickTurn} ban={ban} />
               ))}
@@ -167,7 +176,7 @@ function BanIcon({ ban }: { ban: MatchBan }) {
           de uma dessaturação leve; o campeão continua reconhecível. */}
       <ChampionIcon
         championName={ban.championName ?? String(ban.championId)}
-        size={34}
+        size={48}
         className={ICONE_INDISPONIVEL}
       />
       {/* Barra diagonal cobrindo o ícone: lê como "proibido" de relance, sem
