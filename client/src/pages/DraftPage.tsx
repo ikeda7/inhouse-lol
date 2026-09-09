@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dices, Users, RefreshCw, ArrowRight, Check, Crown, Swords } from 'lucide-react';
+import { Dices, Users, RefreshCw, ArrowRight, Check, Crown, Radio, Swords } from 'lucide-react';
 import { draftApi, playersApi } from '../api/client';
 import { useAction, useAsync } from '../hooks/useAsync';
 import { Button, Card, ErrorState, LoadingState, RoleBadge } from '../components/ui';
@@ -40,6 +40,7 @@ export function DraftPage() {
   const draw = useAction(draftApi.autoBalance);
   const iniciar = useAction(draftApi.startCaptains);
   const escolher = useAction(draftApi.pick);
+  const abrirSala = useAction(draftApi.criarSala);
 
   const times = draft?.teams ?? null;
 
@@ -82,6 +83,13 @@ export function DraftPage() {
   const handleIniciarCapitaes = async () => {
     const inicial = await iniciar.run([...selected], criterio);
     if (inicial) setDraft(inicial);
+  };
+
+  const handleAoVivo = async () => {
+    const sala = await abrirSala.run([...selected], criterio);
+    // Vai direto para a sala: o link que o grupo recebe e o desta pagina, e
+    // quem abriu tem que estar nela para copiar o link.
+    if (sala) navigate(`/draft/${sala.code}`);
   };
 
   const handleEscolher = async (playerId: string) => {
@@ -224,16 +232,31 @@ export function DraftPage() {
               </div>
             </div>
 
-            <Button onClick={handleIniciarCapitaes} disabled={!canDraw} loading={iniciar.loading}>
-              <Swords size={16} />
-              Começar o draft
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handleIniciarCapitaes} disabled={!canDraw} loading={iniciar.loading}>
+                <Swords size={16} />
+                Começar o draft
+              </Button>
+
+              {/* Duas formas do mesmo draft: aqui só nesta tela, ou numa sala
+                  com link para os dez acompanharem. A sala custa uma linha no
+                  banco, então não é o padrão -- é escolha explícita. */}
+              <Button
+                variant="ghost"
+                onClick={handleAoVivo}
+                disabled={!canDraw}
+                loading={abrirSala.loading}
+              >
+                <Radio size={16} />
+                Draft ao vivo (com link)
+              </Button>
+            </div>
           </div>
         )}
 
-        {(draw.error || iniciar.error) && (
+        {(draw.error || iniciar.error || abrirSala.error) && (
           <div className="mt-3">
-            <ErrorState error={draw.error ?? iniciar.error!} />
+            <ErrorState error={(draw.error ?? iniciar.error ?? abrirSala.error)!} />
           </div>
         )}
       </Card>

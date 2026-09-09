@@ -12,6 +12,7 @@ import {
 import { findPlayersByIds, toDraftablePlayer } from '../services/players.js';
 import { getLastGameLosers } from '../services/series.js';
 import { getWinRates } from '../services/stats.js';
+import { buscarSala, criarSala, escolherNaSala } from '../services/draftRooms.js';
 import { asyncHandler } from './helpers.js';
 
 export const draftRouter = Router();
@@ -138,5 +139,88 @@ draftRouter.post(
         teams: next.finished ? finalizeCaptainsDraft(next) : null,
       },
     });
+  })
+);
+
+// ---------------------------------------------------------------------------
+// SALAS DE DRAFT AO VIVO (issue #6)
+//
+// O modo Capitaes acima guarda o estado no cliente e serve a uma pessoa. Aqui o
+// estado mora no banco sob um codigo curto, e quem abre o link ve o mesmo
+// draft.
+//
+// Nao ha login: quem tem o link escolhe. E o mesmo nivel de confianca do grupo
+// no proprio saguao do jogo, e o servidor ainda garante o que importa -- a
+// escolha entra no time da VEZ, nunca no outro.
+// ---------------------------------------------------------------------------
+
+/** GET /api/draft/rooms/:code?since=<versao> */
+draftRouter.get(
+  '/rooms/:code',
+  asyncHandler(async (req, res) => {
+    const sala = await buscarSala(req.params.code);
+    if (!sala) {
+      res.status(404).json({
+        success: false,
+        error: 'Sala nao encontrada ou expirada.',
+        code: 'ROOM_NOT_FOUND',
+      });
+      return;
+    }
+
+    // Consulta barata: o cliente manda a versao que ja tem e recebe so um
+    // "nao mudou". Isso e o que torna aceitavel consultar de 2 em 2 segundos.
+    const since = Number(req.query.since);
+    if (Number.isFinite(since) && since === sala.version) {
+      res.json({ success: true, data: { unchanged: true, version: sala.version } });
+      return;
+    }
+
+    res.json({ success: true, data: sala });
+  })
+);
+
+/**
+ * POST /api/draft/rooms
+ * Sorteia os capitaes e abre a sala. Devolve o codigo que vira link.
+ */
+draftRouter.post(
+  '/rooms',
+  asyncHandler(async (req, res) => {
+    const { playerIds, mode, seriesId, seed } = captainsSchema.parse(req.body);
+    const roster = await loadRoster(playerIds);
+    const winRates = await getWinRates();
+
+    const candidates: CaptainCandidate[] = roster.map((player) => {
+      const stats = winRates.get(player.id);
+      return {
+        ...toDraftablePlayer(player),
+        winRate: stats?.winRate ?? 0,
+        gamesPlayed: stats?.games ?? 0,
+      };
+    });
+
+    const lastGameLosers =
+      mode === 'LAST_LOSERS' && seriesId ? await getLastGameLosers(seriesId) : [];
+
+    const captains = selectCaptains({ roster: candidates, mode, lastGameLosers, seed });
+    const sala = await criarSala(startCaptainsDraft(candidates, captains));
+
+    res.status(201).json({
+      success: true,
+      data: { ...sala, pickOrder: buildPickOrder('BLUE') },
+    });
+  })
+);
+
+/** POST /api/draft/rooms/:code/pick */
+draftRouter.post(
+  '/rooms/:code/pick',
+  asyncHandler(async (req, res) => {
+    const { playerId, version } = z
+      .object({ playerId: z.string().min(1), version: z.number().int().min(0) })
+      .parse(req.body);
+
+    res.json({ success: true, data: await escolherNaSala(req.params.code, playerId, version) });
   })
 );

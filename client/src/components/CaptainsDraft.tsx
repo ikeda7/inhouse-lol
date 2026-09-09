@@ -21,9 +21,18 @@ interface Props {
   escolhendo: boolean;
   erro: Error | null;
   onReiniciar: () => void;
+  /** O rotulo muda entre "recomecar" (local) e "sair" (sala ao vivo). */
+  reiniciarRotulo?: string;
 }
 
-export function CaptainsDraft({ state, onPick, escolhendo, erro, onReiniciar }: Props) {
+export function CaptainsDraft({
+  state,
+  onPick,
+  escolhendo,
+  erro,
+  onReiniciar,
+  reiniciarRotulo = 'Recomeçar o draft',
+}: Props) {
   const daVez = state.onTheClock;
 
   return (
@@ -49,7 +58,7 @@ export function CaptainsDraft({ state, onPick, escolhendo, erro, onReiniciar }: 
 
       <div className="flex justify-center">
         <Button variant="ghost" onClick={onReiniciar}>
-          Recomeçar o draft
+          {reiniciarRotulo}
         </Button>
       </div>
     </div>
