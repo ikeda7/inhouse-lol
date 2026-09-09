@@ -27,7 +27,7 @@ const MIN_MULTIKILL_PARA_MOMENTO = 4;
  */
 const MAX_MOMENTOS = 60;
 
-interface LinhaCrua {
+export interface LinhaCrua {
   playerId: string;
   kills: number;
   deaths: number;
@@ -208,7 +208,7 @@ function csPorMinuto(linha: LinhaCrua): number {
  * Os superlativos precisam do contexto da PARTIDA inteira (quem foi o maior
  * dano daquele jogo), entao as linhas sao agrupadas por partida antes.
  */
-function extrairMomentos(
+export function extrairMomentos(
   linhas: LinhaCrua[],
   icone: (nome: string) => string | null
 ): Momento[] {
