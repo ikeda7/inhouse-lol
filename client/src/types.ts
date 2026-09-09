@@ -332,3 +332,44 @@ export interface Highlights {
   momentos: MomentEntry[];
   partidas: number;
 }
+
+// ---------------------------------------------------------------------------
+// Modo Capitães (issue #5)
+// ---------------------------------------------------------------------------
+
+/** Jogador como o motor de draft o enxerga: só id, nome, pool e rating. */
+export interface DraftablePlayer {
+  id: string;
+  name: string;
+  roles: RoleInput[];
+  rating: number;
+}
+
+export interface CaptainCandidate extends DraftablePlayer {
+  /** 0..1. Critério do modo "os 2 de maior winrate". */
+  winRate?: number;
+  gamesPlayed?: number;
+}
+
+/** Uma posição na fila snake 1-2-2-2-1. */
+export interface CaptainsPick {
+  order: number;
+  side: TeamSide;
+}
+
+export interface CaptainsDraftState {
+  captains: Record<TeamSide, CaptainCandidate>;
+  /** Quem ainda está no pote. */
+  available: DraftablePlayer[];
+  picks: Record<TeamSide, DraftablePlayer[]>;
+  /** De quem é a vez. Null quando o draft acabou. */
+  onTheClock: TeamSide | null;
+  pickNumber: number;
+  finished: boolean;
+  /** Só vem no /start; o cliente guarda para desenhar a fila. */
+  pickOrder?: CaptainsPick[];
+  /** Só vem preenchido no pick que fecha o draft. */
+  teams?: { blueTeam: BalancedTeam; redTeam: BalancedTeam } | null;
+}
+
+export type CaptainSelectionMode = 'TOP_WINRATE' | 'LAST_LOSERS' | 'RANDOM';

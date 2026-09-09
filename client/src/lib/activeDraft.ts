@@ -1,4 +1,4 @@
-import type { AutoBalanceResult, Role, TeamSide } from '../types';
+import type { AutoBalanceResult, BalancedTeam, Role, TeamSide } from '../types';
 
 /**
  * Times sorteados que estao "em uso" na noite de jogos.
@@ -8,8 +8,8 @@ import type { AutoBalanceResult, Role, TeamSide } from '../types';
  * servidor criaria estado orfao toda vez que alguem sorteia de novo ou fecha a
  * aba, e exigiria uma tabela `Draft` que nao paga o proprio custo.
  *
- * O efeito pratico e o que importa: sorteia na aba Sorteio, atravessa para a
- * Noite de jogos, e sobrevive a um F5.
+ * O efeito pratico e o que importa: sorteia (ou draftea) na aba Sorteio,
+ * atravessa para a aba Serie, e sobrevive a um F5.
  */
 
 const STORAGE_KEY = 'inhouse-lol:active-draft';
@@ -29,14 +29,35 @@ export interface ActiveDraft {
 }
 
 export function fromAutoBalance(result: AutoBalanceResult): ActiveDraft {
-  const slots = [...result.blueTeam.players, ...result.redTeam.players].map((entry) => ({
+  return {
+    slots: paraSlots(result.blueTeam, result.redTeam),
+    seed: result.seed,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Times vindos do modo Capitães.
+ *
+ * `seed` fica em 0 porque não houve sorteio: a composição foi escolhida por
+ * gente. Zero é honesto -- inventar uma semente sugeriria que dá para
+ * reproduzir o draft, e não dá.
+ */
+export function fromCaptains(teams: { blueTeam: BalancedTeam; redTeam: BalancedTeam }): ActiveDraft {
+  return {
+    slots: paraSlots(teams.blueTeam, teams.redTeam),
+    seed: 0,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function paraSlots(blueTeam: BalancedTeam, redTeam: BalancedTeam): ActiveDraftSlot[] {
+  return [...blueTeam.players, ...redTeam.players].map((entry) => ({
     playerId: entry.player.id,
     playerName: entry.player.name,
     teamSide: entry.side,
     rolePlayed: entry.role,
   }));
-
-  return { slots, seed: result.seed, createdAt: new Date().toISOString() };
 }
 
 export function saveActiveDraft(draft: ActiveDraft): void {
