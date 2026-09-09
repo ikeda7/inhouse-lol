@@ -34,7 +34,7 @@ Confira que ficou tudo de pé:
 
 ```bash
 npm run typecheck    # os dois workspaces
-npm test             # 114 testes (91 no back, 23 no front)
+npm test             # 131 testes (101 no back, 30 no front)
 npm run build
 ```
 
@@ -203,12 +203,30 @@ que está aberto, em ordem de retorno:
   2 participantes de fora do grupo. Importar dobra a amostra e **muda a
   classificação de todo mundo**. A issue tem o comando pronto.
 
-### Dá para pegar e fazer
+### Feito e no ar — falta você conferir na prática
 
-- **#3 — contas de jogador** (login, senha, foto). É a maior que sobrou, e dá
-  sentido ao draft ao vivo: hoje a trava de capitão é contra acidente, não
-  contra gente. Precisa de decisões suas antes: como faz login? e-mail e senha,
-  ou só nome? a foto vem de upload ou do ícone do LoL?
+**#3 — contas de jogador** está em produção desde 09/09/2026. Login é e-mail e
+senha; a foto vem do ícone do LoL, com upload próprio como opção.
+
+Foi conferido por API e por navegador, mas **ninguém usou como usuário de
+verdade ainda**. É o primeiro item da lista quando você sentar:
+
+1. Abrir <https://inhouse-lol.vercel.app/criar-conta>, escolher seu nome na
+   lista e criar a conta.
+2. Em **/conta**, preencher o Riot ID e clicar em **"Usar ícone do LoL"** — é
+   o único caminho que depende da Riot API e que não deu para exercitar de
+   ponta a ponta (precisa de `RIOT_API_KEY` válida; sem ela a resposta é
+   503 `RIOT_DISABLED`, e o botão de upload continua funcionando).
+3. Testar o upload de foto pelo celular, que é onde o recorte quadrado e o
+   redimensionamento importam.
+
+Se algo estiver errado, o que fazer depende de onde:
+
+| Sintoma | Onde olhar |
+|---|---|
+| Toda rota da API caindo | `JWT_SECRET` sumiu das variáveis da Vercel |
+| Só as rotas de conta com erro | schema do Turso — `npm run db:turso -- --schema-only` |
+| "Usar ícone do LoL" em 503 | `RIOT_API_KEY` (chave de dev expira a cada 24h) |
 
 ### Coisas que eu faria a seguir, se fosse escolher
 
@@ -216,9 +234,14 @@ que está aberto, em ordem de retorno:
    (`--watch` já existe, mas ninguém lembra de deixar rodando).
 2. **A aba Série é a menos trabalhada.** É tela de ação, não de leitura, mas
    ainda assim tem espaço vazio no desktop.
-3. **Teste de componente cobre 5 componentes de ~20.** Os que faltam com regra
-   de verdade: `MatchPlayerDetail` (as barras de comparação), `CaptainsDraft`
-   (de quem é a vez), `Select` (teclado).
+3. **Teste de componente cobre 7 componentes de ~20.** `Avatar` e as telas de
+   conta entraram; os que faltam com regra de verdade continuam sendo
+   `MatchPlayerDetail` (as barras de comparação), `CaptainsDraft` (de quem é a
+   vez) e `Select` (teclado).
+4. **A suíte tem um teste no limite do tempo.** O `autoBalance` de 200 sorteios
+   roda em ~5,4s contra um limite de 5s em máquina Windows — já falhou uma vez
+   e passou nas outras. É vermelho aleatório esperando acontecer no CI; ou sobe
+   o `testTimeout`, ou reduz o número de seeds.
 
 ---
 
