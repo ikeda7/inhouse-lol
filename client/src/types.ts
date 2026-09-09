@@ -224,6 +224,29 @@ export interface LeaderboardEntry {
   mainRole: Role | null;
 }
 
+export interface RecentMatch {
+  matchId: string;
+  matchNumber: number;
+  seriesId: string;
+  seriesName: string | null;
+  playedAt: string;
+  gameDurationSec: number | null;
+  championName: string;
+  ddragonId: string | null;
+  rolePlayed: Role;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damage: number;
+  cs: number;
+  visionScore: number;
+  goldEarned: number;
+  win: boolean;
+  largestMultiKill: number;
+  largestKillingSpree: number;
+  firstBloodKill: boolean;
+}
+
 export interface PlayerProfile {
   playerId: string;
   name: string;
@@ -234,6 +257,12 @@ export interface PlayerProfile {
   avgDamagePerMinute: number;
   avgVisionScore: number;
   byRole: { role: Role; games: number; wins: number; winRate: number; avgKda: number }[];
+  avgCsPerMinute: number;
+  totalKills: number;
+  totalDeaths: number;
+  totalAssists: number;
+  seriesWon: number;
+  recentMatches: RecentMatch[];
   championPodium: {
     championName: string;
     ddragonId: string | null;
