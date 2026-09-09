@@ -222,6 +222,8 @@ export interface LeaderboardEntry {
   topChampions: { championName: string; games: number }[];
   /** Role mais jogada. */
   mainRole: Role | null;
+  /** Selo de brincadeira: KDA alto sem contribuição na proporção. */
+  isKdaPlayer: boolean;
 }
 
 export interface RecentMatch {

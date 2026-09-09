@@ -45,7 +45,8 @@ interface StatRow {
   rolePlayed: string;
   championName: string;
   championId: number | null;
-  match: { gameDurationSec: number | null; seriesId: string };
+  teamSide: string;
+  match: { id: string; gameDurationSec: number | null; seriesId: string };
   player: { id: string; name: string };
 }
 
@@ -53,7 +54,9 @@ async function loadStatRows(where: Record<string, unknown> = {}): Promise<StatRo
   return prisma.matchPlayerStat.findMany({
     where,
     include: {
-      match: { select: { gameDurationSec: true, seriesId: true } },
+      // matchId e teamSide entram para dar participacao em abates: ela precisa
+      // dos abates do TIME naquela partida, nao so os do jogador.
+      match: { select: { id: true, gameDurationSec: true, seriesId: true } },
       player: { select: { id: true, name: true } },
     },
   }) as unknown as Promise<StatRow[]>;
@@ -157,6 +160,8 @@ export interface LeaderboardEntry {
   topChampions: { championName: string; games: number }[];
   /** Role mais jogada. Null quando ha empate ou ninguem jogou. */
   mainRole: string | null;
+  /** Selo de brincadeira: KDA alto sem contribuicao na proporcao (issue #16). */
+  isKdaPlayer: boolean;
 }
 
 export type LeaderboardSort = 'wins' | 'winRate' | 'avgKda' | 'points';
@@ -172,6 +177,137 @@ function maisFrequentes(contagem: Map<string, number>, quantos: number): [string
   return [...contagem.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, quantos);
+}
+
+// ---------------------------------------------------------------------------
+// O SELO DE "KDA PLAYER" (issue #16)
+//
+// Pedido do grupo, como brincadeira. Mas a piada só funciona se o selo cair na
+// pessoa certa -- e "quem tem o KDA mais alto" é a pessoa ERRADA. KDA alto com
+// dano alto e presença nas brigas é só jogar bem.
+//
+// KDA player é quem tem número bonito SEM contribuir na proporção: pega o abate
+// fácil, evita a briga, termina 8/1/4 num jogo que o time perdeu. O selo por
+// isso combina dois sinais em direções opostas -- KDA acima da média junto de
+// participação abaixo dela.
+//
+// POR QUE PARTICIPAÇÃO E NÃO DANO. Dano por minuto foi a primeira ideia e está
+// errado: ele não é comparável entre roles. Jungler e suporte têm dano baixo
+// por definição, então o selo caía neles sempre. No teste com dado real caiu num
+// jungler 4-0 que fez 7/1/27 -- esteve em TODA briga da partida. Isso é
+// carregar, não farmar KDA.
+//
+// Participação em abates é bem mais neutra: no grupo real ela vai de 37% a 63%
+// com as cinco roles embaralhadas na ordem -- o primeiro e o último colocado
+// são os dois TOP. É o sinal certo para "estava na briga ou não", que é
+// exatamente o que define o arquétipo.
+// ---------------------------------------------------------------------------
+
+/**
+ * Mínimo de jogos para concorrer.
+ *
+ * Baixo de propósito enquanto a base é pequena: com 4 partidas registradas,
+ * exigir 5 jogos faria o selo nunca aparecer. Vale subir conforme o histórico
+ * cresce -- com poucos jogos o título pula de pessoa a cada noite e perde graça.
+ */
+const MIN_JOGOS_PARA_SELO = 3;
+
+/**
+ * Quão acima da média a desproporção precisa estar.
+ *
+ * Sem essa margem o selo sempre teria dono, mesmo numa noite em que ninguém
+ * jogou de KDA player -- e um selo que nunca falta não diz nada.
+ */
+const MARGEM_DO_SELO = 1.15;
+
+interface CandidatoAoSelo {
+  playerId: string;
+  games: number;
+  kda: number;
+  /** (abates + assistências) / abates do time, média das partidas. */
+  killParticipation: number;
+}
+
+/**
+ * Participação em abates por jogador.
+ *
+ * É o sinal mais direto de "estava na briga ou não", e o que separa o KDA
+ * player do carregador. Precisa dos abates do TIME em cada partida, que saem da
+ * soma dos 5 do mesmo lado -- sem coluna nova no banco.
+ */
+function calcularKillParticipation(rows: StatRow[]): Map<string, number> {
+  const abatesDoTime = new Map<string, number>();
+  for (const row of rows) {
+    const chave = `${row.match.id}:${row.teamSide}`;
+    abatesDoTime.set(chave, (abatesDoTime.get(chave) ?? 0) + row.kills);
+  }
+
+  const soma = new Map<string, { total: number; jogos: number }>();
+  for (const row of rows) {
+    const doTime = abatesDoTime.get(`${row.match.id}:${row.teamSide}`) ?? 0;
+    // Time que não matou ninguém: participação é indefinida, não zero. Contar
+    // como zero puniria quem jogou um estomp ao contrário.
+    if (doTime === 0) continue;
+
+    const atual = soma.get(row.playerId) ?? { total: 0, jogos: 0 };
+    atual.total += (row.kills + row.assists) / doTime;
+    atual.jogos += 1;
+    soma.set(row.playerId, atual);
+  }
+
+  const media = new Map<string, number>();
+  for (const [playerId, { total, jogos }] of soma) {
+    media.set(playerId, safeDivide(total, jogos));
+  }
+  return media;
+}
+
+/**
+ * Quem leva o selo. Null quando ninguém destoa o bastante.
+ *
+ * A conta é uma razão entre relativos: quanto o KDA da pessoa está acima da
+ * média do grupo, dividido por quanto a contribuição dela está. Acima de 1
+ * significa "colhe mais do que planta"; abaixo da margem, ninguém leva.
+ */
+function escolherKdaPlayer(candidatos: CandidatoAoSelo[]): string | null {
+  const elegiveis = candidatos.filter((c) => c.games >= MIN_JOGOS_PARA_SELO);
+  if (elegiveis.length < 2) return null;
+
+  const media = (pegar: (c: CandidatoAoSelo) => number) =>
+    safeDivide(
+      elegiveis.reduce((soma, c) => soma + pegar(c), 0),
+      elegiveis.length
+    );
+
+  const mediaKda = media((c) => c.kda);
+  const mediaKp = media((c) => c.killParticipation);
+  if (mediaKda === 0 || mediaKp === 0) return null;
+
+  let dono: string | null = null;
+  let maiorRazao = 0;
+
+  for (const candidato of elegiveis) {
+    const kdaRelativo = candidato.kda / mediaKda;
+    const participacaoRelativa = candidato.killParticipation / mediaKp;
+    if (participacaoRelativa === 0) continue;
+
+    // PORTAS DURAS, antes da razão.
+    //
+    // Para levar o selo é preciso os DOIS ao mesmo tempo: KDA acima da média do
+    // grupo e participação abaixo dela. Sem as portas, o selo cai em quem tem
+    // KDA muito alto e participação alta também, só porque o KDA varia muito
+    // mais que o resto -- neste grupo ele vai de 1.0 a 10.5, então a razão
+    // passaria a ser decidida quase só por ele.
+    if (kdaRelativo <= 1 || participacaoRelativa >= 1) continue;
+
+    const razao = kdaRelativo / participacaoRelativa;
+    if (razao > maiorRazao) {
+      maiorRazao = razao;
+      dono = candidato.playerId;
+    }
+  }
+
+  return maiorRazao >= MARGEM_DO_SELO ? dono : null;
 }
 
 export async function getLeaderboard(
@@ -236,6 +372,8 @@ export async function getLeaderboard(
     byPlayer.set(row.playerId, acc);
   }
 
+  const killParticipation = calcularKillParticipation(rows);
+
   const entries: LeaderboardEntry[] = [...byPlayer.entries()]
     .map(([playerId, acc]) => ({
       playerId,
@@ -259,8 +397,25 @@ export async function getLeaderboard(
         games,
       })),
       mainRole: maisFrequentes(acc.roles, 1)[0]?.[0] ?? null,
+      // Preenchido logo abaixo, depois de ter todo mundo para comparar.
+      isKdaPlayer: false,
     }))
     .filter((entry) => entry.games >= minGames);
+
+  // O selo sai depois da lista montada, porque depende de comparar todo mundo
+  // -- é sobre estar acima ou abaixo da média do grupo, não sobre um número
+  // absoluto do jogador.
+  const kdaPlayerId = escolherKdaPlayer(
+    entries.map((entry) => ({
+      playerId: entry.playerId,
+      games: entry.games,
+      kda: entry.avgKda,
+      killParticipation: killParticipation.get(entry.playerId) ?? 0,
+    }))
+  );
+  for (const entry of entries) {
+    entry.isKdaPlayer = entry.playerId === kdaPlayerId;
+  }
 
   // DESEMPATE EXPLÍCITO
   //
