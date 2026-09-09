@@ -1,5 +1,5 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
-import { Trophy, Dices, Swords, Users, History, Flame } from 'lucide-react';
+import { Trophy, Dices, Swords, Users, History, Flame, LogIn } from 'lucide-react';
 import { DashboardPage } from './pages/DashboardPage';
 import { DraftPage } from './pages/DraftPage';
 import { SeriesPage } from './pages/SeriesPage';
@@ -8,6 +8,11 @@ import { PlayerProfilePage } from './pages/PlayerProfilePage';
 import { HistoryPage } from './pages/HistoryPage';
 import { HighlightsPage } from './pages/HighlightsPage';
 import { LiveDraftPage } from './pages/LiveDraftPage';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { AccountPage } from './pages/AccountPage';
+import { useAuth } from './context/AuthContext';
+import { Avatar } from './components/ui';
 
 const NAV = [
   { to: '/', label: 'Ranking', short: 'Ranking', icon: Trophy, end: true },
@@ -17,6 +22,51 @@ const NAV = [
   { to: '/historico', label: 'Histórico', short: 'Histórico', icon: History, end: false },
   { to: '/jogadores', label: 'Jogadores', short: 'Jogadores', icon: Users, end: true },
 ];
+
+/**
+ * Atalho da conta (issue #3).
+ *
+ * Fica no cabeçalho nos DOIS tamanhos de tela, e não na barra de baixo: com 6
+ * abas, uma sétima deixaria cada item com ~45px num celular de 320px e
+ * "Destaques" quebraria em duas linhas (ver o comentário da barra inferior).
+ * O cabeçalho já existe nos dois e tem espaço sobrando à direita.
+ */
+function AtalhoDaConta() {
+  const { player, loading } = useAuth();
+
+  // Enquanto o /auth/me não responde, não mostra nada: piscar "Entrar" e
+  // depois trocar pelo avatar é pior que aparecer meio segundo depois.
+  if (loading) return <div className="h-6 w-6" aria-hidden="true" />;
+
+  if (!player) {
+    return (
+      <NavLink
+        to="/entrar"
+        className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-ink-faint transition hover:text-ink-muted"
+      >
+        <LogIn size={15} />
+        Entrar
+      </NavLink>
+    );
+  }
+
+  return (
+    <NavLink
+      to="/conta"
+      title={`Conta de ${player.name}`}
+      className={({ isActive }) =>
+        `flex items-center gap-2 rounded-md px-2 py-1 text-sm font-medium transition ${
+          isActive ? 'text-ink' : 'text-ink-muted hover:text-ink'
+        }`
+      }
+    >
+      <Avatar photoUrl={player.photoUrl} name={player.name} size="sm" />
+      {/* O nome some em telas estreitas: o avatar já identifica, e o espaço
+          do cabeçalho é disputado com a marca. */}
+      <span className="hidden max-w-24 truncate sm:inline">{player.name}</span>
+    </NavLink>
+  );
+}
 
 /**
  * Navegação em dois formatos:
@@ -36,32 +86,36 @@ export function App() {
             <span className="text-lg font-bold tracking-tight text-gold">LoL</span>
           </NavLink>
 
-          <nav className="hidden gap-0.5 sm:flex" aria-label="Navegação principal">
-            {NAV.map(({ to, label, icon: Icon, end }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={end}
-                className={({ isActive }) =>
-                  `relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                    isActive ? 'text-ink' : 'text-ink-faint hover:text-ink-muted'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <Icon size={15} />
-                    {label}
-                    {/* Sublinhado do item ativo: marca a posição sem pintar
-                        um bloco inteiro de cor. */}
-                    {isActive && (
-                      <span className="absolute inset-x-3 -bottom-[14px] h-px bg-gold" />
-                    )}
-                  </>
-                )}
-              </NavLink>
-            ))}
-          </nav>
+          <div className="flex items-center gap-1">
+            <nav className="hidden gap-0.5 sm:flex" aria-label="Navegação principal">
+              {NAV.map(({ to, label, icon: Icon, end }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={end}
+                  className={({ isActive }) =>
+                    `relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                      isActive ? 'text-ink' : 'text-ink-faint hover:text-ink-muted'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <Icon size={15} />
+                      {label}
+                      {/* Sublinhado do item ativo: marca a posição sem pintar
+                          um bloco inteiro de cor. */}
+                      {isActive && (
+                        <span className="absolute inset-x-3 -bottom-[14px] h-px bg-gold" />
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </nav>
+
+            <AtalhoDaConta />
+          </div>
         </div>
       </header>
 
@@ -83,6 +137,10 @@ export function App() {
           <Route path="/historico" element={<HistoryPage />} />
           <Route path="/jogadores" element={<PlayersPage />} />
           <Route path="/jogadores/:playerId" element={<PlayerProfilePage />} />
+          {/* Contas de jogador (issue #3). */}
+          <Route path="/entrar" element={<LoginPage />} />
+          <Route path="/criar-conta" element={<RegisterPage />} />
+          <Route path="/conta" element={<AccountPage />} />
           <Route
             path="*"
             element={

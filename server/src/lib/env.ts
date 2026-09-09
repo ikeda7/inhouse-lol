@@ -113,6 +113,13 @@ export const env = {
 
   /** Locale usado nos assets do Data Dragon. */
   ddragonLocale: optional('DDRAGON_LOCALE', 'pt_BR'),
+
+  /**
+   * Assina o cookie de sessao das contas de jogador (issue #3). Em dev pode
+   * ser qualquer string; em producao precisa ser um segredo de verdade
+   * (`openssl rand -hex 32`).
+   */
+  jwtSecret: required('JWT_SECRET'),
 } as const;
 
 export const hasRiotApi = env.riotApiKey !== null;

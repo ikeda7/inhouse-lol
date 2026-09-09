@@ -31,6 +31,18 @@ model Player {
   internalRating Int      @default(1000)
   /// Jogador inativo nao aparece na tela de sorteio, mas mantem o historico.
   active         Boolean  @default(true)
+
+  /// Preenchido quando o jogador reivindica a conta (login). Null = sem conta ainda.
+  email         String?  @unique
+  passwordHash  String?
+  /// URL efetiva do avatar: icone do LoL (Data Dragon) ou foto enviada (data: URI).
+  photoUrl      String?
+  /// LOL_ICON | UPLOAD | NONE -- de onde veio photoUrl, para saber se da pra
+  /// "resetar para o icone do LoL" sem perguntar de novo.
+  photoSource   String   @default("NONE")
+  /// Cacheado do Summoner-V4 pelo mesmo motivo do puuid: nao gastar rate limit.
+  profileIconId Int?
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
