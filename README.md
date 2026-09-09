@@ -368,15 +368,17 @@ inhouse-lol/
 │     │  ├─ stats.ts             classificação e perfil
 │     │  └─ highlights.ts        recordes e momentos
 │     ├─ routes/              endpoints Express
-│     └─ __tests__/           68 testes
+│     └─ __tests__/           91 testes
 └─ client/src/
    ├─ pages/                  Ranking, Sorteio, Série, Destaques, Histórico,
    │                          Jogadores, Perfil
    ├─ components/             Select, ChampionPicker, MatchForm, TeamCard,
    │                          MatchPlayerDetail, MatchObjectives, BuildIcons...
    ├─ hooks/
+   ├─ lib/                    rankingImage.ts, lolTerms.ts, activeDraft.ts
    ├─ index.css               tokens do sistema visual
-   └─ api/client.ts           cliente HTTP tipado
+   ├─ api/client.ts           cliente HTTP tipado
+   └─ __tests__/              23 testes (puros e de componente)
 ```
 
 **`lib/` não importa framework nenhum.** É a parte cara do projeto — o
