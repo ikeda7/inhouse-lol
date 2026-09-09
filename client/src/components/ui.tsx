@@ -29,7 +29,10 @@ export function Card({
       className={`surgir overflow-hidden rounded-lg border border-line/60 bg-surface/80 backdrop-blur-sm ${className}`}
     >
       {(title || action) && (
-        <header className="flex items-center justify-between gap-3 border-b border-line/50 px-4 py-3 sm:px-5">
+        // flex-wrap: quando a ação é pesada (as abas de ordenação + os botões
+        // de imagem no ranking), ela desce para a própria linha em vez de
+        // espremer o título em duas linhas e vazar para fora da tela.
+        <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line/50 px-4 py-3 sm:px-5">
           {typeof title === 'string' ? (
             <h2 className="text-[13px] font-semibold tracking-tight text-ink">{title}</h2>
           ) : (
