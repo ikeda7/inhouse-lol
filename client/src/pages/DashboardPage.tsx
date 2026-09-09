@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Trophy } from 'lucide-react';
+import { Share2, Trophy } from 'lucide-react';
 import { statsApi } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon } from '../components/ChampionIcon';
+import { useChampions } from '../hooks/useChampions';
+import { entregarImagem, gerarImagemDoRanking } from '../lib/rankingImage';
 import { ROLE_LABEL, type LeaderboardEntry } from '../types';
 
 type SortKey = 'wins' | 'winRate' | 'avgKda' | 'points';
@@ -31,7 +33,32 @@ const MEDAL = ['text-gold', 'text-slate-300', 'text-amber-700'];
  */
 export function DashboardPage() {
   const [sortBy, setSortBy] = useState<SortKey>('wins');
+  const { manifest } = useChampions();
+  const [exportando, setExportando] = useState(false);
+  const [erroDaImagem, setErroDaImagem] = useState<string | null>(null);
   const { data, loading, error, reload } = useAsync(() => statsApi.leaderboard(sortBy), [sortBy]);
+
+  const exportar = async () => {
+    if (!data || data.length === 0) return;
+    setExportando(true);
+    setErroDaImagem(null);
+    try {
+      const blob = await gerarImagemDoRanking(data, {
+        // O ícone sai do manifesto que a tela já carregou; sem ele a imagem
+        // ainda sai, só sem os campeões.
+        iconeDoCampeao: (nome) =>
+          manifest?.champions.find((c) => c.name.toLowerCase() === nome.toLowerCase())?.squareUrl ??
+          null,
+        ordenadoPor: SORT_LABELS[sortBy],
+      });
+      const data_ = new Date().toISOString().slice(0, 10);
+      await entregarImagem(blob, `inhouse-lol-ranking-${data_}.png`);
+    } catch (erro) {
+      setErroDaImagem(erro instanceof Error ? erro.message : 'Não consegui gerar a imagem.');
+    } finally {
+      setExportando(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -39,25 +66,38 @@ export function DashboardPage() {
         padding={false}
         title={<CardTitle icon={Trophy}>Classificação geral</CardTitle>}
         action={
-          <div
-            className="flex gap-0.5 rounded-md bg-raised p-0.5"
-            role="group"
-            aria-label="Ordenar por"
-          >
-            {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
-              <button
-                key={key}
-                onClick={() => setSortBy(key)}
-                aria-pressed={sortBy === key}
-                className={`rounded px-3 py-1.5 text-xs font-semibold transition ${
-                  sortBy === key
-                    ? 'bg-overlay text-ink shadow-sm'
-                    : 'text-ink-faint hover:text-ink-muted'
-                }`}
-              >
-                {SORT_LABELS[key]}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div
+              className="flex gap-0.5 rounded-md bg-raised p-0.5"
+              role="group"
+              aria-label="Ordenar por"
+            >
+              {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                <button
+                  key={key}
+                  onClick={() => setSortBy(key)}
+                  aria-pressed={sortBy === key}
+                  className={`rounded px-3 py-1.5 text-xs font-semibold transition ${
+                    sortBy === key
+                      ? 'bg-overlay text-ink shadow-sm'
+                      : 'text-ink-faint hover:text-ink-muted'
+                  }`}
+                >
+                  {SORT_LABELS[key]}
+                </button>
+              ))}
+            </div>
+
+            {/* A imagem sai na ordem que está na tela: quem exportar ordenado
+                por KDA quer mandar o ranking de KDA. */}
+            <button
+              onClick={exportar}
+              disabled={exportando || !data || data.length === 0}
+              className="flex items-center gap-1.5 rounded-md border border-line/60 bg-raised px-3 py-1.5 text-xs font-semibold text-ink-muted transition hover:border-gold/50 hover:text-gold disabled:opacity-40"
+            >
+              <Share2 size={13} />
+              {exportando ? 'Gerando...' : 'Imagem'}
+            </button>
           </div>
         }
       >
@@ -117,6 +157,12 @@ export function DashboardPage() {
           </>
         )}
       </Card>
+
+      {erroDaImagem && (
+        <p className="rounded-lg border border-loss/30 bg-loss/10 px-3 py-2 text-center text-xs text-loss">
+          {erroDaImagem}
+        </p>
+      )}
 
       {data && data.length > 0 && (
         <div className="space-y-1 px-1 text-center text-xs text-ink-faint">
