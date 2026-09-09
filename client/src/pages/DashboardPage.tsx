@@ -1,12 +1,19 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Share2, Trophy } from 'lucide-react';
+import { Copy, Download, Share2, Trophy } from 'lucide-react';
 import { statsApi } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon } from '../components/ChampionIcon';
 import { useChampions } from '../hooks/useChampions';
-import { entregarImagem, gerarImagemDoRanking } from '../lib/rankingImage';
+import {
+  baixarImagem,
+  compartilharImagem,
+  copiarImagem,
+  ehTelaDeToque,
+  gerarImagemDoRanking,
+  podeCopiarImagem,
+} from '../lib/rankingImage';
 import { ROLE_LABEL, type LeaderboardEntry } from '../types';
 
 type SortKey = 'wins' | 'winRate' | 'avgKda' | 'points';
@@ -36,29 +43,46 @@ export function DashboardPage() {
   const { manifest } = useChampions();
   const [exportando, setExportando] = useState(false);
   const [erroDaImagem, setErroDaImagem] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   const { data, loading, error, reload } = useAsync(() => statsApi.leaderboard(sortBy), [sortBy]);
 
-  const exportar = async () => {
-    if (!data || data.length === 0) return;
+  const semDados = !data || data.length === 0;
+
+  const nomeDoArquivo = `inhouse-lol-ranking-${new Date().toISOString().slice(0, 10)}.png`;
+
+  const gerar = () => {
+    if (!data || data.length === 0) throw new Error('Nada para exportar ainda.');
+    return gerarImagemDoRanking(data, {
+      // O ícone sai do manifesto que a tela já carregou; sem ele a imagem ainda
+      // sai, só sem os campeões.
+      iconeDoCampeao: (nome) =>
+        manifest?.champions.find((c) => c.name.toLowerCase() === nome.toLowerCase())?.squareUrl ??
+        null,
+      ordenadoPor: SORT_LABELS[sortBy],
+    });
+  };
+
+  /** Roda a ação cuidando de estado de carregamento, erro e aviso de sucesso. */
+  const executar = async (acao: () => Promise<void>, sucesso?: string) => {
     setExportando(true);
     setErroDaImagem(null);
+    setAviso(null);
     try {
-      const blob = await gerarImagemDoRanking(data, {
-        // O ícone sai do manifesto que a tela já carregou; sem ele a imagem
-        // ainda sai, só sem os campeões.
-        iconeDoCampeao: (nome) =>
-          manifest?.champions.find((c) => c.name.toLowerCase() === nome.toLowerCase())?.squareUrl ??
-          null,
-        ordenadoPor: SORT_LABELS[sortBy],
-      });
-      const data_ = new Date().toISOString().slice(0, 10);
-      await entregarImagem(blob, `inhouse-lol-ranking-${data_}.png`);
+      await acao();
+      if (sucesso) setAviso(sucesso);
     } catch (erro) {
       setErroDaImagem(erro instanceof Error ? erro.message : 'Não consegui gerar a imagem.');
     } finally {
       setExportando(false);
     }
   };
+
+  const copiar = () =>
+    executar(() => copiarImagem(gerar), 'Imagem copiada — é só colar no grupo.');
+
+  const baixar = () => executar(async () => baixarImagem(await gerar(), nomeDoArquivo));
+
+  const compartilhar = () => executar(async () => compartilharImagem(await gerar(), nomeDoArquivo));
 
   return (
     <div className="space-y-5">
@@ -88,16 +112,29 @@ export function DashboardPage() {
               ))}
             </div>
 
-            {/* A imagem sai na ordem que está na tela: quem exportar ordenado
+            {/* Uma ação por botão, em vez de um botão que adivinha.
+                A imagem sai na ordem que está na tela: quem exporta ordenado
                 por KDA quer mandar o ranking de KDA. */}
-            <button
-              onClick={exportar}
-              disabled={exportando || !data || data.length === 0}
-              className="flex items-center gap-1.5 rounded-md border border-line/60 bg-raised px-3 py-1.5 text-xs font-semibold text-ink-muted transition hover:border-gold/50 hover:text-gold disabled:opacity-40"
-            >
-              <Share2 size={13} />
-              {exportando ? 'Gerando...' : 'Imagem'}
-            </button>
+            <div className="flex items-center gap-1">
+              {podeCopiarImagem() && (
+                <BotaoDeImagem onClick={copiar} carregando={exportando} vazio={semDados}>
+                  <Copy size={13} />
+                  Copiar
+                </BotaoDeImagem>
+              )}
+              <BotaoDeImagem onClick={baixar} carregando={exportando} vazio={semDados}>
+                <Download size={13} />
+                Baixar
+              </BotaoDeImagem>
+              {/* Só em tela de toque: no desktop essa folha lista aplicativos e
+                  não oferece salvar nem copiar. */}
+              {ehTelaDeToque() && (
+                <BotaoDeImagem onClick={compartilhar} carregando={exportando} vazio={semDados}>
+                  <Share2 size={13} />
+                  Enviar
+                </BotaoDeImagem>
+              )}
+            </div>
           </div>
         }
       >
@@ -161,6 +198,13 @@ export function DashboardPage() {
       {erroDaImagem && (
         <p className="rounded-lg border border-loss/30 bg-loss/10 px-3 py-2 text-center text-xs text-loss">
           {erroDaImagem}
+        </p>
+      )}
+      {/* Copiar não tem retorno visível nenhum: sem esta confirmação, não dá
+          para saber se funcionou a não ser tentando colar em algum lugar. */}
+      {aviso && (
+        <p className="rounded-lg border border-win/30 bg-win/10 px-3 py-2 text-center text-xs text-win">
+          {aviso}
         </p>
       )}
 
@@ -257,6 +301,28 @@ function LinhaTabela({ entry, posicao }: { entry: LeaderboardEntry; posicao: num
       </td>
       <td className="tabular py-2.5 pr-5 text-right text-lg font-bold text-gold">{entry.points}</td>
     </tr>
+  );
+}
+
+function BotaoDeImagem({
+  onClick,
+  carregando,
+  vazio,
+  children,
+}: {
+  onClick: () => void;
+  carregando: boolean;
+  vazio: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={carregando || vazio}
+      className="flex items-center gap-1.5 rounded-md border border-line/60 bg-raised px-2.5 py-1.5 text-xs font-semibold text-ink-muted transition hover:border-gold/50 hover:text-gold disabled:opacity-40"
+    >
+      {children}
+    </button>
   );
 }
 

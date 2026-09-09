@@ -293,33 +293,70 @@ function desenharRodape(ctx: CanvasRenderingContext2D, altura: number, total: nu
   }
 }
 
-/**
- * Entrega a imagem pelo melhor caminho que o aparelho tiver.
- *
- * No celular, `share` abre direto a lista de conversas -- que é literalmente o
- * pedido da issue ("para mandar no grupo"). Baixar no telefone deixaria o
- * arquivo na galeria e exigiria procurar depois. No desktop cai no download.
- */
-export async function entregarImagem(blob: Blob, nomeDoArquivo: string): Promise<'share' | 'download'> {
-  const arquivo = new File([blob], nomeDoArquivo, { type: 'image/png' });
+// ---------------------------------------------------------------------------
+// ENTREGA DA IMAGEM
+//
+// A primeira versão usava `navigator.share` sempre que ele existisse. Erro: o
+// Chrome e o Edge no WINDOWS também expõem `share`, e lá ele abre a folha de
+// compartilhamento do sistema -- que lista Discord, Outlook, Teams... e não tem
+// "salvar" nem "copiar". Ou seja, no desktop o caminho que parecia mais
+// conveniente era justamente o que impedia usar a imagem.
+//
+// A correção não é detectar melhor o aparelho, é parar de adivinhar: cada ação
+// tem botão próprio, e o compartilhar só aparece onde ele de fato é o melhor
+// caminho -- na tela de toque, onde abre direto a lista de conversas.
+// ---------------------------------------------------------------------------
 
-  if (navigator.canShare?.({ files: [arquivo] })) {
-    try {
-      await navigator.share({ files: [arquivo], title: 'Classificação · InHouse LoL' });
-      return 'share';
-    } catch (erro) {
-      // Cancelar o menu de compartilhamento lança AbortError. Não é falha, e
-      // cair no download depois disso seria baixar um arquivo que a pessoa
-      // acabou de recusar.
-      if (erro instanceof Error && erro.name === 'AbortError') return 'share';
-    }
+/** Aparelho de toque: é onde a folha de compartilhamento vale a pena. */
+export function ehTelaDeToque(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true;
+}
+
+export function podeCopiarImagem(): boolean {
+  return typeof window !== 'undefined' && 'ClipboardItem' in window && !!navigator.clipboard?.write;
+}
+
+/**
+ * Copia para a área de transferência -- o caminho mais curto no desktop: cola
+ * direto no WhatsApp Web, no Discord ou onde for.
+ *
+ * Recebe a FUNÇÃO que gera, não o blob pronto: o navegador só aceita escrever
+ * na área de transferência durante o gesto do usuário, e gerar a imagem antes
+ * (com download de ícone no meio) já estoura esse prazo. Passando a promessa
+ * para o `ClipboardItem`, quem espera é o próprio navegador.
+ */
+export async function copiarImagem(gerarBlob: () => Promise<Blob>): Promise<void> {
+  if (!podeCopiarImagem()) {
+    throw new Error('Este navegador não permite copiar imagem. Use "Baixar".');
   }
 
+  await navigator.clipboard.write([new ClipboardItem({ 'image/png': gerarBlob() })]);
+}
+
+export function baixarImagem(blob: Blob, nomeDoArquivo: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = nomeDoArquivo;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
-  return 'download';
+  link.remove();
+  // Revogar na hora corta o download em alguns navegadores; o quadro seguinte
+  // já é depois de o clique ter sido processado.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/** Abre a folha de compartilhamento. Só faz sentido em tela de toque. */
+export async function compartilharImagem(blob: Blob, nomeDoArquivo: string): Promise<void> {
+  const arquivo = new File([blob], nomeDoArquivo, { type: 'image/png' });
+  if (!navigator.canShare?.({ files: [arquivo] })) {
+    throw new Error('Este aparelho não permite compartilhar arquivo.');
+  }
+
+  try {
+    await navigator.share({ files: [arquivo], title: 'Classificação · InHouse LoL' });
+  } catch (erro) {
+    // Fechar a folha de compartilhamento lança AbortError. Não é falha.
+    if (!(erro instanceof Error) || erro.name !== 'AbortError') throw erro;
+  }
 }
