@@ -38,10 +38,15 @@ export interface Player {
   roles: RoleInput[];
   internalRating: number;
   active: boolean;
-  /** null = ainda nao reivindicou a conta. */
-  email: string | null;
+  /** Já reivindicou a conta (issue #3). O e-mail não vem aqui: só em Account. */
+  hasAccount: boolean;
   photoUrl: string | null;
   photoSource: PhotoSource;
+}
+
+/** O jogador logado, visto por ele mesmo: único formato que traz o e-mail. */
+export interface Account extends Player {
+  email: string | null;
 }
 
 export interface AssignedPlayer {
