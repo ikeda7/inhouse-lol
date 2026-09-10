@@ -31,6 +31,7 @@ npm run test:server                  # server only
 npm run test:client                  # client only
 npm run typecheck                    # both workspaces (tsc --noEmit)
 npm run build                        # server then client
+npm run verificar:telas --workspace client -- --base http://localhost:3333   # screens in a real browser (see below)
 
 npm run db:studio                    # Prisma Studio
 npm run db:recompute                 # rebuild Series scores from Match rows (see below)
@@ -49,6 +50,29 @@ npx vitest src/__tests__/autoBalance.test.ts   # watch mode
 `server/vitest.config.ts` and `client/vitest.config.ts` both scope `include`
 explicitly — vitest without it used to sweep `dist/` and silently run stale
 build output. Don't remove that scoping.
+
+### Screen check (CI job "Telas no navegador")
+
+`client/e2e/verificar-telas.mjs` opens seven screens at 390/768/1024/1440px in
+Chromium and fails on two things that typecheck, tests and build all pass:
+horizontal scroll, and text below WCAG AA **after** compositing opacity and
+backgrounds. That class of bug has shipped here repeatedly — text painted in
+the background color, `opacity-40` on a whole row, a nav that overflowed every
+tablet. No screenshot baseline on purpose: both checks are baseline-free.
+
+- Needs the server serving the **built** client on one origin: run
+  `npm run build --workspace client`, then start the server (`app.ts` serves
+  `client/dist`). No Vite, no proxy, no CORS — same as production.
+- `--preparar` **writes** fixture data (two extra players so the Sorteio has
+  blocked rows, and a series with two matches). Only against a throwaway DB,
+  as the CI job does with `DATABASE_URL=file:./ci.db`. Never against `dev.db`.
+- `--telas sorteio,historico` runs a subset; an unknown name exits 2 instead
+  of silently checking nothing.
+- `CHROME_PATH` points at an existing Chromium instead of the one
+  `npx playwright-core install chromium` downloads.
+
+The job is **not** a required check yet. Promote it in branch protection once
+it has proven stable across a few PRs.
 
 ### Schema change checklist
 

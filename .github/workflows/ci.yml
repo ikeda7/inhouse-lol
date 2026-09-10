@@ -93,3 +93,74 @@ jobs:
       - name: Auditoria de dependências
         run: npm audit --audit-level=high
         continue-on-error: true
+
+  # Abre as telas num navegador de verdade e mede o que typecheck, teste e
+  # build não enxergam: rolagem lateral e contraste depois de compor opacidade
+  # e fundo. Três bugs passaram pelos outros jobs sem aviso (issue #44).
+  #
+  # Nasce FORA dos checks obrigatórios da proteção de branch: a primeira
+  # versão de uma verificação de navegador pode ter falso positivo, e ela não
+  # deve travar merge de ninguém enquanto não provar que é estável.
+  telas:
+    name: Telas no navegador
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Banco descartável: com --preparar o script GRAVA uma série de teste, e
+    # nada disso pode encostar em dado real.
+    env:
+      DATABASE_URL: 'file:./ci.db'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate --schema=server/prisma/schema.prisma
+
+      - name: Criar banco descartável e semear
+        run: |
+          npx prisma db push --schema=server/prisma/schema.prisma --skip-generate
+          npm run db:seed
+
+      # O servidor serve o front buildado no mesmo endereço da API
+      # (montarFrontend em app.ts): mesma origem, sem proxy e sem CORS --
+      # igual produção.
+      - name: Build do front
+        run: npm run build --workspace client
+
+      - name: Instalar Chromium
+        run: npx playwright-core install --with-deps chromium
+
+      - name: Subir o servidor
+        run: |
+          cd server
+          nohup npx tsx src/index.ts > ../servidor.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3333/api/health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "::error::o servidor não respondeu em 30s"
+          cat ../servidor.log
+          exit 1
+
+      - name: Verificar as telas
+        run: node client/e2e/verificar-telas.mjs --base http://localhost:3333 --preparar --saida e2e-saida
+
+      # Os screenshots de todas as combinações, para ver o que o script viu.
+      - name: Guardar screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: telas
+          path: |
+            e2e-saida
+            servidor.log
+          retention-days: 7
