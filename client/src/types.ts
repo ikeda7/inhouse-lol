@@ -159,7 +159,8 @@ export interface SeriesDetail extends Omit<SeriesSummary, 'matches' | 'scoreline
     winner: TeamSide | null;
     gameDurationSec: number | null;
     playedAt: string;
-    source: 'RIOT_API' | 'MANUAL';
+    /** LCU = cliente do LoL · ROFL = replay · MANUAL = digitado na mão. */
+    source: 'LCU' | 'ROFL' | 'RIOT_API' | 'MANUAL';
     /** Patch da partida. null nas importadas antes de a coluna existir. */
     gameVersion: string | null;
     surrendered: boolean;

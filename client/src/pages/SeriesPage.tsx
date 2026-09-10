@@ -261,7 +261,11 @@ export function SeriesPage() {
                   {match.gameDurationSec
                     ? `${Math.round(match.gameDurationSec / 60)} min`
                     : 'duracao n/d'}
-                  {match.source === 'RIOT_API' && ' · auto'}
+                  {/* Qualquer origem que não seja digitada na mão é "auto".
+                      Comparar com 'RIOT_API' funcionava só porque o ingest
+                      carimbava esse rótulo em tudo; agora que a coluna guarda
+                      LCU e ROFL de verdade, a pergunta certa é o contrário. */}
+                  {match.source !== 'MANUAL' && ' · auto'}
                 </span>
               </li>
             ))}

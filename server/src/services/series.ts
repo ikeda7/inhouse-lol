@@ -259,7 +259,17 @@ export interface RecordMatchInput {
   winner: TeamSide;
   gameDurationSec?: number;
   riotMatchId?: string | null;
-  source?: 'RIOT_API' | 'MANUAL';
+  /**
+   * De onde a partida veio, de verdade.
+   *
+   * Era `'RIOT_API' | 'MANUAL'` e o ingest cravava `'RIOT_API'` em tudo que não
+   * fosse manual -- inclusive no que veio do cliente do LoL e de replay, que é
+   * a totalidade dos imports automáticos. O rótulo ficava especialmente errado
+   * porque a API pública da Riot é justamente a única fonte que NÃO consegue
+   * listar custom game (ver ARCHITECTURE): nenhuma dessas partidas podia ter
+   * vindo dali.
+   */
+  source?: 'LCU' | 'ROFL' | 'RIOT_API' | 'MANUAL';
   gameVersion?: string | null;
   surrendered?: boolean;
   players: MatchPlayerInput[];
