@@ -180,12 +180,13 @@ function MatchCard({ match }: { match: Match }) {
           `items-start` que estava aqui deixava meio painel de buraco ao lado de
           um card cheio.
 
-          `lg` e não `md`: com a quebra em 768px o layout PIORAVA ao crescer --
-          a 700px os ícones de ban tinham 84px e a 820px caíam para 40px, porque
-          as duas colunas espremiam um card de 740px em dois de 328px. Empilhado
-          até 1024px eles seguem grandes o caminho inteiro. */}
+          3fr/2fr e não meio a meio: objetivos rende até 6 linhas de placar e
+          usa a largura; bans rende uma fileira de 5 retratos com teto de
+          tamanho, e em metade de uma tela larga ela sobrava 130px de margem de
+          cada lado. Estreitando essa coluna a fileira volta a preencher o card,
+          e o painel de objetivos ganha o espaço que ele tem o que fazer. */}
       {(match.teams?.length ?? 0) > 0 && (
-        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+        <div className="mt-3 grid gap-3 md:grid-cols-[3fr_2fr]">
           <MatchObjectives teams={match.teams} />
           <MatchBans bans={match.bans ?? []} />
         </div>

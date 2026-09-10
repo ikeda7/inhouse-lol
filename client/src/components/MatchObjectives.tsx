@@ -133,32 +133,31 @@ export function MatchBans({ bans }: { bans: MatchBan[] }) {
       {/* Separados por time em vez de uma fila só de dez: o que interessa num
           ban é QUEM tirou o quê do adversário, e uma fila única perde isso.
 
-          Os ícones NÃO têm tamanho fixo: são um grid de 5 colunas que divide a
-          largura sobrando, então crescem com o card e encolhem no celular
-          sozinhos. Com tamanho fixo eles ficavam pequenos num painel largo --
-          justo a informação que o bloco existe para mostrar, miniaturizada.
-
-          As duas fileiras assim ocupadas também resolvem a altura: elas se
-          aproximam naturalmente do painel de objetivos ao lado, que rende até
-          6 linhas. */}
-      <div className="flex flex-1 flex-col justify-around gap-2">
-        {/* No celular o rótulo sobe para a própria linha. Ao lado dos ícones ele
-            comia ~60px de uma largura de 278px, e os cinco retratos caíam para
-            38px -- MENOS do que tinham antes de tudo isto. Em cima, eles ficam
-            com a largura inteira. */}
+          CENTRALIZAR, não esticar. A versão anterior deixava os ícones
+          dividirem toda a largura disponível, e num card de 630px isso dava
+          retratos de 100px -- um banner, não um bloco de apoio. Agora eles têm
+          teto (48/56/64px) e o que sobra vira margem simétrica: nos dois eixos
+          o conteúdo fica no meio, então o espaço lê como respiro em vez de
+          buraco. `justify-center` na coluna faz o mesmo na vertical, mantendo
+          as duas fileiras juntas como um bloco só. */}
+      <div className="flex flex-1 flex-col justify-center gap-2.5">
+        {/* O rótulo fica SEMPRE em cima, nunca ao lado. Inline ele ocupava 64px
+            à esquerda e os ícones centralizavam só no que sobrava, então o bloco
+            terminava com 170px de folga de um lado contra 80 do outro -- lido
+            como torto, não como centralizado. Em cima, a fileira centraliza na
+            largura inteira do card e as duas margens ficam iguais. */}
         {(['BLUE', 'RED'] as const).map((side) => (
-          <div key={side} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+          <div key={side} className="flex flex-col gap-1">
             <span
-              className={`shrink-0 text-[11px] font-bold uppercase sm:w-16 ${
+              className={`text-[11px] font-bold uppercase ${
                 side === 'BLUE' ? 'text-blue' : 'text-red'
               }`}
             >
               {side === 'BLUE' ? 'Azul' : 'Vermelho'}
             </span>
-            {/* Sempre 5 colunas, mesmo com menos de 5 bans: assim o tamanho do
-                ícone não muda de um jogo para o outro e os dois times ficam
-                alinhados em coluna. */}
-            <div className="grid min-w-0 flex-1 grid-cols-5 gap-1.5 sm:gap-2">
+            {/* gap fixo em 6px: com 8 a fileira de 56px estourava por 4px a
+                1024, e a quinta caía para a linha de baixo. */}
+            <div className="flex min-w-0 flex-1 flex-wrap justify-center gap-1.5">
               {porLado(side).map((ban) => (
                 <BanIcon key={ban.pickTurn} ban={ban} />
               ))}
@@ -175,7 +174,17 @@ function BanIcon({ ban }: { ban: MatchBan }) {
 
   return (
     <span
-      className="relative block"
+      // Porcentagem, não breakpoint. O que decide o tamanho aqui é a largura do
+      // CARD, e ela não acompanha a da janela: em 768px o painel corta ao meio
+      // para virar duas colunas e encolhe de 690 para 330. Com tamanho preso a
+      // breakpoint a fileira quebrava em duas linhas justo aí, e também em
+      // 360px.
+      //
+      // 17% × 5 = 85%, então os 6px de intervalo sempre cabem nos 15% restantes
+      // e a fileira nunca quebra. O teto de 64px é o que impede o retrato de
+      // virar banner e competir com o scoreboard, que é a informação principal;
+      // quando ele age, `justify-center` transforma a sobra em margem simétrica.
+      className="relative block w-[17%] min-w-9 max-w-[72px]"
       title={`${nome} · banido pelo time ${
         ban.teamSide === 'BLUE' ? 'azul' : 'vermelho'
       } (${ban.pickTurn}º do draft)`}
