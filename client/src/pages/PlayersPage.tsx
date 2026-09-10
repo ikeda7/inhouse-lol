@@ -126,7 +126,7 @@ export function PlayersPage() {
         action={
           missingRiotId > 0 ? (
             <span className="text-[11px] text-amber-400/80">
-              {missingRiotId} sem Riot ID -- a importacao automatica nao identifica essas pessoas
+              {missingRiotId} sem Riot ID -- a importação automática não identifica essas pessoas
             </span>
           ) : (
             <span className="text-[11px] text-emerald-400/70">todos vinculados</span>

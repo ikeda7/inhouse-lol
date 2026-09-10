@@ -34,7 +34,7 @@ export function BurnedChampions({
       title={
         <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
           <Flame size={16} className="text-orange-400" />
-          Campeoes queimados
+          Campeões queimados
         </h2>
       }
       action={
@@ -44,7 +44,7 @@ export function BurnedChampions({
       }
     >
       {burned.length === 0 ? (
-        <EmptyState label="Nenhum campeao queimado ainda. O jogo 1 libera tudo." />
+        <EmptyState label="Nenhum campeão queimado ainda. O jogo 1 libera tudo." />
       ) : (
         <div className="space-y-4">
           {Object.entries(byMatch)

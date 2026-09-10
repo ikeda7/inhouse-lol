@@ -106,8 +106,8 @@ export function SeriesPage() {
 
         <p className="text-center text-xs text-ink-faint">
           {current.matches.length === 0
-            ? 'Nenhum jogo registrado. O jogo 1 libera todos os campeoes.'
-            : `Proximo: jogo ${nextMatchNumber} · Fearless ${current.fearless ? 'ligado' : 'desligado'}`}
+            ? 'Nenhum jogo registrado. O jogo 1 libera todos os campeões.'
+            : `Próximo: jogo ${nextMatchNumber} · Fearless ${current.fearless ? 'ligado' : 'desligado'}`}
         </p>
 
         {!registering && nextMatchNumber <= 3 && (
@@ -197,16 +197,16 @@ export function SeriesPage() {
         }
       >
         <p className="mb-3 text-xs leading-relaxed text-ink-faint">
-          A API publica da Riot <strong className="text-ink">nao lista custom games</strong>.
-          Quem lista e o proprio cliente do LoL. Rode o agente na maquina de quem hospedou a
-          partida e ele manda o placar completo para ca:
+          A API pública da Riot <strong className="text-ink">não lista custom games</strong>. Quem
+          lista é o próprio cliente do LoL. Rode o agente na máquina de quem hospedou a partida e
+          ele manda o placar completo para cá:
         </p>
         <pre className="overflow-x-auto rounded-lg border border-line/60 bg-canvas p-3 text-[11px] text-emerald-300">
           node companion/inhouse-companion.mjs --watch
         </pre>
         <p className="mt-2 text-[11px] text-ink-faint">
           Com <code className="text-gold">--watch</code> ele envia sozinho no fim de cada jogo.
-          Use <code className="text-gold">--last</code> para mandar so a ultima partida.
+          Use <code className="text-gold">--last</code> para mandar só a última partida.
         </p>
 
         <div className="mt-4 border-t border-line/40 pt-3">
@@ -243,7 +243,7 @@ export function SeriesPage() {
       </Card>
 
       {/* ---------------- jogos ja registrados ---------------- */}
-      <Card title={`Jogos da serie (${current.matches.length})`}>
+      <Card title={`Jogos da série (${current.matches.length})`}>
         {current.matches.length === 0 ? (
           <EmptyState label="Nada registrado ainda." />
         ) : (
@@ -260,7 +260,7 @@ export function SeriesPage() {
                 <span className="text-xs text-ink-faint">
                   {match.gameDurationSec
                     ? `${Math.round(match.gameDurationSec / 60)} min`
-                    : 'duracao n/d'}
+                    : 'duração n/d'}
                   {/* Qualquer origem que não seja digitada na mão é "auto".
                       Comparar com 'RIOT_API' funcionava só porque o ingest
                       carimbava esse rótulo em tudo; agora que a coluna guarda
