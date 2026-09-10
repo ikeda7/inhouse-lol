@@ -8,7 +8,13 @@
  */
 
 import { prisma } from '../lib/prisma.js';
-import { hashPassword, verifyPassword } from '../lib/auth.js';
+import {
+  hashPassword,
+  signSession,
+  verifyPassword,
+  verifySession,
+  versaoDaSenha,
+} from '../lib/auth.js';
 import { getSummonerByPuuid } from '../lib/riot.js';
 import { getProfileIconUrl } from '../lib/ddragon.js';
 import {
@@ -111,6 +117,36 @@ export async function loginAccount(input: LoginInput): Promise<AccountDTO> {
 export async function getAccountById(playerId: string): Promise<AccountDTO | null> {
   const player = await prisma.player.findUnique({ where: { id: playerId }, include: withRoles });
   return player ? toAccountDTO(player) : null;
+}
+
+/** Token de sessão amarrado à senha atual da conta (ver versaoDaSenha). */
+export async function emitirSessao(playerId: string): Promise<string> {
+  const { passwordHash } = await prisma.player.findUniqueOrThrow({
+    where: { id: playerId },
+    select: { passwordHash: true },
+  });
+  if (!passwordHash) throw new AuthError('Esse jogador não tem conta.', 'INVALID_CREDENTIALS');
+  return signSession({ playerId, v: versaoDaSenha(passwordHash) });
+}
+
+/**
+ * O jogador dono da sessão, ou null se ela não vale mais.
+ *
+ * Não basta o JWT estar assinado: a conta tem de existir e a senha ainda ser
+ * a mesma de quando o token saiu. É o que faz trocar a senha, ou liberar uma
+ * conta reivindicada por engano (scripts/liberar-conta.ts), derrubar as
+ * sessões abertas em vez de deixá-las valendo pelos 30 dias do token.
+ */
+export async function validarSessao(token: string): Promise<string | null> {
+  const sessao = verifySession(token);
+  if (!sessao) return null;
+
+  const player = await prisma.player.findUnique({
+    where: { id: sessao.playerId },
+    select: { passwordHash: true },
+  });
+  if (!player?.passwordHash || versaoDaSenha(player.passwordHash) !== sessao.v) return null;
+  return sessao.playerId;
 }
 
 export interface ChangePasswordInput {

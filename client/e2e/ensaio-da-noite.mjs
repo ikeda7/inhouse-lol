@@ -41,14 +41,31 @@ let aprovados = 0;
 /** Estado que um passo deixa para os seguintes. */
 const ctx = {};
 
-async function api(metodo, caminho, corpo) {
+/** Chave do grupo, quando o servidor exige (GROUP_KEY). O CI liga as duas pontas. */
+const CHAVE = process.env.INHOUSE_CHAVE ?? null;
+
+/**
+ * Por padrão, fala como alguém do grupo (manda a chave, se houver).
+ * `semChave` fala como um visitante qualquer; `cookie`, como quem está logado.
+ * Devolve junto o cookie de sessão que a resposta tiver posto.
+ */
+async function api(metodo, caminho, corpo, opcoes = {}) {
   const resposta = await fetch(`${base}/api${caminho}`, {
     method: metodo,
-    headers: corpo ? { 'content-type': 'application/json' } : undefined,
+    headers: {
+      ...(corpo ? { 'content-type': 'application/json' } : {}),
+      ...(CHAVE && !opcoes.semChave ? { 'x-chave-do-grupo': CHAVE } : {}),
+      ...(opcoes.cookie ? { cookie: opcoes.cookie } : {}),
+    },
     body: corpo ? JSON.stringify(corpo) : undefined,
   });
   const json = await resposta.json().catch(() => ({}));
-  return { status: resposta.status, ...json };
+  const sessao = /inhouse_session=([^;]+)/.exec(resposta.headers.get('set-cookie') ?? '')?.[1];
+  return {
+    status: resposta.status,
+    ...json,
+    cookie: sessao ? `inhouse_session=${sessao}` : undefined,
+  };
 }
 
 function exigir(condicao, mensagem) {
@@ -83,9 +100,14 @@ function recusa(resposta, code, contexto) {
   );
 }
 
+/** Um passo pode devolver o motivo de ter sido pulado -- aparece, mas não conta como ok. */
 async function passo(nome, fn) {
   try {
-    await fn();
+    const pulado = await fn();
+    if (typeof pulado === 'string') {
+      console.log(`  --      ${nome} (pulado: ${pulado})`);
+      return;
+    }
     aprovados++;
     console.log(`  ok      ${nome}`);
   } catch (erro) {
@@ -262,6 +284,108 @@ await passo('recusa jogador sem nenhuma role', async () => {
     'VALIDATION_ERROR',
     'sem role'
   );
+});
+
+// ---------------------------------------------------------------------------
+console.log('\nSegurança');
+
+const SEM_TRAVA = 'servidor sem GROUP_KEY';
+
+await passo('a trava de escrita está no estado esperado', async () => {
+  ctx.protegido = dados(await api('GET', '/health'), 'health').grupoProtegido === true;
+  if (CHAVE) {
+    exigir(ctx.protegido, 'o ensaio tem INHOUSE_CHAVE, mas o servidor está sem GROUP_KEY');
+  } else {
+    exigir(!ctx.protegido, 'o servidor exige a chave e o ensaio não tem INHOUSE_CHAVE');
+  }
+});
+
+await passo('de fora do grupo: lê tudo, não grava nada', async () => {
+  if (!ctx.protegido) return SEM_TRAVA;
+  precisa('novato');
+  const deFora = { semChave: true };
+  dados(await api('GET', '/players', undefined, deFora), 'leitura pública');
+  recusa(
+    await api('POST', '/series', { name: `Intruso ${rodada}` }, deFora),
+    'GROUP_KEY_REQUIRED',
+    'abrir MD3'
+  );
+  recusa(
+    await api('PATCH', `/players/${ctx.novato.id}`, { riotId: 'Intruso#BR1' }, deFora),
+    'GROUP_KEY_REQUIRED',
+    'trocar o Riot ID de alguém'
+  );
+  recusa(
+    await api('POST', '/ingest/lcu', { game: { gameId: 1 } }, deFora),
+    'GROUP_KEY_REQUIRED',
+    'importar partida'
+  );
+});
+
+await passo('reivindicar a conta de alguém sem a chave é recusado', async () => {
+  if (!ctx.protegido) return SEM_TRAVA;
+  precisa('novato');
+  recusa(
+    await api(
+      'POST',
+      '/auth/register',
+      {
+        playerId: ctx.novato.id,
+        email: `intruso-${rodada}@ensaio.local`,
+        password: 'senha-intrusa',
+      },
+      { semChave: true }
+    ),
+    'GROUP_KEY_REQUIRED',
+    'cadastro sem chave'
+  );
+});
+
+await passo('conta criada com a chave grava depois só com a sessão', async () => {
+  const jogador = dados(
+    await api('POST', '/players', { name: `Conta ${rodada}`, roles: ['MID'] }),
+    'cadastrar'
+  );
+  const email = `conta-${rodada}@ensaio.local`;
+  const criada = await api('POST', '/auth/register', {
+    playerId: jogador.id,
+    email,
+    password: 'senha-do-ensaio-1',
+  });
+  const conta = dados(criada, 'criar conta');
+  exigir(criada.cookie, 'criar conta não devolveu o cookie de sessão');
+  exigir(conta.email === email, 'a própria conta não trouxe o próprio e-mail');
+  // Nenhuma chave: a sessão sozinha tem de bastar para gravar.
+  dados(
+    await api(
+      'PATCH',
+      `/players/${jogador.id}`,
+      { internalRating: 1100 },
+      { semChave: true, cookie: criada.cookie }
+    ),
+    'gravar só com a sessão'
+  );
+  ctx.conta = { id: jogador.id, cookie: criada.cookie };
+});
+
+await passo('trocar a senha derruba as outras sessões e mantém a de quem trocou', async () => {
+  precisa('conta');
+  const comoConta = (cookie) => ({ semChave: true, cookie });
+  const troca = await api(
+    'POST',
+    '/accounts/me/password',
+    { currentPassword: 'senha-do-ensaio-1', newPassword: 'senha-do-ensaio-2' },
+    comoConta(ctx.conta.cookie)
+  );
+  dados(troca, 'trocar a senha');
+  exigir(troca.cookie, 'a troca de senha não renovou a sessão de quem trocou');
+  recusa(
+    await api('GET', '/auth/me', undefined, comoConta(ctx.conta.cookie)),
+    'NOT_AUTHENTICATED',
+    'sessão de antes da troca'
+  );
+  const eu = dados(await api('GET', '/auth/me', undefined, comoConta(troca.cookie)), 'sessão nova');
+  exigir(eu.id === ctx.conta.id, 'a sessão nova não é da mesma conta');
 });
 
 // ---------------------------------------------------------------------------
