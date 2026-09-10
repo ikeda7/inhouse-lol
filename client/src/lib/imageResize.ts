@@ -25,7 +25,7 @@ export async function resizeToDataUrl(file: File): Promise<string> {
     canvas.height = lado;
 
     const contexto = canvas.getContext('2d');
-    if (!contexto) throw new Error('Nao consegui processar a imagem neste navegador.');
+    if (!contexto) throw new Error('Não consegui processar a imagem neste navegador.');
 
     const recorte = Math.min(bitmap.width, bitmap.height);
     const origemX = (bitmap.width - recorte) / 2;

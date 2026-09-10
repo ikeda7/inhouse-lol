@@ -60,7 +60,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new ApiError(
-      'Nao consegui falar com o servidor. Ele esta rodando? (npm run dev:server)',
+      'Não consegui falar com o servidor. Ele está rodando? (npm run dev:server)',
       0,
       'NETWORK_ERROR'
     );
@@ -179,6 +179,15 @@ export const seriesApi = {
   current: () => request<SeriesDetail | null>('/series/current'),
 
   get: (id: string) => request<SeriesDetail>(`/series/${id}`),
+
+  /**
+   * Descarta uma série que nunca teve jogo. O servidor recusa se houver
+   * partida gravada -- a tela só oferece o botão onde ele vale, mas quem
+   * garante é a checagem de lá.
+   */
+  discard: (id: string) => request<{ id: string; name: string | null }>(`/series/${id}`, {
+    method: 'DELETE',
+  }),
 
   burned: (id: string) => request<BurnedChampion[]>(`/series/${id}/burned`),
 

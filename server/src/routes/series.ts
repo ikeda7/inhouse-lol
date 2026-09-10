@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import {
   createSeries,
+  discardEmptySeries,
   finishSeries,
   getBurnedChampions,
   getSeriesDetail,
@@ -118,5 +119,18 @@ seriesRouter.post(
   '/:id/finish',
   asyncHandler(async (req, res) => {
     res.json({ success: true, data: await finishSeries(req.params.id) });
+  })
+);
+
+/**
+ * DELETE /api/series/:id - descarta uma serie que nunca teve jogo.
+ *
+ * O servico recusa se houver partida gravada. Essa checagem mora la de
+ * proposito: e a mesma garantia para qualquer chamador, inclusive um `curl`.
+ */
+seriesRouter.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    res.json({ success: true, data: await discardEmptySeries(req.params.id) });
   })
 );
