@@ -80,13 +80,19 @@ export function CaptainsDraft({
  *
  * Cada quadradinho é uma escolha; a atual pulsa. Sem isso, "1-2-2-2-1" é uma
  * regra que alguém precisa lembrar de cabeça enquanto o draft acontece.
+ *
+ * "Já escolheu" é marcado no FUNDO, não apagando o número. O número é 11px em
+ * azul ou vermelho: a `opacity-40` que estava aqui derrubava o contraste para
+ * 2.0:1 (azul) e 1.8:1 (vermelho) sobre o overlay -- reprova AA por larga
+ * margem e some na tela de quem estiver com brilho baixo. Cor de time em texto
+ * pequeno só passa em opacidade cheia.
  */
 function FilaDeEscolhas({ state }: { state: CaptainsDraftState }) {
   const fila = state.pickOrder ?? [];
   if (fila.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-lg border border-line/40 bg-base/40 p-3">
+    <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-lg border border-line/40 bg-canvas/40 p-3">
       <span className="mr-2 text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
         Ordem
       </span>
@@ -106,7 +112,9 @@ function FilaDeEscolhas({ state }: { state: CaptainsDraftState }) {
                   ? 'bg-blue/25 ring-2 ring-blue'
                   : 'bg-red/25 ring-2 ring-red'
                 : jaFoi
-                  ? 'bg-overlay opacity-40'
+                  ? pick.side === 'BLUE'
+                    ? 'bg-blue/15'
+                    : 'bg-red/15'
                   : 'bg-overlay/60'
             }`}
           >
@@ -164,7 +172,7 @@ function ColunaDoTime({
         {escolhidos.map((jogador) => (
           <li
             key={jogador.id}
-            className="flex items-center gap-2 rounded-md bg-base/50 px-2 py-1.5"
+            className="flex items-center gap-2 rounded-md bg-canvas/50 px-2 py-1.5"
           >
             {jogador.id === capitao?.id && (
               <Crown size={13} className="shrink-0 text-gold" aria-label="capitão" />
@@ -177,7 +185,7 @@ function ColunaDoTime({
         {Array.from({ length: Math.max(0, 5 - escolhidos.length) }).map((_, index) => (
           <li
             key={`vazio-${index}`}
-            className="rounded-md border border-dashed border-line/40 px-2 py-1.5 text-sm text-ink-faint/50"
+            className="rounded-md border border-dashed border-line/40 px-2 py-1.5 text-sm text-ink-faint"
           >
             —
           </li>
@@ -255,7 +263,7 @@ function BotaoDeEscolha({
       disabled={desabilitado}
       // A borda no hover é da cor de quem está escolhendo: confirma para onde o
       // jogador vai ANTES do clique, que é onde erro de draft ao vivo acontece.
-      className={`w-full rounded-lg border border-line/60 bg-base/50 p-2 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`w-full rounded-lg border border-line/60 bg-canvas/50 p-2 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${
         lado === 'BLUE' ? 'hover:border-blue hover:bg-blue/10' : 'hover:border-red hover:bg-red/10'
       }`}
     >

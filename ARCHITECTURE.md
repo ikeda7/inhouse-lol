@@ -293,11 +293,38 @@ nova, porque não existe cron aqui e é o único momento em que alguém se impor
 **Tokens em camadas**, não borda em tudo:
 
 ```
-base → surface → raised → overlay
+canvas → surface → raised → overlay
 ```
 
 Hierarquia vem de escala e espaço. O dourado é **acento**, nunca texto corrido.
 Azul e vermelho identificam **só** time.
+
+**O primeiro nível se chamava `base`, e o nome colidia com uma utility do
+Tailwind.** `--color-base` faz o Tailwind gerar uma utility de *cor*
+`text-base`, que tem exatamente o mesmo nome da utility de *tamanho de fonte*
+`text-base` que já existe. As duas regras convivem no CSS e a de cor ganha na
+cascata, então quem escrevia `text-base` querendo 16px levava junto
+`color: #080c14` — a cor de fundo mais escura da paleta.
+
+O estrago passou meses invisível porque nada disso aparece ao ler o código: a
+classe se parece com tamanho de fonte, o TypeScript não olha string de CSS, e o
+build não avisa. O nome da série no histórico ficava **preto no preto**; no
+botão primário o mesmo acidente produziu "texto escuro sobre o dourado", que
+por coincidência era o certo e por isso ninguém desconfiou. Nas outras cinco
+ocorrências havia uma classe de cor explícita depois, que sobrescrevia.
+
+Daí `canvas`: não colide com utility nenhuma.
+
+**Isso agora é teste, não recomendação.** `client/src/__tests__/tokens.test.ts`
+lê os tokens direto do `index.css` e falha se algum nome colidir com uma
+utility de tamanho de fonte, ou se algum nível de texto reprovar AA no fundo
+mais claro em que aparece. Verificado contra as três regressões reais desta
+base — renomear o token de volta para `base`, devolver `ink-faint` para
+`#5c6b85` (2.86:1) e devolver o bronze para amber-700 (3.40:1) fazem o teste
+quebrar com a razão medida na mensagem.
+
+É teste puro: lê CSS, faz a conta do WCAG, não abre navegador. A regra "medir,
+não achar bonito" só vale se alguém medir — então quem mede é o CI.
 
 **Os três níveis de texto passam WCAG AA no fundo mais claro em que aparecem.**
 Isso não era verdade até 09/09: `ink-faint` era `#5c6b85`, que dá **2.86:1** no
@@ -351,7 +378,7 @@ aparecem. Ícone faltando é melhor que scoreboard vazia.
 
 ## Testes
 
-53, concentrados onde o custo de errar é alto:
+131 (101 no back, 30 no front), concentrados onde o custo de errar é alto:
 
 | Suíte | Cobre |
 |---|---|
@@ -363,7 +390,7 @@ aparecem. Ícone faltando é melhor que scoreboard vazia.
 Testes que nasceram de bug real levam o caso no nome. `seriesStanding.test.ts`
 descreve a MD3 de 07/09/2026 que quebrou.
 
-**O front não tem testes** ainda — [issue #10](https://github.com/ikeda7/inhouse-lol/issues/10).
+O front tem testes de componente desde a #10, mas cobrem 7 de ~20 componentes.
 
 ---
 

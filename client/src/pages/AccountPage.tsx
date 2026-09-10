@@ -21,10 +21,20 @@ export function AccountPage() {
   if (!player) return <Navigate to="/entrar" replace />;
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-4 py-2 sm:py-6">
-      <SecaoFoto player={player} onChanged={setPlayer} />
-      <SecaoPerfil player={player} onChanged={setPlayer} />
-      <SecaoSenha />
+    <div className="mx-auto w-full max-w-5xl space-y-4 py-2 sm:py-6">
+      {/* Três cartões empilhados numa coluna de 672px estouravam a altura da
+          tela enquanto sobrava metade da largura vazia dos dois lados. A partir
+          de `lg` eles dividem em duas colunas e a página deixa de rolar.
+          `items-start` é o que impede o cartão da foto (curto) de esticar até a
+          altura da coluna dos formulários. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
+        <SecaoFoto player={player} onChanged={setPlayer} />
+
+        <div className="space-y-4">
+          <SecaoPerfil player={player} onChanged={setPlayer} />
+          <SecaoSenha />
+        </div>
+      </div>
 
       <div className="flex justify-end">
         <Button variant="ghost" onClick={() => void logout()}>

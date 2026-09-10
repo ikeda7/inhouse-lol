@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { AlertTriangle, Loader2, Inbox } from 'lucide-react';
 import { ApiError } from '../api/client';
+import { classeDeCorDoNome, iniciaisDoNome } from '../lib/avatar';
 import { ROLE_LABEL, type RoleInput } from '../types';
 
 /**
@@ -69,8 +70,12 @@ export function Button({
   loading?: boolean;
 }) {
   const variants = {
+    // `text-canvas` aqui é COR, não tamanho: escuro sobre o dourado (13.6:1).
+    // Estava escrito `text-base`, que parecia tamanho de fonte e só funcionava
+    // por acidente da colisão de nomes descrita em index.css -- o tamanho real
+    // sempre veio de `sizes`.
     primary:
-      'bg-gold text-base font-semibold hover:bg-gold/90 active:bg-gold/80 shadow-lg shadow-gold/10',
+      'bg-gold text-canvas font-semibold hover:bg-gold/90 active:bg-gold/80 shadow-lg shadow-gold/10',
     ghost: 'border border-line text-ink-muted hover:border-gold/50 hover:text-ink',
     subtle: 'bg-raised text-ink-muted hover:bg-overlay hover:text-ink',
     danger: 'bg-red/15 text-red hover:bg-red/25',
@@ -102,7 +107,7 @@ export function Input({
   const campo = (
     <input
       {...props}
-      className={`w-full rounded-md border px-3 py-2 text-sm text-ink transition placeholder:text-ink-faint/60 focus:outline-none ${
+      className={`w-full rounded-md border px-3 py-2 text-sm text-ink transition placeholder:text-ink-faint focus:outline-none ${
         invalid
           ? 'border-warn/50 bg-warn/5'
           : 'border-line bg-raised focus:border-gold/60 focus:bg-overlay'
@@ -119,35 +124,6 @@ export function Input({
       {campo}
     </label>
   );
-}
-
-/**
- * Cores do avatar sem foto (issue #3).
- *
- * Paleta propria de proposito: `gold` e acento, `blue`/`red` identificam TIME.
- * Pintar avatar com esses tokens diria uma coisa que nao e verdade -- um
- * jogador de avatar azul nao esta no time azul. Todos os tons abaixo passam
- * AA com o texto claro por cima.
- */
-const CORES_DE_AVATAR = [
-  'bg-slate-600',
-  'bg-teal-700',
-  'bg-indigo-700',
-  'bg-cyan-800',
-  'bg-violet-800',
-  'bg-emerald-800',
-];
-
-function corDoNome(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  return CORES_DE_AVATAR[Math.abs(hash) % CORES_DE_AVATAR.length];
-}
-
-function iniciais(name: string): string {
-  const partes = name.trim().split(/\s+/);
-  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
-  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
 }
 
 const TAMANHO_DO_AVATAR = {
@@ -197,9 +173,9 @@ export function Avatar({
     <span
       aria-hidden="true"
       title={name}
-      className={`${base} ${corDoNome(name)} inline-flex items-center justify-center font-semibold tracking-wide text-white/90`}
+      className={`${base} ${classeDeCorDoNome(name)} inline-flex items-center justify-center font-semibold tracking-wide text-white/90`}
     >
-      {iniciais(name)}
+      {iniciaisDoNome(name)}
     </span>
   );
 }

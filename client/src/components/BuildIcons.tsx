@@ -16,7 +16,7 @@ function Vazio({ size = SLOT, titulo }: { size?: number; titulo?: string }) {
     <span
       title={titulo}
       style={{ width: size, height: size }}
-      className="inline-block shrink-0 rounded border border-line/40 bg-base/60"
+      className="inline-block shrink-0 rounded border border-line/40 bg-canvas/60"
     />
   );
 }

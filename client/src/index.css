@@ -14,8 +14,19 @@
    --------------------------------------------------------------------------- */
 
 @theme {
-  /* Superfícies, do fundo para a frente */
-  --color-base: #080c14;
+  /* Superfícies, do fundo para a frente.
+
+     O primeiro nível se chamava `base`, e isso criava uma utility de COR
+     chamada `text-base` que colidia com a de TAMANHO DE FONTE do próprio
+     Tailwind. As duas regras existiam no CSS com o mesmo nome e a de cor
+     ganhava: quem escrevia `text-base` querendo 16px levava junto
+     `color: #080c14` -- a cor de fundo mais escura da paleta, ou seja, texto
+     preto no preto. O nome da série no histórico ficou invisível assim, e no
+     botão dourado o mesmo acidente virou "texto escuro sobre ouro", que por
+     coincidência parecia proposital. Nada disso aparece ao ler o código: a
+     classe se parece com tamanho de fonte. Daí `canvas`, que não colide com
+     utility nenhuma. */
+  --color-canvas: #080c14;
   --color-surface: #0d1420;
   --color-raised: #131c2b;
   --color-overlay: #1a2536;
@@ -26,7 +37,14 @@
      o overlay. O valor antigo de --color-ink-faint (#5c6b85) dava 2.86:1 ali e
      era justamente onde eu mais usava texto de 10-11px -- o "camufla" que o
      Lucas apontou tinha número. Ao arrumar só o faint, ele encostava no muted e
-     a hierarquia sumia, então os dois subiram juntos. */
+     a hierarquia sumia, então os dois subiram juntos.
+
+     Esses valores só valem em opacidade CHEIA. `text-ink-faint/70` derruba para
+     3.36:1 e `/50` para 2.18:1 -- o token passa a reprovar sozinho, e a busca
+     por hexadecimal antigo não acha o problema porque o hex continua certo. O
+     mesmo vale para cor de time em texto pequeno: `text-blue opacity-40` dá
+     2.02:1. Para "apagar" um elemento, mude o FUNDO ou troque de token; nunca
+     dilua o texto. */
   --color-ink: #e9eef7;
   --color-ink-muted: #aab8cd;
   --color-ink-faint: #7d8da8;
@@ -72,7 +90,7 @@ html {
 }
 
 body {
-  @apply bg-base text-ink antialiased;
+  @apply bg-canvas text-ink antialiased;
   font-family: var(--font-sans);
   /* Brilho sutil no topo: dá profundidade sem custar um elemento na árvore. */
   background-image:
