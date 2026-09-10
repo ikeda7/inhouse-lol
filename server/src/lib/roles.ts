@@ -62,7 +62,7 @@ export function normalizeRole(raw: string): RoleInput {
     .replace(/[\s_-]/g, '');
   const found = ROLE_ALIASES[key];
   if (!found) {
-    throw new Error(`Role invalida: "${raw}". Use ${ROLES.join(', ')} ou ${FILL}.`);
+    throw new Error(`Role inválida: "${raw}". Use ${ROLES.join(', ')} ou ${FILL}.`);
   }
   return found;
 }

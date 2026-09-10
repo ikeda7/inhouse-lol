@@ -72,7 +72,7 @@ seriesRouter.get(
   asyncHandler(async (req, res) => {
     const series = await getSeriesDetail(req.params.id);
     if (!series) {
-      res.status(404).json({ success: false, error: 'Serie nao encontrada.' });
+      res.status(404).json({ success: false, error: 'Série não encontrada.' });
       return;
     }
     res.json({ success: true, data: series });

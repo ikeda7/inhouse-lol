@@ -83,7 +83,7 @@ describe('extractRoflMetadata', () => {
 
   it('avisa quando o arquivo nao tem estatisticas legiveis', () => {
     const semStats = Buffer.concat([Buffer.from('RIOT\x02\x00', 'latin1'), Buffer.alloc(1024, 7)]);
-    expect(() => extractRoflMetadata(semStats)).toThrowError(/estatisticas/i);
+    expect(() => extractRoflMetadata(semStats)).toThrowError(/estatísticas/i);
   });
 });
 

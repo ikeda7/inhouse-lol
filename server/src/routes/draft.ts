@@ -35,7 +35,7 @@ async function loadRoster(playerIds: string[]) {
     const found = new Set(players.map((p) => p.id));
     const missing = playerIds.filter((id) => !found.has(id));
     throw new DraftError(
-      `Jogador(es) nao encontrado(s): ${missing.join(', ')}.`,
+      `Jogador(es) não encontrado(s): ${missing.join(', ')}.`,
       'PLAYER_NOT_FOUND',
       { missing }
     );
@@ -166,7 +166,7 @@ draftRouter.get(
     if (!sala) {
       res.status(404).json({
         success: false,
-        error: 'Sala nao encontrada ou expirada.',
+        error: 'Sala não encontrada ou expirada.',
         code: 'ROOM_NOT_FOUND',
       });
       return;

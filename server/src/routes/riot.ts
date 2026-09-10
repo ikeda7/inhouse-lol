@@ -30,7 +30,7 @@ riotRouter.get('/status', (_req, res) => {
     data: {
       enabled: hasRiotApi,
       note: hasRiotApi
-        ? 'Custom games nao aparecem no historico por PUUID; informe o Match ID ou capture durante o jogo.'
+        ? 'Custom games não aparecem no histórico por PUUID; informe o Match ID ou capture durante o jogo.'
         : 'RIOT_API_KEY ausente. Use o registro manual.',
     },
   });
@@ -102,7 +102,7 @@ riotRouter.get(
     if (!player?.puuid) {
       res.status(400).json({
         success: false,
-        error: 'Esse jogador ainda nao tem o Riot ID vinculado.',
+        error: 'Esse jogador ainda não tem o Riot ID vinculado.',
         code: 'PUUID_MISSING',
       });
       return;
@@ -191,7 +191,7 @@ riotRouter.post(
       // leaderboard silenciosamente. Devolve quem falta para o usuario vincular.
       res.status(409).json({
         success: false,
-        error: `${unmatched.length} participante(s) da partida nao estao vinculados a nenhum jogador cadastrado.`,
+        error: `${unmatched.length} participante(s) da partida não estão vinculados a nenhum jogador cadastrado.`,
         code: 'UNMATCHED_PARTICIPANTS',
         details: { unmatched, preview: imported },
       });
@@ -281,7 +281,7 @@ riotRouter.post(
     res.status(404).json({
       success: false,
       error:
-        'Ninguem esta em partida agora. Custom games nao aparecem no historico da Riot: ' +
+        'Ninguém está em partida agora. Custom games não aparecem no histórico da Riot: ' +
         'cole o Match ID manualmente ou use o registro manual.',
       code: 'NO_LIVE_GAME',
     });

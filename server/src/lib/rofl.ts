@@ -67,8 +67,8 @@ export function extractRoflMetadata(buffer: Buffer): RoflMetadata {
   const anchor = buffer.indexOf(Buffer.from('"statsJson"', 'utf8'));
   if (anchor < 0) {
     throw new LcuError(
-      'Esse .rofl nao tem o bloco de estatisticas em texto claro. ' +
-        'Replays de partidas muito antigas ou de outra regiao podem nao conter os dados.',
+      'Esse .rofl não tem o bloco de estatísticas em texto claro. ' +
+        'Replays de partidas muito antigas ou de outra região podem não conter os dados.',
       'ROFL_NO_STATS'
     );
   }
@@ -108,13 +108,13 @@ export function extractRoflMetadata(buffer: Buffer): RoflMetadata {
   }
 
   if (end < 0) {
-    throw new LcuError('Bloco de metadados do .rofl esta truncado.', 'ROFL_TRUNCATED');
+    throw new LcuError('Bloco de metadados do .rofl está truncado.', 'ROFL_TRUNCATED');
   }
 
   try {
     return JSON.parse(buffer.subarray(start, end).toString('utf8')) as RoflMetadata;
   } catch {
-    throw new LcuError('Nao consegui ler os metadados do .rofl.', 'ROFL_PARSE_ERROR');
+    throw new LcuError('Não consegui ler os metadados do .rofl.', 'ROFL_PARSE_ERROR');
   }
 }
 
@@ -135,14 +135,14 @@ export interface RoflSource {
  */
 export function roflToLcuGame(metadata: RoflMetadata, source: RoflSource): LcuGame {
   if (!metadata.statsJson) {
-    throw new LcuError('O .rofl nao contem statsJson.', 'ROFL_NO_STATS');
+    throw new LcuError('O .rofl não contém statsJson.', 'ROFL_NO_STATS');
   }
 
   let stats: RoflPlayerStats[];
   try {
     stats = JSON.parse(metadata.statsJson) as RoflPlayerStats[];
   } catch {
-    throw new LcuError('statsJson do .rofl esta corrompido.', 'ROFL_PARSE_ERROR');
+    throw new LcuError('statsJson do .rofl está corrompido.', 'ROFL_PARSE_ERROR');
   }
 
   if (!Array.isArray(stats) || stats.length !== 10) {

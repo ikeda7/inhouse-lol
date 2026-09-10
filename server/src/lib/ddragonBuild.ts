@@ -131,7 +131,7 @@ async function loadCatalog(): Promise<BuildCatalog> {
   ]);
 
   if (items.status === 'rejected' && spells.status === 'rejected' && runes.status === 'rejected') {
-    throw new Error('Data Dragon: nenhum catalogo de build respondeu.');
+    throw new Error('Data Dragon: nenhum catálogo de build respondeu.');
   }
 
   return {

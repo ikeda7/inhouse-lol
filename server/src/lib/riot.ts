@@ -45,7 +45,7 @@ export class RiotApiError extends Error {
 function assertEnabled(): void {
   if (!hasRiotApi) {
     throw new RiotApiError(
-      'RIOT_API_KEY nao configurada. Use o registro manual de partida.',
+      'RIOT_API_KEY não configurada. Use o registro manual de partida.',
       'RIOT_DISABLED'
     );
   }
@@ -67,11 +67,11 @@ async function riotFetch<T>(url: string): Promise<T> {
   }
 
   if (response.status === 404) {
-    throw new RiotApiError('Recurso nao encontrado na Riot API.', 'NOT_FOUND', 404);
+    throw new RiotApiError('Recurso não encontrado na Riot API.', 'NOT_FOUND', 404);
   }
   if (response.status === 401 || response.status === 403) {
     throw new RiotApiError(
-      'Chave da Riot invalida ou expirada (chaves de desenvolvimento duram 24h).',
+      'Chave da Riot inválida ou expirada (chaves de desenvolvimento duram 24h).',
       'INVALID_KEY',
       response.status
     );
@@ -108,7 +108,7 @@ export function parseRiotId(riotId: string): { gameName: string; tagLine: string
   const [gameName, tagLine] = riotId.split('#');
   if (!gameName || !tagLine) {
     throw new RiotApiError(
-      `Riot ID invalido: "${riotId}". Formato esperado: Nick#TAG.`,
+      `Riot ID inválido: "${riotId}". Formato esperado: Nick#TAG.`,
       'INVALID_RIOT_ID'
     );
   }

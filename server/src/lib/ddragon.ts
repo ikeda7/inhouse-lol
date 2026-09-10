@@ -42,7 +42,7 @@ let catalogPromise: Promise<ChampionCatalog> | null = null;
 async function fetchLatestVersion(): Promise<string> {
   const response = await fetch(`${DDRAGON_BASE}/api/versions.json`);
   if (!response.ok) {
-    throw new Error(`Data Dragon: falha ao listar versoes (HTTP ${response.status}).`);
+    throw new Error(`Data Dragon: falha ao listar versões (HTTP ${response.status}).`);
   }
   const versions = (await response.json()) as string[];
   return versions[0];
@@ -53,7 +53,7 @@ async function loadCatalog(): Promise<ChampionCatalog> {
   const url = `${DDRAGON_BASE}/cdn/${version}/data/${env.ddragonLocale}/champion.json`;
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Data Dragon: falha ao carregar campeoes (HTTP ${response.status}).`);
+    throw new Error(`Data Dragon: falha ao carregar campeões (HTTP ${response.status}).`);
   }
 
   const payload = (await response.json()) as {

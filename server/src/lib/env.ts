@@ -45,7 +45,7 @@ function required(name: string): string {
   const value = process.env[name];
   if (!value || value.trim() === '') {
     throw new Error(
-      `Variavel de ambiente obrigatoria ausente: ${name}. ` +
+      `Variável de ambiente obrigatória ausente: ${name}. ` +
         `Copie o .env.example para .env na raiz do projeto e preencha.`
     );
   }
@@ -72,7 +72,7 @@ function segredoDeSessao(nodeEnv: string): string {
 
   if (nodeEnv === 'production') {
     throw new Error(
-      'Variavel de ambiente obrigatoria ausente em producao: JWT_SECRET. ' +
+      'Variável de ambiente obrigatória ausente em produção: JWT_SECRET. ' +
         'Gere um segredo com `openssl rand -hex 32` e configure no ambiente.'
     );
   }

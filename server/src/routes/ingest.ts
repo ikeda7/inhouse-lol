@@ -175,7 +175,7 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
   if (!imported.isCustomGame) {
     res.status(400).json({
       success: false,
-      error: 'Essa partida nao e um custom game. O InHouse so registra os amistosos do grupo.',
+      error: 'Essa partida não é um custom game. O InHouse só registra os amistosos do grupo.',
       code: 'NOT_A_CUSTOM_GAME',
     });
     return;
@@ -291,8 +291,8 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     res.status(409).json({
       success: false,
       error:
-        `${unmatched.length} participante(s) nao estao vinculados a nenhum jogador cadastrado.` +
-        ` Se nao souber de quem sao, importe com autoCreatePlayers para cadastra-los com o nick e renomear depois.`,
+        `${unmatched.length} participante(s) não estão vinculados a nenhum jogador cadastrado.` +
+        ` Se não souber de quem são, importe com autoCreatePlayers para cadastrá-los com o nick e renomear depois.`,
       code: 'UNMATCHED_PARTICIPANTS',
       details: { unmatched, autoLinked: linked },
     });
@@ -333,7 +333,7 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
             refreshed: true,
             match: already,
             message:
-              `Estatisticas do jogo ${already.matchNumber} atualizadas: ${updated} jogadores` +
+              `Estatísticas do jogo ${already.matchNumber} atualizadas: ${updated} jogadores` +
               `, ${teams} time(s), ${bans} ban(s).`,
           },
         });
@@ -351,7 +351,7 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
         alreadyImported: true,
         match: already,
         message:
-          `A partida ${imported.riotMatchId} ja tinha sido registrada (jogo ${already.matchNumber}).` +
+          `A partida ${imported.riotMatchId} já tinha sido registrada (jogo ${already.matchNumber}).` +
           ' Use refreshStats para reescrever a scoreboard com os dados atuais.',
       },
     });
@@ -368,7 +368,7 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
       data: {
         saved: false,
         skipped: true,
-        message: `A partida ${imported.riotMatchId} nao esta registrada. refreshStats so atualiza partida existente.`,
+        message: `A partida ${imported.riotMatchId} não está registrada. refreshStats só atualiza partida existente.`,
       },
     });
     return;
@@ -384,7 +384,7 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     if (!ongoing) {
       res.status(409).json({
         success: false,
-        error: 'Nenhuma MD3 em andamento. Abra uma na aba Serie antes de importar.',
+        error: 'Nenhuma MD3 em andamento. Abra uma na aba Série antes de importar.',
         code: 'NO_ONGOING_SERIES',
       });
       return;

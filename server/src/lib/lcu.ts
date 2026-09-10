@@ -647,8 +647,8 @@ export function mapLcuGame(
   if (game.mapId !== undefined && game.mapId !== SUMMONERS_RIFT_MAP_ID) {
     const nome = MAP_NAMES[game.mapId] ?? `mapa ${game.mapId}`;
     throw new LcuError(
-      `Essa partida foi no ${nome}, nao no Summoner’s Rift. ` +
-        `O InHouse registra so os 5x5 da Fenda.`,
+      `Essa partida foi no ${nome}, não no Summoner’s Rift. ` +
+        `O InHouse registra só os 5x5 da Fenda.`,
       'UNSUPPORTED_MAP',
       { gameId: game.gameId, mapId: game.mapId, gameMode: game.gameMode }
     );
@@ -656,7 +656,7 @@ export function mapLcuGame(
 
   if (game.gameMode && !(ALLOWED_GAME_MODES as readonly string[]).includes(game.gameMode)) {
     throw new LcuError(
-      `Modo de jogo nao suportado: ${game.gameMode}. O InHouse registra so o 5x5 classico.`,
+      `Modo de jogo não suportado: ${game.gameMode}. O InHouse registra só o 5x5 clássico.`,
       'UNSUPPORTED_GAME_MODE',
       { gameId: game.gameId, gameMode: game.gameMode, mapId: game.mapId }
     );
@@ -665,7 +665,7 @@ export function mapLcuGame(
   if (participants.length !== 10) {
     throw new LcuError(
       `A partida ${game.gameId} tem ${participants.length} participantes; esperava 10. ` +
-        `Partidas de treino contra bots ou com times incompletos nao entram no InHouse.`,
+        `Partidas de treino contra bots ou com times incompletos não entram no InHouse.`,
       'INVALID_PARTICIPANT_COUNT',
       { gameId: game.gameId, count: participants.length }
     );
@@ -715,7 +715,7 @@ export function mapLcuGame(
 
     if (!role) {
       throw new LcuError(
-        `Nao consegui determinar a posicao do participante ${participant.participantId}.`,
+        `Não consegui determinar a posição do participante ${participant.participantId}.`,
         'ROLE_UNRESOLVED',
         { gameId: game.gameId, participantId: participant.participantId }
       );
