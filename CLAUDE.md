@@ -74,6 +74,26 @@ tablet. No screenshot baseline on purpose: both checks are baseline-free.
 The job is **not** a required check yet. Promote it in branch protection once
 it has proven stable across a few PRs.
 
+### Game-night rehearsal (same CI job, before the screen check)
+
+```bash
+node client/e2e/ensaio-da-noite.mjs --base http://localhost:3334
+```
+
+Walks the whole night through the API, in order: register a late player,
+draw teams (20 seeds), captains draft, live draft room (turn and version
+locks), open a Fearless MD3, record games, a Fearless violation, a side swap
+scored by roster, the auto-finish at 2 wins, discarding an empty series, and
+the LCU import path the companion uses (dry run, idempotent resend,
+`refreshStats`, unknown participant, no ongoing MD3). It also asserts the
+public player list carries no `email`/`passwordHash`.
+
+It **writes** data, so it refuses any non-local `--base`. Run it against a
+throwaway DB (`DATABASE_URL=file:./ensaio.db` + `db push` + `db:seed`, server on
+another `PORT`). It is re-runnable on the same DB — names carry a per-run
+suffix and the synthetic PUUIDs are fixed per player. Run it before every
+game night.
+
 ### Formatting
 
 ```bash

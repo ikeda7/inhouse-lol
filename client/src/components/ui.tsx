@@ -215,8 +215,10 @@ export function EmptyState({ label, action }: { label: string; action?: ReactNod
 export function ErrorState({ error, onRetry }: { error: Error; onRetry?: () => void }) {
   const details = error instanceof ApiError ? error.details : undefined;
 
+  // role="alert": o leitor de tela anuncia o erro, e a verificação de telas
+  // (client/e2e) reprova qualquer tela que carregue mostrando isto.
   return (
-    <div className="rounded-lg border border-red/30 bg-red/5 p-4 text-sm">
+    <div role="alert" className="rounded-lg border border-red/30 bg-red/5 p-4 text-sm">
       <div className="flex items-start gap-3">
         <AlertTriangle size={16} className="mt-0.5 shrink-0 text-red" />
         <div className="min-w-0 flex-1">

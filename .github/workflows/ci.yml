@@ -157,6 +157,12 @@ jobs:
           cat ../servidor.log
           exit 1
 
+      # Percorre pela API o caminho inteiro de uma noite de jogos: cadastro na
+      # hora, sorteio, sala de draft, MD3 com Fearless, importação do LCU. Vem
+      # antes das telas porque as duas etapas gravam no mesmo banco descartável.
+      - name: Ensaio da noite
+        run: node client/e2e/ensaio-da-noite.mjs --base http://localhost:3333
+
       - name: Verificar as telas
         run: node client/e2e/verificar-telas.mjs --base http://localhost:3333 --preparar --saida e2e-saida
 

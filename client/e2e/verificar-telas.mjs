@@ -9,12 +9,17 @@
  *   - layout que PIORAVA conforme a tela crescia (84px a 700px, 40px a 820px)
  *
  * Nenhum dos três é detectável lendo código. Os três são detectáveis medindo a
- * tela renderizada, e é só isso que este script faz -- duas checagens que não
+ * tela renderizada, e é só isso que este script faz -- três checagens que não
  * precisam de imagem de referência:
  *
  *   1. ROLAGEM LATERAL: `scrollWidth > clientWidth` em qualquer largura.
  *   2. CONTRASTE: a cor que o texto tem DEPOIS de compor opacidade e fundos,
  *      contra o fundo que ele tem de verdade, na régua do WCAG AA.
+ *   3. A TELA CARREGOU: nenhum erro visível (`role="alert"`, que é o
+ *      ErrorState) e nenhuma chamada à API sem resposta ou com 5xx. Sem esta,
+ *      uma tela de erro passava nas duas de cima -- aconteceu: um build
+ *      apontando a API para a porta errada deu "28/28" com todas as telas
+ *      dizendo "Não consegui falar com o servidor".
  *
  * Comparação de screenshot com baseline ficou de fora de propósito: exige
  * imagem versionada e sofre com ruído de renderização entre máquinas. As duas
@@ -333,7 +338,13 @@ function medirNaPagina() {
     vazamento = { largura: document.documentElement.scrollWidth, limite, culpado: pior };
   }
 
-  return { reprovados, vazamento };
+  // Tela que carregou mostrando erro: contraste e rolagem passam nela, e o
+  // "ok" seria mentira.
+  const alertas = [...document.querySelectorAll('[role="alert"]')]
+    .filter(visivel)
+    .map((el) => el.textContent.trim().replace(/\s+/g, ' ').slice(0, 80));
+
+  return { reprovados, vazamento, alertas };
 }
 
 // ---------------------------------------------------------------------------
@@ -359,6 +370,23 @@ async function main() {
     for (const largura of LARGURAS) {
       const pagina = await navegador.newPage({ viewport: { width: largura, height: 900 } });
       const rotulo = `${tela.nome.padEnd(10)} ${String(largura).padStart(4)}px`;
+
+      // API que não respondeu ou quebrou. 4xx fica de fora: o 401 do
+      // /auth/me para visitante deslogado é resposta esperada, não falha.
+      const apiSemResposta = [];
+      const rotaDaApi = (url) => {
+        const { pathname } = new URL(url);
+        return pathname.includes('/api/') ? pathname : null;
+      };
+      pagina.on('requestfailed', (req) => {
+        const rota = rotaDaApi(req.url());
+        if (rota) apiSemResposta.push(`${req.method()} ${rota} (sem resposta)`);
+      });
+      pagina.on('response', (res) => {
+        const rota = rotaDaApi(res.url());
+        if (rota && res.status() >= 500) apiSemResposta.push(`${res.status()} ${rota}`);
+      });
+
       try {
         await pagina.goto(BASE + tela.rota, { waitUntil: 'networkidle', timeout: 30000 });
         if (tela.antes) {
@@ -369,17 +397,22 @@ async function main() {
         // medir no meio dela daria contraste de um frame que ninguém vê parado.
         await pagina.waitForTimeout(600);
 
-        const { reprovados, vazamento } = await pagina.evaluate(medirNaPagina);
+        const { reprovados, vazamento, alertas } = await pagina.evaluate(medirNaPagina);
         await pagina.screenshot({
           path: join(SAIDA, `${tela.nome}-${largura}.png`),
           fullPage: true,
         });
 
-        if (reprovados.length === 0 && !vazamento) {
+        const carregou = alertas.length === 0 && apiSemResposta.length === 0;
+        if (reprovados.length === 0 && !vazamento && carregou) {
           console.log(`  ok    ${rotulo}`);
         } else {
           falhas++;
           console.log(`  FALHA ${rotulo}`);
+          for (const alerta of alertas) console.log(`        erro na tela: "${alerta}"`);
+          if (apiSemResposta.length > 0) {
+            console.log(`        API: ${[...new Set(apiSemResposta)].slice(0, 4).join(', ')}`);
+          }
           if (vazamento) {
             const c = vazamento.culpado;
             console.log(
