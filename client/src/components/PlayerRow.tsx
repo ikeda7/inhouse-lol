@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Check, Link2, Pencil, X, EyeOff, Eye } from 'lucide-react';
 import { playersApi } from '../api/client';
 import { useAction } from '../hooks/useAsync';
-import { Button, ErrorState, RoleBadge } from './ui';
+import { Avatar, Button, ErrorState, RoleBadge } from './ui';
 import { ROLE_LABEL, ROLES, type Player, type RoleInput } from '../types';
 
 const SELECTABLE_ROLES: RoleInput[] = [...ROLES, 'FILL'];
@@ -58,6 +58,21 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
   if (!editing) {
     return (
       <li className="flex items-center gap-3 py-2.5">
+        {/* Quem já reivindicou a conta aparece com a própria foto; quem não,
+            com as iniciais. A lista é o lugar onde a galera se identifica, e
+            uma coluna só de texto obriga a ler para achar alguém.
+            `md`, não `sm`: a linha tem duas alturas de conteúdo (nome + roles)
+            e um avatar pequeno demais fica boiando no meio dela. */}
+        <Avatar
+          photoUrl={player.photoUrl}
+          name={player.name}
+          size="md"
+          // Inativo perde a COR, não a legibilidade -- quem carrega o recado é
+          // o selo "inativo" ao lado do nome. Opacidade aqui derrubaria as
+          // iniciais junto, e a linha existe para eu achar a pessoa.
+          className={player.active ? '' : 'grayscale'}
+        />
+
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Link

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Copy, Download, Share2, Trophy } from 'lucide-react';
 import { statsApi } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
-import { Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../components/ui';
+import { Avatar, Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon } from '../components/ChampionIcon';
 import { useChampions } from '../hooks/useChampions';
 import {
@@ -237,14 +237,19 @@ function LinhaTabela({ entry, posicao }: { entry: LeaderboardEntry; posicao: num
       </td>
 
       <td className="py-2.5 pr-2">
-        <Link
-          to={`/jogadores/${entry.playerId}`}
-          className="text-[15px] font-medium text-ink transition group-hover:text-gold"
-        >
-          {entry.name}
-        </Link>
-        <Trofeus quantidade={entry.seriesWon} recente={entry.wonLastSeries} />
-        {entry.isKdaPlayer && <SeloKdaPlayer />}
+        {/* A foto é de quem já criou conta; quem não criou cai nas iniciais,
+            então a coluna nunca fica com buraco nem desalinha. */}
+        <span className="flex items-center gap-2.5">
+          <Avatar photoUrl={entry.photoUrl} name={entry.name} size="sm" />
+          <Link
+            to={`/jogadores/${entry.playerId}`}
+            className="text-[15px] font-medium text-ink transition group-hover:text-gold"
+          >
+            {entry.name}
+          </Link>
+          <Trofeus quantidade={entry.seriesWon} recente={entry.wonLastSeries} />
+          {entry.isKdaPlayer && <SeloKdaPlayer />}
+        </span>
       </td>
 
       <td className="py-2.5 pr-2">
@@ -385,6 +390,8 @@ function LinhaCelular({ entry, posicao }: { entry: LeaderboardEntry; posicao: nu
         >
           {posicao + 1}
         </span>
+
+        <Avatar photoUrl={entry.photoUrl} name={entry.name} size="sm" />
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-medium text-ink">

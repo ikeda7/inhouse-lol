@@ -211,6 +211,8 @@ export interface BuildManifest {
 export interface LeaderboardEntry {
   playerId: string;
   name: string;
+  /** Foto de perfil de quem já reivindicou a conta; null para o resto. */
+  photoUrl: string | null;
   games: number;
   wins: number;
   losses: number;

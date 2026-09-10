@@ -47,7 +47,7 @@ interface StatRow {
   championId: number | null;
   teamSide: string;
   match: { id: string; gameDurationSec: number | null; seriesId: string };
-  player: { id: string; name: string };
+  player: { id: string; name: string; photoUrl: string | null };
 }
 
 async function loadStatRows(where: Record<string, unknown> = {}): Promise<StatRow[]> {
@@ -57,7 +57,7 @@ async function loadStatRows(where: Record<string, unknown> = {}): Promise<StatRo
       // matchId e teamSide entram para dar participacao em abates: ela precisa
       // dos abates do TIME naquela partida, nao so os do jogador.
       match: { select: { id: true, gameDurationSec: true, seriesId: true } },
-      player: { select: { id: true, name: true } },
+      player: { select: { id: true, name: true, photoUrl: true } },
     },
   }) as unknown as Promise<StatRow[]>;
 }
@@ -136,6 +136,8 @@ async function loadUltimosCampeoes(): Promise<Set<string>> {
 export interface LeaderboardEntry {
   playerId: string;
   name: string;
+  /** Foto de perfil de quem já reivindicou a conta; null para o resto. */
+  photoUrl: string | null;
   games: number;
   wins: number;
   losses: number;
@@ -332,6 +334,8 @@ export async function getLeaderboard(
 
   interface Acc {
     name: string;
+    /** Foto de perfil, para o ranking mostrar quem é quem sem ser só texto. */
+    photoUrl: string | null;
     games: number;
     wins: number;
     kills: number;
@@ -351,6 +355,7 @@ export async function getLeaderboard(
   for (const row of rows) {
     const acc = byPlayer.get(row.playerId) ?? {
       name: row.player.name,
+      photoUrl: row.player.photoUrl,
       games: 0,
       wins: 0,
       kills: 0,
@@ -387,6 +392,7 @@ export async function getLeaderboard(
     .map(([playerId, acc]) => ({
       playerId,
       name: acc.name,
+      photoUrl: acc.photoUrl,
       games: acc.games,
       wins: acc.wins,
       losses: acc.games - acc.wins,
