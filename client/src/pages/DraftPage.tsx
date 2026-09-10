@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { Dices, Users, RefreshCw, ArrowRight, Check, Crown, Radio, Swords } from 'lucide-react';
 import { draftApi, playersApi } from '../api/client';
 import { useAction, useAsync } from '../hooks/useAsync';
-import { Button, Card, ErrorState, LoadingState, RoleBadge } from '../components/ui';
+import { Avatar, Button, Card, ErrorState, LoadingState, RoleBadge } from '../components/ui';
 import { TeamCard } from '../components/TeamCard';
 import { CaptainsDraft } from '../components/CaptainsDraft';
 import { fromAutoBalance, fromCaptains, saveActiveDraft } from '../lib/activeDraft';
-import type {
-  AutoBalanceResult,
-  CaptainSelectionMode,
-  CaptainsDraftState,
-  Player,
+import {
+  ROLES,
+  ROLE_LABEL,
+  type AutoBalanceResult,
+  type CaptainSelectionMode,
+  type CaptainsDraftState,
+  type Player,
 } from '../types';
 
 const REQUIRED_PLAYERS = 10;
@@ -164,9 +166,16 @@ export function DraftPage() {
           </p>
         )}
 
-        {/* Escolha de modo: os dois começam com os mesmos 10, e é aqui que o
-            caminho se separa. */}
-        <div className="mt-4 flex gap-0.5 rounded-lg bg-raised p-0.5" role="group" aria-label="Modo">
+        {/* Cobertura à esquerda, o que fazer à direita: as duas coisas nascem
+            da mesma seleção e cabem lado a lado numa tela larga. Empilhada, a
+            cobertura esticava por 1330px para mostrar cinco números. */}
+        <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
+          <CoberturaDeRoles escolhidos={sortedPlayers.filter((p) => selected.has(p.id))} />
+
+          <div>
+            {/* Escolha de modo: os dois começam com os mesmos 10, e é aqui que
+                o caminho se separa. */}
+            <div className="flex gap-0.5 rounded-lg bg-raised p-0.5" role="group" aria-label="Modo">
           {[
             { valor: false, rotulo: 'Sorteio automático', icone: Dices },
             { valor: true, rotulo: 'Modo capitães', icone: Crown },
@@ -253,6 +262,8 @@ export function DraftPage() {
             </div>
           </div>
         )}
+          </div>
+        </div>
 
         {(draw.error || iniciar.error || abrirSala.error) && (
           <div className="mt-3">
@@ -328,6 +339,90 @@ export function DraftPage() {
   );
 }
 
+/** Cada role precisa de 2 pessoas -- uma por time. */
+const POR_ROLE = 2;
+
+/**
+ * Quantos dos marcados conseguem jogar cada role.
+ *
+ * Existe porque o sorteio pode **falhar de vez**: o backend checa a condição de
+ * Hall e recusa com "composição impossível" quando gente demais só cabe em
+ * roles de menos. Antes disto a tela não dava pista nenhuma -- a pessoa marcava
+ * dez, clicava, e só então descobria que faltava quem jogasse Support.
+ *
+ * Contar FILL em todas as roles não é aproximação: o `autoBalance` expande FILL
+ * na máscara de elegibilidade ("já com FILL expandido", em `lib/autoBalance.ts`).
+ * Ele custa mais caro na hora de escolher, e por isso aparece separado aqui --
+ * uma role coberta só por FILL passa, mas passa mal.
+ */
+function CoberturaDeRoles({ escolhidos }: { escolhidos: Player[] }) {
+  if (escolhidos.length === 0) return null;
+
+  const cobertura = ROLES.map((role) => {
+    const nominais = escolhidos.filter((p) => p.roles.includes(role)).length;
+    const viaFill = escolhidos.filter(
+      (p) => !p.roles.includes(role) && p.roles.includes('FILL')
+    ).length;
+    return { role, nominais, viaFill, total: nominais + viaFill };
+  });
+
+  const faltando = cobertura.filter((c) => c.total < POR_ROLE);
+
+  return (
+    <div className="rounded-lg border border-line/40 bg-canvas/40 p-3">
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
+        Cobertura de roles
+      </p>
+
+      <ul className="grid grid-cols-5 gap-2">
+        {cobertura.map(({ role, nominais, viaFill, total }) => {
+          const falta = total < POR_ROLE;
+          const apertado = total === POR_ROLE;
+          return (
+            <li key={role} className="text-center">
+              <p
+                className={`text-[10px] font-bold uppercase tracking-wide ${
+                  falta ? 'text-loss' : 'text-ink-faint'
+                }`}
+              >
+                {ROLE_LABEL[role]}
+              </p>
+              <p
+                className={`tabular text-lg font-bold ${
+                  falta ? 'text-loss' : apertado ? 'text-warn' : 'text-ink'
+                }`}
+                title={
+                  viaFill > 0
+                    ? `${nominais} no pool declarado + ${viaFill} via Fill`
+                    : `${nominais} no pool declarado`
+                }
+              >
+                {total}
+              </p>
+              {viaFill > 0 && (
+                <p className="text-[9px] leading-none text-ink-faint">{viaFill} fill</p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {faltando.length > 0 ? (
+        <p className="mt-2.5 border-t border-line/30 pt-2 text-[11px] text-loss">
+          {faltando.map((c) => ROLE_LABEL[c.role]).join(' e ')}{' '}
+          {faltando.length === 1 ? 'não tem' : 'não têm'} {POR_ROLE} jogadores. O sorteio vai
+          recusar essa composição.
+        </p>
+      ) : (
+        <p className="mt-2.5 border-t border-line/30 pt-2 text-[11px] text-ink-faint">
+          Toda role tem pelo menos {POR_ROLE}. Amarelo é o mínimo: dá para sortear, mas ninguém
+          sobra se alguém trocar.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function PlayerToggle({
   player,
   checked,
@@ -342,21 +437,33 @@ function PlayerToggle({
   return (
     <li>
       <label
-        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-2.5 transition ${
+        // "Não cabe mais" é dito pela BORDA e pelo cursor, nunca apagando a
+        // pessoa. A `opacity-40` que estava aqui derrubava o nome para 3.4:1
+        // -- medido -- e levava as roles junto. Numa tela cuja única tarefa é
+        // reconhecer quem veio, apagar cinco nomes apaga a tarefa.
+        className={`flex items-center gap-3 rounded-lg border p-2.5 transition ${
           checked
             ? 'border-gold/60 bg-gold/10'
-            : 'border-line/60 bg-raised/40 hover:border-line'
-        } ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}
+            : disabled
+              ? 'cursor-not-allowed border-line/30 bg-raised/20'
+              : 'cursor-pointer border-line/60 bg-raised/40 hover:border-line'
+        }`}
+        title={
+          disabled ? `Já tem ${REQUIRED_PLAYERS} marcados -- desmarque alguém antes` : undefined
+        }
       >
         <input
           type="checkbox"
           checked={checked}
           disabled={disabled}
           onChange={onToggle}
-          className="h-4 w-4 accent-[#d4b26a]"
+          className="h-4 w-4 shrink-0 accent-[#d4b26a]"
         />
+        <Avatar photoUrl={player.photoUrl} name={player.name} size="sm" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{player.name}</p>
+          <p className={`truncate text-sm font-medium ${disabled ? 'text-ink-muted' : 'text-ink'}`}>
+            {player.name}
+          </p>
           <div className="mt-1 flex flex-wrap gap-1">
             {player.roles.map((role, index) => (
               <RoleBadge key={role} role={role} primary={index === 0} />
