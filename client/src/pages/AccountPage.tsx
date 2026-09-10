@@ -1,9 +1,9 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Check, Image, KeyRound, LogOut, Upload, User } from 'lucide-react';
-import { accountApi, riotApi } from '../api/client';
+import { accountApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { useAction, useAsync } from '../hooks/useAsync';
+import { useAction } from '../hooks/useAsync';
 import { resizeToDataUrl } from '../lib/imageResize';
 import { Avatar, Button, Card, CardTitle, ErrorState, Input, LoadingState } from '../components/ui';
 import type { Account } from '../types';
@@ -52,20 +52,6 @@ function SecaoFoto({ player, onChanged }: SecaoProps) {
 
   const enviar = useAction(accountApi.uploadPhoto);
   const usarLol = useAction(accountApi.syncLolPhoto);
-
-  /**
-   * O ícone do LoL depende da `RIOT_API_KEY`, e em produção ela não está
-   * configurada. O botão ficava habilitado prometendo "busca o ícone atual da
-   * sua conta" -- e a pessoa só descobria depois de clicar, num erro genérico.
-   *
-   * Este endpoint já existia e não era consumido por ninguém, apesar de o
-   * comentário dele dizer que a UI usava. Agora usa.
-   *
-   * Enquanto carrega, NÃO assume indisponível: `enabled === false` só vale
-   * depois da resposta chegar, senão o botão piscaria bloqueado a cada visita.
-   */
-  const riot = useAsync(() => riotApi.status());
-  const semChave = riot.data ? !riot.data.enabled : false;
 
   const escolherArquivo = async (evento: ChangeEvent<HTMLInputElement>) => {
     const arquivo = evento.target.files?.[0];
@@ -122,14 +108,10 @@ function SecaoFoto({ player, onChanged }: SecaoProps) {
               size="sm"
               variant="ghost"
               loading={usarLol.loading}
-              disabled={!player.riotId || semChave}
-              title={
-                semChave
-                  ? 'Indisponível: a chave da Riot não está configurada no servidor'
-                  : player.riotId
-                    ? 'Busca o ícone de invocador atual da sua conta do LoL'
-                    : 'Preencha o Riot ID abaixo para usar o ícone do LoL'
-              }
+              // Não depende mais da chave da Riot: o ícone chega junto com as
+              // partidas importadas pelo cliente do LoL. Se ainda não chegou,
+              // o servidor responde dizendo isso, com a mensagem certa.
+              title="Usa o seu ícone de invocador do LoL como foto"
               onClick={() => void trocarPeloLol()}
             >
               <Image size={13} />
@@ -141,14 +123,9 @@ function SecaoFoto({ player, onChanged }: SecaoProps) {
             A imagem é recortada em quadrado e reduzida no seu navegador antes de subir.
           </p>
 
-          {/* Diz o motivo ANTES do clique, e diz que o outro caminho funciona --
-              o recado útil não é "faltou uma chave", é "sobe a foto e segue". */}
-          {semChave && (
-            <p className="mt-1 text-[11px] text-ink-faint">
-              O ícone do LoL está indisponível: o servidor está sem a chave da Riot. Enviar foto
-              funciona normalmente.
-            </p>
-          )}
+          <p className="mt-1 text-[11px] text-ink-faint">
+            O ícone do LoL é o da sua última partida importada pelo cliente do LoL.
+          </p>
         </div>
       </div>
 

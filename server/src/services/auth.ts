@@ -8,6 +8,7 @@
  */
 
 import { prisma } from '../lib/prisma.js';
+import { hasRiotApi } from '../lib/env.js';
 import {
   hashPassword,
   signSession,
@@ -35,6 +36,7 @@ export class AuthError extends Error {
       | 'PHOTO_TOO_LARGE'
       | 'INVALID_IMAGE'
       | 'NO_RIOT_ID'
+      | 'NO_LOL_ICON'
   ) {
     super(message);
     this.name = 'AuthError';
@@ -166,14 +168,31 @@ export async function changePassword(input: ChangePasswordInput): Promise<void> 
   await prisma.player.update({ where: { id: input.playerId }, data: { passwordHash } });
 }
 
-/** Busca o icone de invocador atual na Riot e o grava como foto. */
+/**
+ * Usa o ícone de invocador como foto.
+ *
+ * Com a chave da Riot, busca o ícone ATUAL (Summoner-V4). Sem ela -- o caso de
+ * produção, porque a chave de desenvolvimento expira em 24h -- usa o que o
+ * cliente do LoL mandou na última partida importada (guardarIcones, no
+ * ingest). Só falha se nenhum dos dois existir.
+ */
 export async function syncLolPhoto(playerId: string): Promise<AccountDTO> {
   const existing = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
-  if (!existing.puuid) {
-    throw new AuthError('Esse jogador ainda não tem Riot ID vinculado.', 'NO_RIOT_ID');
+
+  let profileIconId = existing.profileIconId;
+  if (hasRiotApi && existing.puuid) {
+    const puuid = existing.puuid;
+    profileIconId = await getSummonerByPuuid(puuid)
+      .then((summoner) => summoner.profileIconId)
+      .catch(() => existing.profileIconId);
+  }
+  if (profileIconId === null) {
+    throw new AuthError(
+      'Ainda não temos o seu ícone do LoL: ele chega com a primeira partida sua importada pelo cliente do LoL.',
+      'NO_LOL_ICON'
+    );
   }
 
-  const { profileIconId } = await getSummonerByPuuid(existing.puuid);
   const photoUrl = await getProfileIconUrl(profileIconId);
 
   const player = await prisma.player.update({

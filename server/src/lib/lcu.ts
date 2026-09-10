@@ -120,6 +120,8 @@ export interface LcuParticipantIdentity {
     gameName?: string;
     tagLine?: string;
     summonerName?: string;
+    /** Ícone de invocador na hora da partida. O cliente manda; o .rofl não. */
+    profileIcon?: number;
   };
 }
 
@@ -496,6 +498,8 @@ export interface LcuImportedParticipant {
   puuid: string | null;
   riotId: string | null;
   summonerName: string | null;
+  /** Ícone de invocador que o cliente mandou (null no replay). Não é scoreboard. */
+  profileIconId?: number | null;
   teamSide: TeamSide;
   rolePlayed: Role;
   championId: number;
@@ -726,6 +730,7 @@ export function mapLcuGame(
       riotId:
         identity?.gameName && identity?.tagLine ? `${identity.gameName}#${identity.tagLine}` : null,
       summonerName: identity?.summonerName ?? null,
+      profileIconId: identity?.profileIcon ?? null,
       teamSide: participant.teamId === 100 ? 'BLUE' : 'RED',
       rolePlayed: role,
       championId: participant.championId,
