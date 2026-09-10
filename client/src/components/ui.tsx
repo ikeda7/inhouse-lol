@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { AlertTriangle, Loader2, Inbox } from 'lucide-react';
 import { ApiError } from '../api/client';
+import { classeDeCorDoNome, iniciaisDoNome } from '../lib/avatar';
 import { ROLE_LABEL, type RoleInput } from '../types';
 
 /**
@@ -125,35 +126,6 @@ export function Input({
   );
 }
 
-/**
- * Cores do avatar sem foto (issue #3).
- *
- * Paleta propria de proposito: `gold` e acento, `blue`/`red` identificam TIME.
- * Pintar avatar com esses tokens diria uma coisa que nao e verdade -- um
- * jogador de avatar azul nao esta no time azul. Todos os tons abaixo passam
- * AA com o texto claro por cima.
- */
-const CORES_DE_AVATAR = [
-  'bg-slate-600',
-  'bg-teal-700',
-  'bg-indigo-700',
-  'bg-cyan-800',
-  'bg-violet-800',
-  'bg-emerald-800',
-];
-
-function corDoNome(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  return CORES_DE_AVATAR[Math.abs(hash) % CORES_DE_AVATAR.length];
-}
-
-function iniciais(name: string): string {
-  const partes = name.trim().split(/\s+/);
-  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
-  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
-}
-
 const TAMANHO_DO_AVATAR = {
   sm: 'h-6 w-6 text-[9px]',
   md: 'h-10 w-10 text-xs',
@@ -201,9 +173,9 @@ export function Avatar({
     <span
       aria-hidden="true"
       title={name}
-      className={`${base} ${corDoNome(name)} inline-flex items-center justify-center font-semibold tracking-wide text-white/90`}
+      className={`${base} ${classeDeCorDoNome(name)} inline-flex items-center justify-center font-semibold tracking-wide text-white/90`}
     >
-      {iniciais(name)}
+      {iniciaisDoNome(name)}
     </span>
   );
 }
