@@ -18,7 +18,7 @@ const roleSchema = z
   .describe('TOP | JUNGLE | MID | ADC | SUPPORT | FILL (aceita variacoes)');
 
 const createPlayerSchema = z.object({
-  name: z.string().trim().min(1, 'Nome obrigatorio').max(40),
+  name: z.string().trim().min(1, 'Nome obrigatório').max(40),
   // Ordem importa: o primeiro item e a role principal.
   roles: z.array(roleSchema).min(1, 'Informe ao menos uma role'),
   riotId: z
@@ -48,7 +48,7 @@ playersRouter.get(
   asyncHandler(async (req, res) => {
     const player = await getPlayerById(req.params.id);
     if (!player) {
-      res.status(404).json({ success: false, error: 'Jogador nao encontrado.' });
+      res.status(404).json({ success: false, error: 'Jogador não encontrado.' });
       return;
     }
     res.json({ success: true, data: player });
@@ -61,7 +61,7 @@ playersRouter.get(
   asyncHandler(async (req, res) => {
     const profile = await getPlayerProfile(req.params.id);
     if (!profile) {
-      res.status(404).json({ success: false, error: 'Jogador nao encontrado.' });
+      res.status(404).json({ success: false, error: 'Jogador não encontrado.' });
       return;
     }
     res.json({ success: true, data: profile });

@@ -21,7 +21,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   const session = token ? verifySession(token) : null;
 
   if (!session) {
-    res.status(401).json({ success: false, error: 'Nao autenticado.', code: 'NOT_AUTHENTICATED' });
+    res.status(401).json({ success: false, error: 'Não autenticado.', code: 'NOT_AUTHENTICATED' });
     return;
   }
 

@@ -298,7 +298,7 @@ function validateMatchPlayers(players: MatchPlayerInput[]): void {
     seen.add(player.playerId);
 
     if (!isRole(player.rolePlayed)) {
-      throw new SeriesError(`Role invalida: ${player.rolePlayed}.`, 'INVALID_ROLE');
+      throw new SeriesError(`Role inválida: ${player.rolePlayed}.`, 'INVALID_ROLE');
     }
 
     const key = `${player.teamSide}:${player.rolePlayed}`;
@@ -360,21 +360,21 @@ export async function recordMatch(input: RecordMatchInput) {
   });
 
   if (!series) {
-    throw new SeriesError('Serie nao encontrada.', 'SERIES_NOT_FOUND');
+    throw new SeriesError('Série não encontrada.', 'SERIES_NOT_FOUND');
   }
   if (series.status === 'FINISHED') {
-    throw new SeriesError('Essa MD3 ja foi encerrada.', 'SERIES_FINISHED');
+    throw new SeriesError('Essa MD3 já foi encerrada.', 'SERIES_FINISHED');
   }
 
   const matchNumber = input.matchNumber ?? series.matches.length + 1;
   if (matchNumber < 1 || matchNumber > MAX_MATCHES_PER_SERIES) {
     throw new SeriesError(
-      `Numero de jogo invalido: ${matchNumber}. Uma MD3 vai de 1 a ${MAX_MATCHES_PER_SERIES}.`,
+      `Número de jogo inválido: ${matchNumber}. Uma MD3 vai de 1 a ${MAX_MATCHES_PER_SERIES}.`,
       'INVALID_MATCH_NUMBER'
     );
   }
   if (series.matches.some((m) => m.matchNumber === matchNumber)) {
-    throw new SeriesError(`O jogo ${matchNumber} dessa serie ja foi registrado.`, 'MATCH_EXISTS');
+    throw new SeriesError(`O jogo ${matchNumber} dessa série já foi registrado.`, 'MATCH_EXISTS');
   }
 
   // Fearless: um campeao usado no jogo 1 nao pode voltar no 2 nem no 3.
@@ -390,7 +390,7 @@ export async function recordMatch(input: RecordMatchInput) {
 
     if (violations.length > 0) {
       throw new SeriesError(
-        `Fearless Draft violado: ${[...new Set(violations)].join(', ')} ja foi(ram) usado(s) nessa MD3.`,
+        `Fearless Draft violado: ${[...new Set(violations)].join(', ')} já foi(ram) usado(s) nessa MD3.`,
         'FEARLESS_VIOLATION'
       );
     }
@@ -504,7 +504,7 @@ export async function createSeries(input: { name?: string; fearless?: boolean })
 /** Encerra a serie na mao (ex.: a galera foi dormir no 1-1). */
 export async function finishSeries(seriesId: string) {
   const series = await prisma.series.findUnique({ where: { id: seriesId } });
-  if (!series) throw new SeriesError('Serie nao encontrada.', 'SERIES_NOT_FOUND');
+  if (!series) throw new SeriesError('Série não encontrada.', 'SERIES_NOT_FOUND');
 
   const winnerTeam =
     series.blueScore === series.redScore
@@ -529,8 +529,8 @@ export async function finishSeries(seriesId: string) {
 export function assertSerieDescartavel(quantidadeDeJogos: number): void {
   if (quantidadeDeJogos > 0) {
     throw new SeriesError(
-      `Essa serie tem ${quantidadeDeJogos} jogo(s) registrado(s) e nao pode ser descartada. ` +
-        'So da para descartar uma serie que nunca teve partida.',
+      `Essa série tem ${quantidadeDeJogos} jogo(s) registrado(s) e não pode ser descartada. ` +
+        'Só dá para descartar uma série que nunca teve partida.',
       'SERIES_NOT_EMPTY'
     );
   }
@@ -558,7 +558,7 @@ export async function discardEmptySeries(seriesId: string) {
     where: { id: seriesId },
     select: { id: true, name: true, _count: { select: { matches: true } } },
   });
-  if (!series) throw new SeriesError('Serie nao encontrada.', 'SERIES_NOT_FOUND');
+  if (!series) throw new SeriesError('Série não encontrada.', 'SERIES_NOT_FOUND');
 
   assertSerieDescartavel(series._count.matches);
 
@@ -605,7 +605,7 @@ export function assertMesmaPartida(
 
   if (!iguais) {
     throw new SeriesError(
-      'O elenco da origem nao bate com o que esta registrado nessa partida.',
+      'O elenco da origem não bate com o que está registrado nessa partida.',
       'ROSTER_MISMATCH'
     );
   }
@@ -641,7 +641,7 @@ export async function refreshMatchStats(
     where: { id: matchId },
     select: { winner: true, stats: { select: { playerId: true } } },
   });
-  if (!match) throw new SeriesError('Partida nao encontrada.', 'MATCH_NOT_FOUND');
+  if (!match) throw new SeriesError('Partida não encontrada.', 'MATCH_NOT_FOUND');
 
   assertMesmaPartida(
     { winner: match.winner, playerIds: match.stats.map((stat) => stat.playerId) },

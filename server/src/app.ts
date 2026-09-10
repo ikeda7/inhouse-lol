@@ -54,7 +54,7 @@ export function createApp(): Express {
   montarFrontend(app);
 
   app.use((_req, res) => {
-    res.status(404).json({ success: false, error: 'Rota nao encontrada.' });
+    res.status(404).json({ success: false, error: 'Rota não encontrada.' });
   });
 
   // Precisa vir depois de todas as rotas: o Express identifica o error handler
@@ -87,7 +87,7 @@ function montarFrontend(app: Express): void {
 
   if (!clientDist) {
     if (env.nodeEnv === 'production' && !process.env.VERCEL) {
-      console.warn('[aviso] build do frontend nao encontrado. Rode "npm run build".');
+      console.warn('[aviso] build do frontend não encontrado. Rode "npm run build".');
     }
     return;
   }

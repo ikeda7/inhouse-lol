@@ -247,7 +247,7 @@ describe('mapa e modo de jogo', () => {
 
   it('recusa modo rotativo mesmo na Fenda', () => {
     const urf = buildGame({ mapId: 11, gameMode: 'URF' });
-    expect(() => mapLcuGame(urf)).toThrowError(/nao suportado/i);
+    expect(() => mapLcuGame(urf)).toThrowError(/não suportado/i);
   });
 
   it('nao barra quando a origem nao informa o mapa (caso do replay)', () => {

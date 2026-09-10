@@ -34,7 +34,7 @@ function translate(error: unknown): ErrorPayload {
       status: 400,
       body: {
         success: false,
-        error: 'Dados invalidos.',
+        error: 'Dados inválidos.',
         code: 'VALIDATION_ERROR',
         details: error.issues.map((issue) => ({
           path: issue.path.join('.'),
@@ -110,7 +110,7 @@ function translate(error: unknown): ErrorPayload {
       status: 409,
       body: {
         success: false,
-        error: 'Ja existe um registro com esse valor unico (nome, Riot ID ou e-mail).',
+        error: 'Já existe um registro com esse valor único (nome, Riot ID ou e-mail).',
         code: 'UNIQUE_VIOLATION',
       },
     };
@@ -119,7 +119,7 @@ function translate(error: unknown): ErrorPayload {
   if ((error as { code?: string })?.code === 'P2025') {
     return {
       status: 404,
-      body: { success: false, error: 'Registro nao encontrado.', code: 'NOT_FOUND' },
+      body: { success: false, error: 'Registro não encontrado.', code: 'NOT_FOUND' },
     };
   }
 
@@ -143,7 +143,7 @@ export function errorHandler(
   const { status, body } = translate(error);
   if (status >= 500) {
     // Erro inesperado: loga o stack no servidor, devolve mensagem generica.
-    console.error('[erro nao tratado]', error);
+    console.error('[erro não tratado]', error);
   }
   res.status(status).json(body);
 }
