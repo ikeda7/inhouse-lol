@@ -309,9 +309,7 @@ function CartaoDeMomento({ momento }: { momento: MomentEntry }) {
         <p className="tabular text-sm font-semibold text-ink-muted">
           {momento.kills}/{momento.deaths}/{momento.assists}
         </p>
-        <p
-          className={`text-[10px] font-bold uppercase ${momento.win ? 'text-win' : 'text-loss'}`}
-        >
+        <p className={`text-[10px] font-bold uppercase ${momento.win ? 'text-win' : 'text-loss'}`}>
           {momento.win ? 'vitória' : 'derrota'}
         </p>
         <p className="text-[10px] text-ink-faint">Jogo {momento.matchNumber}</p>

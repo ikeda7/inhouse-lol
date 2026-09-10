@@ -185,14 +185,14 @@ export const seriesApi = {
    * partida gravada -- a tela só oferece o botão onde ele vale, mas quem
    * garante é a checagem de lá.
    */
-  discard: (id: string) => request<{ id: string; name: string | null }>(`/series/${id}`, {
-    method: 'DELETE',
-  }),
+  discard: (id: string) =>
+    request<{ id: string; name: string | null }>(`/series/${id}`, {
+      method: 'DELETE',
+    }),
 
   burned: (id: string) => request<BurnedChampion[]>(`/series/${id}/burned`),
 
-  create: (input: { name?: string; fearless?: boolean }) =>
-    post<SeriesSummary>('/series', input),
+  create: (input: { name?: string; fearless?: boolean }) => post<SeriesSummary>('/series', input),
 
   /** Registro manual -- o fallback quando a Riot API nao ajuda. */
   recordMatch: (
@@ -265,8 +265,7 @@ export const riotApi = {
   /** Itens, feiticos e runas -- so o historico precisa, entao vem separado. */
   build: () => request<BuildManifest>('/riot/build'),
 
-  link: (playerId: string, riotId: string) =>
-    post<Player>('/riot/link', { playerId, riotId }),
+  link: (playerId: string, riotId: string) => post<Player>('/riot/link', { playerId, riotId }),
 
   /** Preview antes de gravar: a Riot as vezes nao infere a role em custom game. */
   importMatch: (matchId: string, seriesId: string, options: { dryRun?: boolean } = {}) =>

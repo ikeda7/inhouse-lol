@@ -205,8 +205,8 @@ export function SeriesPage() {
           node companion/inhouse-companion.mjs --watch
         </pre>
         <p className="mt-2 text-[11px] text-ink-faint">
-          Com <code className="text-gold">--watch</code> ele envia sozinho no fim de cada jogo.
-          Use <code className="text-gold">--last</code> para mandar só a última partida.
+          Com <code className="text-gold">--watch</code> ele envia sozinho no fim de cada jogo. Use{' '}
+          <code className="text-gold">--last</code> para mandar só a última partida.
         </p>
 
         <div className="mt-4 border-t border-line/40 pt-3">
@@ -279,9 +279,7 @@ export function SeriesPage() {
 function ScoreBlock({ label, score, side }: { label: string; score: number; side: TeamSide }) {
   return (
     <div className="text-center">
-      <p className={`text-4xl font-bold ${side === 'BLUE' ? 'text-blue' : 'text-red'}`}>
-        {score}
-      </p>
+      <p className={`text-4xl font-bold ${side === 'BLUE' ? 'text-blue' : 'text-red'}`}>{score}</p>
       <p className="text-[11px] uppercase tracking-widest text-ink-faint">{label}</p>
     </div>
   );

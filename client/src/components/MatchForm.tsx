@@ -5,7 +5,14 @@ import { useAction } from '../hooks/useAsync';
 import { Button, Card, ErrorState, RoleBadge } from './ui';
 import { ChampionPicker } from './ChampionPicker';
 import { Select } from './Select';
-import { ROLES, ROLE_LABEL, type BurnedChampion, type Player, type Role, type TeamSide } from '../types';
+import {
+  ROLES,
+  ROLE_LABEL,
+  type BurnedChampion,
+  type Player,
+  type Role,
+  type TeamSide,
+} from '../types';
 
 /** Uma linha do scoreboard em edicao. */
 interface RowState {
@@ -99,9 +106,7 @@ export function MatchForm({
   );
   const takenSet = useMemo(
     () =>
-      new Set(
-        rows.map((row) => row.championName.toLowerCase()).filter((name) => name.length > 0)
-      ),
+      new Set(rows.map((row) => row.championName.toLowerCase()).filter((name) => name.length > 0)),
     [rows]
   );
 
@@ -111,9 +116,7 @@ export function MatchForm({
   );
 
   const update = (index: number, patch: Partial<RowState>) =>
-    setRows((current) =>
-      current.map((row, i) => (i === index ? { ...row, ...patch } : row))
-    );
+    setRows((current) => current.map((row, i) => (i === index ? { ...row, ...patch } : row)));
 
   const missingPlayers = rows.filter((row) => !row.playerId).length;
   const missingChampions = rows.filter((row) => !row.championName.trim()).length;
@@ -155,7 +158,9 @@ export function MatchForm({
     <Card title="Registrar partida">
       {/* --- vencedor: primeira decisao, porque tinge o resto do formulario --- */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-ink-faint">Quem venceu?</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-ink-faint">
+          Quem venceu?
+        </span>
         {(['BLUE', 'RED'] as TeamSide[]).map((side) => (
           <button
             key={side}
@@ -233,8 +238,7 @@ export function MatchForm({
                               label: player.name,
                               // Bloqueia escalar a mesma pessoa duas vezes --
                               // continua visível, com o motivo à mostra.
-                              disabled:
-                                usedPlayerIds.has(player.id) && player.id !== row.playerId,
+                              disabled: usedPlayerIds.has(player.id) && player.id !== row.playerId,
                               hint:
                                 usedPlayerIds.has(player.id) && player.id !== row.playerId
                                   ? 'escalado'
@@ -254,24 +258,24 @@ export function MatchForm({
                           />
                         </td>
 
-                        {(['kills', 'deaths', 'assists', 'damage', 'visionScore', 'cs'] as const).map(
-                          (field) => (
-                            <td key={field} className="pr-2">
-                              <input
-                                value={row[field]}
-                                onChange={(event) =>
-                                  update(index, {
-                                    [field]: event.target.value.replace(/\D/g, ''),
-                                  } as Partial<RowState>)
-                                }
-                                inputMode="numeric"
-                                placeholder="0"
-                                aria-label={`${field} de ${ROLE_LABEL[row.rolePlayed]} ${side}`}
-                                className="w-full rounded border border-line bg-raised px-1.5 py-1.5 text-center text-xs text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
-                              />
-                            </td>
-                          )
-                        )}
+                        {(
+                          ['kills', 'deaths', 'assists', 'damage', 'visionScore', 'cs'] as const
+                        ).map((field) => (
+                          <td key={field} className="pr-2">
+                            <input
+                              value={row[field]}
+                              onChange={(event) =>
+                                update(index, {
+                                  [field]: event.target.value.replace(/\D/g, ''),
+                                } as Partial<RowState>)
+                              }
+                              inputMode="numeric"
+                              placeholder="0"
+                              aria-label={`${field} de ${ROLE_LABEL[row.rolePlayed]} ${side}`}
+                              className="w-full rounded border border-line bg-raised px-1.5 py-1.5 text-center text-xs text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
+                            />
+                          </td>
+                        ))}
                       </tr>
                     );
                   })}

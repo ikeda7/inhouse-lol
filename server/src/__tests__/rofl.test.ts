@@ -19,7 +19,9 @@ function buildStats(overrides: Partial<Record<string, string>>[] = []) {
   return Array.from({ length: 10 }, (_, i) => ({
     NAME: `Jogador${i + 1}`,
     PUUID: `puuid-${i + 1}`,
-    SKIN: ['Aatrox', 'LeeSin', 'Ahri', 'Jinx', 'Thresh', 'Garen', 'Vi', 'Zed', 'Caitlyn', 'Leona'][i],
+    SKIN: ['Aatrox', 'LeeSin', 'Ahri', 'Jinx', 'Thresh', 'Garen', 'Vi', 'Zed', 'Caitlyn', 'Leona'][
+      i
+    ],
     TEAM: i < 5 ? '100' : '200',
     WIN: i < 5 ? 'Win' : 'Fail',
     CHAMPIONS_KILLED: String(i + 1),

@@ -59,10 +59,7 @@ export function Select({
     [options, value]
   );
 
-  const firstEnabled = useMemo(
-    () => options.findIndex((option) => !option.disabled),
-    [options]
-  );
+  const firstEnabled = useMemo(() => options.findIndex((option) => !option.disabled), [options]);
 
   useEffect(() => {
     if (!open) return;

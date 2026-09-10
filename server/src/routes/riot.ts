@@ -191,8 +191,7 @@ riotRouter.post(
       // leaderboard silenciosamente. Devolve quem falta para o usuario vincular.
       res.status(409).json({
         success: false,
-        error:
-          `${unmatched.length} participante(s) da partida nao estao vinculados a nenhum jogador cadastrado.`,
+        error: `${unmatched.length} participante(s) da partida nao estao vinculados a nenhum jogador cadastrado.`,
         code: 'UNMATCHED_PARTICIPANTS',
         details: { unmatched, preview: imported },
       });

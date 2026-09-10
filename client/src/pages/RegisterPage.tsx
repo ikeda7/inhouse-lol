@@ -5,7 +5,15 @@ import { authApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useAction, useAsync } from '../hooks/useAsync';
 import { Select } from '../components/Select';
-import { Avatar, Button, Card, EmptyState, ErrorState, Input, LoadingState } from '../components/ui';
+import {
+  Avatar,
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  Input,
+  LoadingState,
+} from '../components/ui';
 
 /**
  * Criar conta = reivindicar um jogador que JA existe no elenco.

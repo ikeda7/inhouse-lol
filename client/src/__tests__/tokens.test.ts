@@ -131,9 +131,7 @@ describe('contraste WCAG AA dos níveis de texto', () => {
   it('mantém hierarquia visível entre os três níveis', () => {
     // Arrumar só o token mais fraco já aconteceu e encostou ele no do meio: os
     // três passavam AA e viravam a mesma cor na prática.
-    const [ink, muted, faint] = ['ink', 'ink-muted', 'ink-faint'].map((t) =>
-      luminancia(TOKENS[t])
-    );
+    const [ink, muted, faint] = ['ink', 'ink-muted', 'ink-faint'].map((t) => luminancia(TOKENS[t]));
     expect(ink).toBeGreaterThan(muted);
     expect(muted).toBeGreaterThan(faint);
     expect(contraste(TOKENS['ink'], TOKENS['ink-faint'])).toBeGreaterThan(1.5);

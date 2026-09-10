@@ -134,9 +134,7 @@ export async function updatePlayer(id: string, input: Partial<UpsertPlayerInput>
       data: {
         ...(input.name !== undefined ? { name: input.name.trim() } : {}),
         ...(input.riotId !== undefined ? { riotId: input.riotId?.trim() || null } : {}),
-        ...(input.internalRating !== undefined
-          ? { internalRating: input.internalRating }
-          : {}),
+        ...(input.internalRating !== undefined ? { internalRating: input.internalRating } : {}),
         ...(input.active !== undefined ? { active: input.active } : {}),
       },
       include: withRoles,

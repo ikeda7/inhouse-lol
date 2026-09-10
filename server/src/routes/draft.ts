@@ -23,9 +23,7 @@ import { asyncHandler } from './helpers.js';
 
 export const draftRouter = Router();
 
-const rosterSchema = z
-  .array(z.string().min(1))
-  .length(10, 'Selecione exatamente 10 jogadores');
+const rosterSchema = z.array(z.string().min(1)).length(10, 'Selecione exatamente 10 jogadores');
 
 /**
  * Carrega os 10 jogadores e garante que todos os ids existem -- senao o draft

@@ -48,7 +48,13 @@ export function Card({
 }
 
 /** Título de seção com o mesmo peso em todo lugar. */
-export function CardTitle({ icon: Icon, children }: { icon?: React.ElementType; children: ReactNode }) {
+export function CardTitle({
+  icon: Icon,
+  children,
+}: {
+  icon?: React.ElementType;
+  children: ReactNode;
+}) {
   return (
     <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
       {Icon && <Icon size={15} className="text-gold" />}

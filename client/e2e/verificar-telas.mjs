@@ -140,10 +140,15 @@ async function prepararCenario() {
   const vermelho = ativos.slice(5, 10);
 
   const atual = await api('GET', '/series/current');
-  const serie = atual ?? (await api('POST', '/series', { name: 'Verificação de telas', fearless: true }));
+  const serie =
+    atual ?? (await api('POST', '/series', { name: 'Verificação de telas', fearless: true }));
 
   for (const [indice, campeoes] of PARTIDAS.entries()) {
-    await api('POST', `/series/${serie.id}/matches`, montarPartida(azul, vermelho, campeoes, indice));
+    await api(
+      'POST',
+      `/series/${serie.id}/matches`,
+      montarPartida(azul, vermelho, campeoes, indice)
+    );
   }
   console.log(`  série "${serie.name ?? serie.id}" com ${PARTIDAS.length} partidas`);
 }
@@ -318,7 +323,11 @@ function medirNaPagina() {
     for (const el of document.body.querySelectorAll('*')) {
       const direita = el.getBoundingClientRect().right;
       if (direita > limite + 1 && !rolaDeProposito(el) && (!pior || direita > pior.direita)) {
-        pior = { direita, tag: el.tagName.toLowerCase(), classe: String(el.className).slice(0, 60) };
+        pior = {
+          direita,
+          tag: el.tagName.toLowerCase(),
+          classe: String(el.className).slice(0, 60),
+        };
       }
     }
     vazamento = { largura: document.documentElement.scrollWidth, limite, culpado: pior };
@@ -361,7 +370,10 @@ async function main() {
         await pagina.waitForTimeout(600);
 
         const { reprovados, vazamento } = await pagina.evaluate(medirNaPagina);
-        await pagina.screenshot({ path: join(SAIDA, `${tela.nome}-${largura}.png`), fullPage: true });
+        await pagina.screenshot({
+          path: join(SAIDA, `${tela.nome}-${largura}.png`),
+          fullPage: true,
+        });
 
         if (reprovados.length === 0 && !vazamento) {
           console.log(`  ok    ${rotulo}`);

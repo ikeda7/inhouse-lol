@@ -45,11 +45,7 @@ export function TeamCard({ team, averageRating }: { team: BalancedTeam; averageR
               <Crown size={14} className="text-gold" aria-label="Role principal" />
             )}
             {entry.isAutofill && (
-              <Shuffle
-                size={14}
-                className="text-slate-400"
-                aria-label="Preencheu a vaga (Fill)"
-              />
+              <Shuffle size={14} className="text-slate-400" aria-label="Preencheu a vaga (Fill)" />
             )}
             {!entry.isAutofill && entry.preferenceIndex > 0 && (
               <span

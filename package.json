@@ -18,6 +18,8 @@
     "db:studio": "npm run db:studio --workspace server",
     "test": "npm run test --workspace server && npm run test --workspace client",
     "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace client",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "start": "node server/dist/src/index.js",
     "db:recompute": "npm run db:recompute --workspace server",
     "vercel-build": "prisma generate --schema=server/prisma/schema.prisma && npm run build --workspace client",
@@ -26,7 +28,8 @@
     "test:client": "npm run test --workspace client"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "prettier": "3.9.6"
   },
   "engines": {
     "node": ">=20"

@@ -259,10 +259,7 @@ export async function fetchMatch(matchId: string): Promise<ImportedMatch> {
     const role = resolveRole(p);
     return {
       puuid: p.puuid,
-      riotId:
-        p.riotIdGameName && p.riotIdTagline
-          ? `${p.riotIdGameName}#${p.riotIdTagline}`
-          : null,
+      riotId: p.riotIdGameName && p.riotIdTagline ? `${p.riotIdGameName}#${p.riotIdTagline}` : null,
       teamSide: p.teamId === 100 ? 'BLUE' : 'RED',
       // Se a Riot nao inferiu, marca TOP e deixa a UI corrigir. O campo
       // `rolePlayed` e obrigatorio no banco; a tela de revisao existe pra isso.
