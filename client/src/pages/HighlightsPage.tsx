@@ -20,6 +20,7 @@ import { useAsync } from '../hooks/useAsync';
 import { Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon } from '../components/ChampionIcon';
 import { nomeDaSequencia } from '../lib/lolTerms';
+import { harmonizarNoite } from '../lib/momentos';
 import { ROLE_LABEL, type MomentEntry, type MomentType, type RecordEntry } from '../types';
 
 /**
@@ -248,9 +249,13 @@ function LinhaDoTempo({ momentos }: { momentos: MomentEntry[] }) {
     }
   }
 
+  // Cada noite fecha a grade sem cartão órfão -- as regras do corte estão em
+  // lib/momentos.
+  const harmonizadas = noites.map((noite) => ({ ...noite, ...harmonizarNoite(noite.itens) }));
+
   return (
     <div className="space-y-5 p-3">
-      {noites.map((noite) => (
+      {harmonizadas.map((noite) => (
         <section key={noite.chave}>
           {/* A noite ("Domingo 07/09") é o que organiza o feed inteiro, e
               estava em 11px no token mais fraco -- menor e mais apagada que os
@@ -269,6 +274,7 @@ function LinhaDoTempo({ momentos }: { momentos: MomentEntry[] }) {
               <CartaoDeMomento
                 key={`${momento.matchId}-${momento.playerId}-${momento.tipo}-${index}`}
                 momento={momento}
+                largo={noite.primeiroLargoNoTablet && index === 0}
               />
             ))}
           </div>
@@ -278,7 +284,8 @@ function LinhaDoTempo({ momentos }: { momentos: MomentEntry[] }) {
   );
 }
 
-function CartaoDeMomento({ momento }: { momento: MomentEntry }) {
+/** `largo`: ocupa as 2 colunas do tablet, para uma noite de 9 ou 15 fechar a linha. */
+function CartaoDeMomento({ momento, largo = false }: { momento: MomentEntry; largo?: boolean }) {
   const meta = MOMENTO[momento.tipo];
   if (!meta) return null;
 
@@ -286,6 +293,8 @@ function CartaoDeMomento({ momento }: { momento: MomentEntry }) {
     <Link
       to={`/jogadores/${momento.playerId}`}
       className={`group flex items-center gap-3 rounded-lg border p-3 transition hover:bg-raised ${
+        largo ? 'sm:col-span-2 xl:col-span-1' : ''
+      } ${
         meta.destaque
           ? 'border-gold/30 bg-gold/[0.04]'
           : 'border-line/40 bg-raised/40 hover:border-line'
