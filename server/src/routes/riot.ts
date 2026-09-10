@@ -16,7 +16,14 @@ import { asyncHandler } from './helpers.js';
 
 export const riotRouter = Router();
 
-/** GET /api/riot/status - a UI usa isso para decidir se mostra o modo manual. */
+/**
+ * GET /api/riot/status - a chave da Riot esta configurada?
+ *
+ * Consumido pela tela de conta para nao oferecer "Usar icone do LoL" quando o
+ * servidor nao tem como cumprir. O comentario aqui dizia que a UI usava isso
+ * bem antes de alguma tela consumir de fato -- ficou meses descrevendo uma
+ * intencao, nao o codigo.
+ */
 riotRouter.get('/status', (_req, res) => {
   res.json({
     success: true,
