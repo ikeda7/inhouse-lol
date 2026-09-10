@@ -521,6 +521,57 @@ export async function finishSeries(seriesId: string) {
   });
 }
 
+/**
+ * A unica coisa entre o botao "descartar" e o historico do grupo.
+ *
+ * Vive separada e pura pelo mesmo motivo de `assertMesmaPartida`: e uma regra
+ * que, se ceder, apaga dado real sem barulho. Testada isolada do banco, para
+ * continuar valendo mesmo que a consulta ao redor mude.
+ */
+export function assertSerieDescartavel(quantidadeDeJogos: number): void {
+  if (quantidadeDeJogos > 0) {
+    throw new SeriesError(
+      `Essa serie tem ${quantidadeDeJogos} jogo(s) registrado(s) e nao pode ser descartada. ` +
+        'So da para descartar uma serie que nunca teve partida.',
+      'SERIES_NOT_EMPTY'
+    );
+  }
+}
+
+/**
+ * Descarta uma serie que nao chegou a ter jogo nenhum.
+ *
+ * Abrir MD3 sem querer e facil -- um clique em "Abrir nova MD3" na tela errada
+ * ja basta -- e ate agora nao havia como desfazer: a serie vazia ficava no
+ * historico para sempre, com placar 0-0 e nada dentro.
+ *
+ * A trava e ESTRUTURAL, nao de permissao. Mutacao de serie neste app nao pede
+ * login (o grupo confia entre si, conta e identidade e nao autorizacao), entao
+ * a unica garantia que vale e a que nao depende de quem clicou: se existe
+ * partida gravada, recusa. Assim nao ha caminho, nem por engano nem de
+ * proposito, que apague historico real por esta porta.
+ *
+ * Uma serie sem partida tambem nao tem queimado (o Fearless queima a partir do
+ * que foi jogado), mas o `deleteMany` fica de qualquer jeito: se um dia essa
+ * invariante mudar, o certo e o registro sumir junto, nao virar orfao.
+ */
+export async function discardEmptySeries(seriesId: string) {
+  const series = await prisma.series.findUnique({
+    where: { id: seriesId },
+    select: { id: true, name: true, _count: { select: { matches: true } } },
+  });
+  if (!series) throw new SeriesError('Serie nao encontrada.', 'SERIES_NOT_FOUND');
+
+  assertSerieDescartavel(series._count.matches);
+
+  await prisma.$transaction([
+    prisma.burnedChampion.deleteMany({ where: { seriesId } }),
+    prisma.series.delete({ where: { id: seriesId } }),
+  ]);
+
+  return { id: series.id, name: series.name };
+}
+
 /** O que ja esta gravado na partida que se pretende atualizar. */
 export interface PartidaRegistrada {
   winner: string | null;
