@@ -68,6 +68,8 @@ coverage/
 .nyc_output/
 test-results/
 playwright-report/
+# Screenshots da verificação de telas (client/e2e/verificar-telas.mjs).
+e2e-saida/
 
 # ---------------------------------------------------------------------------
 # Caches de ferramenta

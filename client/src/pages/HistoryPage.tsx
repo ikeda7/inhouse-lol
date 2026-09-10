@@ -287,8 +287,13 @@ function TeamColumn({
 
   return (
     <div
+      // Quem perdeu não fica apagado: a `opacity-80` que estava aqui derrubava
+      // o nome do time para 4.2:1 e as roles para 3.9:1, ambos abaixo de AA --
+      // medido pela verificação de telas no CI. O vencedor já se distingue
+      // pela faixa verde, pelo anel e pelo selo VENCEU; o perdedor só não
+      // ganha nada disso.
       className={`rounded-lg p-2 transition ${
-        match.winner === side ? 'bg-win/[0.06] ring-1 ring-win/25' : 'opacity-80'
+        match.winner === side ? 'bg-win/[0.06] ring-1 ring-win/25' : ''
       }`}
     >
       <p
