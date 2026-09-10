@@ -378,7 +378,7 @@ aparecem. Ícone faltando é melhor que scoreboard vazia.
 
 ## Testes
 
-53, concentrados onde o custo de errar é alto:
+131 (101 no back, 30 no front), concentrados onde o custo de errar é alto:
 
 | Suíte | Cobre |
 |---|---|
@@ -390,7 +390,7 @@ aparecem. Ícone faltando é melhor que scoreboard vazia.
 Testes que nasceram de bug real levam o caso no nome. `seriesStanding.test.ts`
 descreve a MD3 de 07/09/2026 que quebrou.
 
-**O front não tem testes** ainda — [issue #10](https://github.com/ikeda7/inhouse-lol/issues/10).
+O front tem testes de componente desde a #10, mas cobrem 7 de ~20 componentes.
 
 ---
 
