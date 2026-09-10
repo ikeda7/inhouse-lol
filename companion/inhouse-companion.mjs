@@ -34,6 +34,10 @@
  *
  * Opcoes: --dry-run, --refresh, --api <url>, --series <id>, --interval <segundos>
  *
+ * Chave do grupo: quando o servidor exige (GROUP_KEY), passe na variavel de
+ * ambiente INHOUSE_CHAVE. Tambem aceita --chave <valor>, mas argumento fica no
+ * historico do terminal; a variavel nao.
+ *
  * Requisitos: Node 18+ (usa fetch nativo). O cliente do LoL precisa estar
  * ABERTO para os comandos de historico -- os de replay leem arquivo em disco e
  * funcionam com o jogo fechado. Nao instala nada.
@@ -66,6 +70,7 @@ const CONFIG = {
     'http://localhost:3333/api'
   ).replace(/\/$/, ''),
   seriesId: getOption('--series') ?? process.env.INHOUSE_SERIES_ID ?? null,
+  groupKey: process.env.INHOUSE_CHAVE ?? getOption('--chave') ?? null,
   dryRun: hasFlag('--dry-run'),
   // Cadastra quem nao esta na base usando o nick, para uma partida antiga nao
   // ficar de fora so porque ninguem lembra de quem e aquele nick.
@@ -403,7 +408,10 @@ function extractRoflMetadata(buffer) {
 async function postJson(endpoint, body) {
   const response = await fetch(`${CONFIG.apiUrl}${endpoint}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(CONFIG.groupKey ? { 'x-chave-do-grupo': CONFIG.groupKey } : {}),
+    },
     body: JSON.stringify(body),
   });
 
@@ -492,6 +500,11 @@ function describeResult({ ok, payload }) {
   }
   if (payload.code === 'FEARLESS_VIOLATION') {
     log.info('      Algum campeao dessa partida ja foi usado nessa MD3.');
+  }
+  if (payload.code === 'GROUP_KEY_REQUIRED') {
+    log.info('      O servidor exige a chave do grupo (esta no zap). Antes de rodar:');
+    log.info('        PowerShell:  $env:INHOUSE_CHAVE = "a-chave"');
+    log.info('        bash:        export INHOUSE_CHAVE="a-chave"');
   }
 }
 

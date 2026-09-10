@@ -304,6 +304,35 @@ instead of a file). The browser resizes to 256px JPEG before POSTing; the
 server rejects anything over 300 KB and any type outside jpeg/png/webp (SVG
 is refused deliberately — it can carry script).
 
+### Write protection (group key)
+
+The site and the repo are public, and most routes need no login. With
+`GROUP_KEY` set, **every write** under `/api` requires a valid session **or**
+the header `x-chave-do-grupo` matching the key — including `/auth/register`,
+which is what stops a stranger from claiming a friend's player.
+`exigirGrupo` (`middleware/auth.ts`) is mounted on `/api` before every router,
+so a new write route is protected by default; the few exceptions (login and
+logout, the stateless draft calculators, picks inside a live room) live in
+`lib/escritas.ts` with the reason next to each. Reads stay public.
+
+Without `GROUP_KEY` the check is skipped (fail-open), so a deploy can't lock
+the site before the variable exists; production logs a warning and
+`/api/health` reports `grupoProtegido`. The client sends the key from
+localStorage and `ErrorState` asks for it on `GROUP_KEY_REQUIRED`; the
+companion reads `INHOUSE_CHAVE`.
+
+Sessions are bound to the password: the JWT carries
+`v = sha256(passwordHash)[:16]` and `validarSessao` checks it against the DB
+on every authenticated request. Changing the password — or releasing a
+wrongly claimed account with
+`npm run conta:liberar --workspace server -- "Nome" --confirmar` — kills
+every open session. Tokens without `v` (issued before this) are rejected.
+
+Login (10 per 15 min) and register (5 per hour) are rate-limited per IP in
+memory (`lib/limite.ts`): a burst brake, not a vault, because serverless
+instances don't share memory. `trust proxy` is on only under Vercel, so
+`req.ip` is the real client there and not the proxy.
+
 ### Frontend
 
 - Design tokens are layered (`canvas → surface → raised → overlay`); gold is an
@@ -331,6 +360,9 @@ is refused deliberately — it can carry script).
 - **`RIOT_API_KEY` is optional.** The primary import path (LCU) needs no key;
   the key only matters for Match-ID/spectator import, and dev keys expire
   every 24h.
+- **Set `GROUP_KEY` in production.** Without it every write is open to any
+  visitor (see "Write protection" above). It is optional only so a deploy
+  never locks the site before the variable exists.
 - **`JWT_SECRET` is required only when `NODE_ENV=production`.** Elsewhere it
   falls back to a constant, so CI and a fresh clone run with no `.env` at
   all. On Vercel `NODE_ENV` *is* production, so the variable must exist there

@@ -139,6 +139,16 @@ export const env = {
 
   /** Assina o cookie de sessao das contas de jogador (issue #3). */
   jwtSecret: segredoDeSessao(optional('NODE_ENV', 'development')),
+
+  /**
+   * Chave do grupo: com ela definida, toda escrita exige a chave (header
+   * x-chave-do-grupo) ou uma conta logada -- inclusive reivindicar conta.
+   *
+   * Opcional para o deploy nao quebrar o site no dia em que isto sobe: sem a
+   * variavel, as escritas continuam abertas como antes e o servidor avisa no
+   * log. O /api/health diz se a trava esta ligada.
+   */
+  groupKey: process.env.GROUP_KEY?.trim() || null,
 } as const;
 
 export const hasRiotApi = env.riotApiKey !== null;

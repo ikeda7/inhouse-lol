@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { AlertTriangle, Loader2, Inbox } from 'lucide-react';
 import { ApiError } from '../api/client';
 import { classeDeCorDoNome, iniciaisDoNome } from '../lib/avatar';
+import { PedirChaveDoGrupo } from './ChaveDoGrupo';
 import { ROLE_LABEL, type RoleInput } from '../types';
 
 /**
@@ -233,6 +234,9 @@ export function ErrorState({ error, onRetry }: { error: Error; onRetry?: () => v
                 </li>
               ))}
             </ul>
+          )}
+          {error instanceof ApiError && error.code === 'GROUP_KEY_REQUIRED' && (
+            <PedirChaveDoGrupo onSalva={onRetry} />
           )}
           {onRetry && (
             <button

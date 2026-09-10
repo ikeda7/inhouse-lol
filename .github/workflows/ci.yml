@@ -114,8 +114,14 @@ jobs:
 
     # Banco descartável: com --preparar o script GRAVA uma série de teste, e
     # nada disso pode encostar em dado real.
+    #
+    # A trava de escrita fica LIGADA aqui (GROUP_KEY), para o ensaio conferir
+    # que de fora ninguém grava e que com a chave ou uma conta, grava. A chave
+    # é de mentira e só vale neste servidor descartável.
     env:
       DATABASE_URL: 'file:./ci.db'
+      GROUP_KEY: 'chave-de-teste-do-ci'
+      INHOUSE_CHAVE: 'chave-de-teste-do-ci'
 
     steps:
       - uses: actions/checkout@v4
