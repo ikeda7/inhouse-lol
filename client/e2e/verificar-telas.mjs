@@ -64,9 +64,14 @@ const LARGURAS = [390, 768, 1024, 1440];
 // ---------------------------------------------------------------------------
 
 async function api(metodo, rota, corpo) {
+  // Com a GROUP_KEY ligada no servidor, o --preparar precisa da chave para gravar.
+  const chave = process.env.INHOUSE_CHAVE;
   const resposta = await fetch(`${BASE}/api${rota}`, {
     method: metodo,
-    headers: corpo ? { 'content-type': 'application/json' } : undefined,
+    headers: {
+      ...(corpo ? { 'content-type': 'application/json' } : {}),
+      ...(chave ? { 'x-chave-do-grupo': chave } : {}),
+    },
     body: corpo ? JSON.stringify(corpo) : undefined,
   });
   const json = await resposta.json().catch(() => ({}));

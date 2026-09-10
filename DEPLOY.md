@@ -62,12 +62,18 @@ migro as 4 partidas que já estão no banco local.
    **Branch de produção:** `develop`
    *(o padrão dela é `main`; nosso fluxo integra em `develop`)*
 
-   **Environment Variables** — adicione as duas do passo 1:
+   **Environment Variables** — as duas do passo 1 e mais duas de segurança:
 
    | Name | Value |
    |---|---|
    | `DATABASE_URL` | `libsql://...` |
    | `DATABASE_AUTH_TOKEN` | `ey...` |
+   | `JWT_SECRET` | `openssl rand -hex 32` — sem ela a API nem sobe em produção |
+   | `GROUP_KEY` | a chave do grupo (`openssl rand -hex 12`) — sem ela, qualquer visitante grava e reivindica conta |
+
+   A `GROUP_KEY` é a mesma que vai no zap e no `INHOUSE_CHAVE` do agente.
+   Depois de salvar, faça um **Redeploy** e confira em `/api/health` que
+   aparece `"grupoProtegido": true`.
 
    O resto (build command, output directory) já vem do
    [`vercel.json`](vercel.json) — não precisa preencher.

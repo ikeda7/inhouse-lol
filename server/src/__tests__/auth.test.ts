@@ -42,10 +42,10 @@ describe('senha', () => {
 });
 
 describe('sessao', () => {
-  it('devolve o playerId que assinou', () => {
-    const token = signSession({ playerId: 'jogador-1' });
+  it('devolve o playerId e a impressão da senha que assinaram', () => {
+    const token = signSession({ playerId: 'jogador-1', v: 'impressao-1' });
 
-    expect(verifySession(token)).toEqual({ playerId: 'jogador-1' });
+    expect(verifySession(token)).toEqual({ playerId: 'jogador-1', v: 'impressao-1' });
   });
 
   it('recusa token assinado com outro segredo', () => {
@@ -55,7 +55,7 @@ describe('sessao', () => {
   });
 
   it('recusa token adulterado', () => {
-    const token = signSession({ playerId: 'jogador-1' });
+    const token = signSession({ playerId: 'jogador-1', v: 'impressao-1' });
     const adulterado = `${token.slice(0, -3)}xyz`;
 
     expect(verifySession(adulterado)).toBeNull();

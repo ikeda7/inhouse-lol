@@ -16,7 +16,8 @@
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "db:recompute": "tsx scripts/recompute-series.ts",
-    "db:turso": "tsx scripts/migrate-to-turso.ts"
+    "db:turso": "tsx scripts/migrate-to-turso.ts",
+    "conta:liberar": "tsx scripts/liberar-conta.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.18.0",
