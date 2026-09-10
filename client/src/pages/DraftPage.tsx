@@ -120,6 +120,10 @@ export function DraftPage() {
   if (loading) return <LoadingState label="Carregando jogadores..." />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
 
+  // Quem vai jogar sem Riot ID não é reconhecido na importação: a partida
+  // chega e é recusada. Melhor saber aqui, antes do jogo, do que no fim dele.
+  const semRiotId = sortedPlayers.filter((p) => selected.has(p.id) && !p.riotId);
+
   return (
     <div className="space-y-6">
       <Card
@@ -158,6 +162,14 @@ export function DraftPage() {
             />
           ))}
         </ul>
+
+        {semRiotId.length > 0 && (
+          <p className="mt-3 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-300">
+            {semRiotId.map((p) => p.name).join(', ')} {semRiotId.length === 1 ? 'está' : 'estão'}{' '}
+            sem Riot ID: a partida chega e o servidor não sabe quem é quem. Preencha em Jogadores
+            antes de jogar.
+          </p>
+        )}
 
         {sortedPlayers.length < REQUIRED_PLAYERS && (
           <p className="mt-3 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-300">
@@ -465,8 +477,18 @@ function PlayerToggle({
         />
         <Avatar photoUrl={player.photoUrl} name={player.name} size="sm" />
         <div className="min-w-0 flex-1">
-          <p className={`truncate text-sm font-medium ${disabled ? 'text-ink-muted' : 'text-ink'}`}>
-            {player.name}
+          <p
+            className={`flex items-center gap-1.5 text-sm font-medium ${disabled ? 'text-ink-muted' : 'text-ink'}`}
+          >
+            <span className="truncate">{player.name}</span>
+            {!player.riotId && (
+              <span
+                className="shrink-0 rounded bg-amber-500/15 px-1 py-px text-[10px] font-semibold uppercase text-amber-400"
+                title="Sem Riot ID: a partida chega e o servidor não sabe quem é essa pessoa"
+              >
+                sem Riot ID
+              </span>
+            )}
           </p>
           <div className="mt-1 flex flex-wrap gap-1">
             {player.roles.map((role, index) => (

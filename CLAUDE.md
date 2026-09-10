@@ -296,8 +296,13 @@ cookie survive the split origin in dev (front `:5173`, API `:3333`); in
 production both are served from the same host. Login failures return one
 generic message on purpose — it never reveals whether an e-mail exists.
 
-Photos default to the LoL summoner icon (Summoner-V4 → the already-existing
-`getProfileIconUrl`). An uploaded photo is stored **as a `data:` URI in
+Photos default to the LoL summoner icon, and that needs **no Riot key**: the
+LCU payload carries each participant's `profileIcon`, and the ingest
+(`guardarIcones`) stores it on every known player, setting it as the photo
+for anyone whose `photoSource` is `NONE` or `LOL_ICON` — an uploaded photo is
+never replaced. `--refresh-all` backfills icons for matches imported before
+this. "Usar ícone do LoL" uses Summoner-V4 when a key exists and falls back
+to the stored icon otherwise. An uploaded photo is stored **as a `data:` URI in
 `Player.photoUrl`** — no multer, no disk, no object storage, because the
 serverless filesystem is ephemeral (the same reason production runs on Turso
 instead of a file). The browser resizes to 256px JPEG before POSTing; the
