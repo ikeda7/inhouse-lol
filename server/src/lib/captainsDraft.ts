@@ -178,11 +178,9 @@ export function applyPick(
 
   const chosen = state.available.find((p) => p.id === playerId);
   if (!chosen) {
-    throw new DraftError(
-      'Esse jogador nao esta disponivel para escolha.',
-      'PLAYER_NOT_AVAILABLE',
-      { playerId }
-    );
+    throw new DraftError('Esse jogador nao esta disponivel para escolha.', 'PLAYER_NOT_AVAILABLE', {
+      playerId,
+    });
   }
 
   const side = currentPick.side;

@@ -94,8 +94,7 @@ export function DashboardPage() {
     }
   };
 
-  const copiar = () =>
-    executar(() => copiarImagem(gerar), 'Imagem copiada — é só colar no grupo.');
+  const copiar = () => executar(() => copiarImagem(gerar), 'Imagem copiada — é só colar no grupo.');
 
   const baixar = () => executar(async () => baixarImagem(await gerar(), nomeDoArquivo));
 

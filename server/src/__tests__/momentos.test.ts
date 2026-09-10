@@ -130,7 +130,10 @@ describe('extrairMomentos', () => {
   });
 
   it('da VISAO ao maior da partida, e so acima do piso absoluto', () => {
-    const boa = [linha({ playerId: 'a', visionScore: 70 }), linha({ playerId: 'b', visionScore: 20 })];
+    const boa = [
+      linha({ playerId: 'a', visionScore: 70 }),
+      linha({ playerId: 'b', visionScore: 20 }),
+    ];
     expect(tiposDe(boa, 'a')).toContain('VISAO');
 
     // Maior da partida, mas 30 pontos nao e "olho no mapa".

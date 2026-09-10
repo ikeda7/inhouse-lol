@@ -52,8 +52,7 @@ const COR = {
 
 const FONTE = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif';
 
-const fonte = (tamanho: number, peso: 400 | 600 | 700 = 400) =>
-  `${peso} ${tamanho}px ${FONTE}`;
+const fonte = (tamanho: number, peso: 400 | 600 | 700 = 400) => `${peso} ${tamanho}px ${FONTE}`;
 
 /**
  * Carrega um ícone para o canvas.

@@ -78,15 +78,7 @@ const TOM: Record<Tom, string> = {
   fb: 'bg-overlay text-ink-faint',
 };
 
-function Selo({
-  tom,
-  titulo,
-  children,
-}: {
-  tom: Tom;
-  titulo: string;
-  children: React.ReactNode;
-}) {
+function Selo({ tom, titulo, children }: { tom: Tom; titulo: string; children: React.ReactNode }) {
   return (
     <span
       title={titulo}

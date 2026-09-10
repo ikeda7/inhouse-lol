@@ -60,8 +60,11 @@ const getOption = (name, fallback = null) => {
 };
 
 const CONFIG = {
-  apiUrl: (getOption('--api') ?? process.env.INHOUSE_API_URL ?? 'http://localhost:3333/api')
-    .replace(/\/$/, ''),
+  apiUrl: (
+    getOption('--api') ??
+    process.env.INHOUSE_API_URL ??
+    'http://localhost:3333/api'
+  ).replace(/\/$/, ''),
   seriesId: getOption('--series') ?? process.env.INHOUSE_SERIES_ID ?? null,
   dryRun: hasFlag('--dry-run'),
   // Cadastra quem nao esta na base usando o nick, para uma partida antiga nao
@@ -128,7 +131,7 @@ function readFromProcess() {
         [
           '-NoProfile',
           '-Command',
-          "Get-CimInstance Win32_Process -Filter \"name = 'LeagueClientUx.exe'\" | Select-Object -ExpandProperty CommandLine",
+          'Get-CimInstance Win32_Process -Filter "name = \'LeagueClientUx.exe\'" | Select-Object -ExpandProperty CommandLine',
         ],
         { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
       );
@@ -462,9 +465,7 @@ function describeResult({ ok, payload }) {
       return;
     }
 
-    log.ok(
-      `Partida gravada! Placar da serie: ${data.series.blueScore}-${data.series.redScore}`
-    );
+    log.ok(`Partida gravada! Placar da serie: ${data.series.blueScore}-${data.series.redScore}`);
     if (data.autoCreated?.length) {
       log.warn(`Cadastrei com o nick (renomeie depois): ${data.autoCreated.join(', ')}`);
     }
@@ -558,7 +559,8 @@ async function commandSend(gameId) {
       throw new Error(
         `Partida ${gameId} nao esta no historico do cliente.\n` +
           '      Rode --list para ver o que esta disponivel.\n' +
-          '      Se voce tem o replay dela, use: --replay ' + gameId
+          '      Se voce tem o replay dela, use: --replay ' +
+          gameId
       );
     }
   } else {

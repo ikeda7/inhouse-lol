@@ -50,8 +50,7 @@ async function main() {
     const status = clinched ? 'FINISHED' : s.status;
     const winnerTeam = clinched ? (teamAWins > teamBWins ? 'BLUE' : 'RED') : s.winnerTeam;
 
-    const mudou =
-      s.blueScore !== teamAWins || s.redScore !== teamBWins || s.status !== status;
+    const mudou = s.blueScore !== teamAWins || s.redScore !== teamBWins || s.status !== status;
 
     const rotulo = (s.name ?? s.id.slice(0, 8)).padEnd(18);
     const antes = `${s.blueScore}-${s.redScore} ${s.status}`.padEnd(20);

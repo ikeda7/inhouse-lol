@@ -190,8 +190,8 @@ export function LiveDraftPage() {
           </div>
 
           <p className="text-center text-xs text-ink-faint">
-            Os capitães escolheram os times; as roles foram distribuídas dentro de cada um pelo
-            pool declarado. ·{' '}
+            Os capitães escolheram os times; as roles foram distribuídas dentro de cada um pelo pool
+            declarado. ·{' '}
             <Link to="/sorteio" className="hover:text-gold">
               novo sorteio
             </Link>

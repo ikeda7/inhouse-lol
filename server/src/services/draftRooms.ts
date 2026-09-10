@@ -17,11 +17,7 @@
  */
 
 import { prisma } from '../lib/prisma.js';
-import {
-  applyPick,
-  finalizeCaptainsDraft,
-  type CaptainsDraftState,
-} from '../lib/captainsDraft.js';
+import { applyPick, finalizeCaptainsDraft, type CaptainsDraftState } from '../lib/captainsDraft.js';
 import { DraftError } from '../lib/autoBalance.js';
 import { randomUUID } from 'node:crypto';
 import type { TeamSide } from '../lib/roles.js';

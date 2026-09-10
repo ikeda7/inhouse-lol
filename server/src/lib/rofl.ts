@@ -191,7 +191,8 @@ export function roflToLcuGame(metadata: RoflMetadata, source: RoflSource): LcuGa
     };
   });
 
-  const blueWon = str(stats[0].WIN) === 'Win' ? num(stats[0].TEAM) === 100 : num(stats[0].TEAM) === 200;
+  const blueWon =
+    str(stats[0].WIN) === 'Win' ? num(stats[0].TEAM) === 100 : num(stats[0].TEAM) === 200;
 
   return {
     gameId: source.gameId,

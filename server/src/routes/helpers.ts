@@ -56,7 +56,8 @@ function translate(error: unknown): ErrorPayload {
   if (error instanceof SeriesError) {
     const conflictCodes = ['MATCH_EXISTS', 'SERIES_FINISHED', 'FEARLESS_VIOLATION'];
     return {
-      status: error.code === 'SERIES_NOT_FOUND' ? 404 : conflictCodes.includes(error.code) ? 409 : 400,
+      status:
+        error.code === 'SERIES_NOT_FOUND' ? 404 : conflictCodes.includes(error.code) ? 409 : 400,
       body: { success: false, error: error.message, code: error.code },
     };
   }

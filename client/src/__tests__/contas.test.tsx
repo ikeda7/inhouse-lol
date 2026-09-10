@@ -31,7 +31,11 @@ beforeEach(() => {
     'fetch',
     vi.fn((entrada: string) => {
       if (entrada.includes('/auth/me')) {
-        return responder(401, { success: false, error: 'Nao autenticado.', code: 'NOT_AUTHENTICATED' });
+        return responder(401, {
+          success: false,
+          error: 'Nao autenticado.',
+          code: 'NOT_AUTHENTICATED',
+        });
       }
       if (entrada.includes('/auth/claimable')) {
         return responder(200, {

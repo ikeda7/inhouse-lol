@@ -226,7 +226,9 @@ function Pote({
       <p className="mb-2 flex items-center justify-between text-sm font-bold uppercase text-ink-muted">
         No pote
         <span className="tabular text-xs font-normal text-ink-faint">
-          {somenteLeitura ? 'assistindo' : `${restantes.length} restante${restantes.length === 1 ? '' : 's'}`}
+          {somenteLeitura
+            ? 'assistindo'
+            : `${restantes.length} restante${restantes.length === 1 ? '' : 's'}`}
         </span>
       </p>
 

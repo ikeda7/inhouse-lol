@@ -26,21 +26,31 @@ describe('Highlights', () => {
   it('mostra quadra e penta, mas ignora triple', () => {
     // O corte é regra de negócio: triple num custom de 10 acontece toda
     // partida. Se tudo vira selo, nada é destaque.
-    render(<Highlights stat={{ largestMultiKill: 3, largestKillingSpree: 0, firstBloodKill: false }} />);
+    render(
+      <Highlights stat={{ largestMultiKill: 3, largestKillingSpree: 0, firstBloodKill: false }} />
+    );
     expect(screen.queryByText(/quadra/i)).not.toBeInTheDocument();
 
-    render(<Highlights stat={{ largestMultiKill: 4, largestKillingSpree: 0, firstBloodKill: false }} />);
+    render(
+      <Highlights stat={{ largestMultiKill: 4, largestKillingSpree: 0, firstBloodKill: false }} />
+    );
     expect(screen.getByText('Quadra kill')).toBeInTheDocument();
 
-    render(<Highlights stat={{ largestMultiKill: 5, largestKillingSpree: 0, firstBloodKill: false }} />);
+    render(
+      <Highlights stat={{ largestMultiKill: 5, largestKillingSpree: 0, firstBloodKill: false }} />
+    );
     expect(screen.getByText('Pentakill')).toBeInTheDocument();
   });
 
   it('mostra sequência só a partir de 6', () => {
-    render(<Highlights stat={{ largestMultiKill: 0, largestKillingSpree: 5, firstBloodKill: false }} />);
+    render(
+      <Highlights stat={{ largestMultiKill: 0, largestKillingSpree: 5, firstBloodKill: false }} />
+    );
     expect(screen.queryByText(/abates sem morrer/i)).not.toBeInTheDocument();
 
-    render(<Highlights stat={{ largestMultiKill: 0, largestKillingSpree: 6, firstBloodKill: false }} />);
+    render(
+      <Highlights stat={{ largestMultiKill: 0, largestKillingSpree: 6, firstBloodKill: false }} />
+    );
     expect(screen.getByText(/6 abates sem morrer/)).toBeInTheDocument();
   });
 
@@ -54,7 +64,9 @@ describe('Highlights', () => {
   });
 
   it('mostra first blood', () => {
-    render(<Highlights stat={{ largestMultiKill: 0, largestKillingSpree: 0, firstBloodKill: true }} />);
+    render(
+      <Highlights stat={{ largestMultiKill: 0, largestKillingSpree: 0, firstBloodKill: true }} />
+    );
     expect(screen.getByText('First blood')).toBeInTheDocument();
   });
 });
@@ -161,9 +173,7 @@ describe('MatchBans', () => {
 
   it('separa por time e diz quem baniu o quê', () => {
     render(
-      <MatchBans
-        bans={[ban(1, 'BLUE', 'Aatrox'), ban(2, 'RED', 'Ahri'), ban(3, 'BLUE', 'Jax')]}
-      />
+      <MatchBans bans={[ban(1, 'BLUE', 'Aatrox'), ban(2, 'RED', 'Ahri'), ban(3, 'BLUE', 'Jax')]} />
     );
 
     expect(screen.getByTitle(/Aatrox · banido pelo time azul/)).toBeInTheDocument();

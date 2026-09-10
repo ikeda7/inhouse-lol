@@ -91,7 +91,11 @@ export async function loginAccount(input: LoginInput): Promise<PlayerDTO> {
   });
 
   // Mensagem generica de proposito: nao revela se o e-mail existe.
-  if (!player || !player.passwordHash || !(await verifyPassword(input.password, player.passwordHash))) {
+  if (
+    !player ||
+    !player.passwordHash ||
+    !(await verifyPassword(input.password, player.passwordHash))
+  ) {
     throw new AuthError('E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
   }
 
@@ -156,7 +160,10 @@ export async function setUploadedPhoto(playerId: string, imageBase64: string): P
 
   const byteLength = Buffer.from(match[2], 'base64').length;
   if (byteLength > MAX_PHOTO_BYTES) {
-    throw new AuthError('Imagem grande demais (limite de 300 KB apos compressao).', 'PHOTO_TOO_LARGE');
+    throw new AuthError(
+      'Imagem grande demais (limite de 300 KB apos compressao).',
+      'PHOTO_TOO_LARGE'
+    );
   }
 
   const player = await prisma.player.update({

@@ -20,10 +20,7 @@ import { ROLE_LABEL, type PlayerProfile, type RecentMatch } from '../types';
  */
 export function PlayerProfilePage() {
   const { playerId = '' } = useParams();
-  const { data, loading, error, reload } = useAsync(
-    () => playersApi.profile(playerId),
-    [playerId]
-  );
+  const { data, loading, error, reload } = useAsync(() => playersApi.profile(playerId), [playerId]);
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -58,19 +55,19 @@ function Cabecalho({ data }: { data: PlayerProfile }) {
           <Avatar photoUrl={data.photoUrl} name={data.name} size="lg" />
 
           <div>
-          <h1 className="text-3xl font-bold text-gold">{data.name}</h1>
-          <p className="mt-0.5 text-sm text-ink-faint">
-            {data.games} partida{data.games === 1 ? '' : 's'} registrada
-            {data.games === 1 ? '' : 's'}
-            {data.seriesWon > 0 && (
-              <>
-                {' · '}
-                <span className="text-ink-muted">
-                  {data.seriesWon} MD3 vencida{data.seriesWon === 1 ? '' : 's'}
-                </span>
-              </>
-            )}
-          </p>
+            <h1 className="text-3xl font-bold text-gold">{data.name}</h1>
+            <p className="mt-0.5 text-sm text-ink-faint">
+              {data.games} partida{data.games === 1 ? '' : 's'} registrada
+              {data.games === 1 ? '' : 's'}
+              {data.seriesWon > 0 && (
+                <>
+                  {' · '}
+                  <span className="text-ink-muted">
+                    {data.seriesWon} MD3 vencida{data.seriesWon === 1 ? '' : 's'}
+                  </span>
+                </>
+              )}
+            </p>
           </div>
         </div>
 
@@ -261,9 +258,7 @@ function LinhaDePartida({ partida }: { partida: RecentMatch }) {
       </div>
 
       <div className="hidden shrink-0 text-right sm:block">
-        <p className="tabular text-xs text-ink-muted">
-          {Math.round(partida.damage / 1000)}k dano
-        </p>
+        <p className="tabular text-xs text-ink-muted">{Math.round(partida.damage / 1000)}k dano</p>
         <p className="tabular text-[11px] text-ink-faint">{partida.cs} cs</p>
       </div>
     </li>

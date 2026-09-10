@@ -102,22 +102,14 @@ describe('mapLcuGame', () => {
       })
     );
     expect(redWins.winner).toBe('RED');
-    expect(redWins.participants.filter((p) => p.win).every((p) => p.teamSide === 'RED')).toBe(
-      true
-    );
+    expect(redWins.participants.filter((p) => p.win).every((p) => p.teamSide === 'RED')).toBe(true);
   });
 
   it('separa ADC e Support na bot lane pelo campo role', () => {
     const result = mapLcuGame(buildGame());
     const blue = result.participants.filter((p) => p.teamSide === 'BLUE');
 
-    expect(blue.map((p) => p.rolePlayed)).toEqual([
-      'TOP',
-      'JUNGLE',
-      'MID',
-      'ADC',
-      'SUPPORT',
-    ]);
+    expect(blue.map((p) => p.rolePlayed)).toEqual(['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT']);
   });
 
   it('da as 5 roles unicas por time mesmo quando o cliente nao infere nada', () => {
@@ -131,9 +123,7 @@ describe('mapLcuGame', () => {
     const result = mapLcuGame(game);
 
     for (const side of ['BLUE', 'RED'] as const) {
-      const roles = result.participants
-        .filter((p) => p.teamSide === side)
-        .map((p) => p.rolePlayed);
+      const roles = result.participants.filter((p) => p.teamSide === side).map((p) => p.rolePlayed);
       expect(new Set(roles).size).toBe(5);
     }
     // Sinaliza que precisou adivinhar, para a UI pedir conferencia.
@@ -181,9 +171,7 @@ describe('mapLcuGame', () => {
   });
 
   it('marca partida de fila normal como nao-custom', () => {
-    const ranked = mapLcuGame(
-      buildGame({ gameType: 'MATCHED_GAME', queueId: 420 })
-    );
+    const ranked = mapLcuGame(buildGame({ gameType: 'MATCHED_GAME', queueId: 420 }));
     expect(ranked.isCustomGame).toBe(false);
   });
 });
@@ -305,9 +293,7 @@ describe('inferencia de role por sinais da partida', () => {
       jogador(5, { laneCs: 25, visao: 60 }),
     ];
 
-    const pool = new Map([
-      [1, { id: 'igor', name: 'Ígor', roles: ['JUNGLE' as const] }],
-    ]);
+    const pool = new Map([[1, { id: 'igor', name: 'Ígor', roles: ['JUNGLE' as const] }]]);
 
     const { roleByParticipantId } = resolveTeamRoles(time, pool);
 
@@ -403,13 +389,7 @@ describe('ordem do saguão', () => {
     // Smite no índice 1 = segundo do time = onde o jungle deve estar.
     const { roleByParticipantId, inferred } = resolveTeamRoles(time(1), new Map());
 
-    expect([...roleByParticipantId.values()]).toEqual([
-      'TOP',
-      'JUNGLE',
-      'MID',
-      'ADC',
-      'SUPPORT',
-    ]);
+    expect([...roleByParticipantId.values()]).toEqual(['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT']);
     // Veio pronto, não foi deduzido.
     expect(inferred).toBe(true);
   });

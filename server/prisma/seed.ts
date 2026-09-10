@@ -62,9 +62,7 @@ async function main() {
   const total = await prisma.player.count();
   console.log(`\nPronto. ${total} jogadores na base.`);
   if (total < 10) {
-    console.log(
-      `AVISO: o sorteio 5x5 precisa de 10 jogadores presentes. Faltam ${10 - total}.`
-    );
+    console.log(`AVISO: o sorteio 5x5 precisa de 10 jogadores presentes. Faltam ${10 - total}.`);
   }
 }
 

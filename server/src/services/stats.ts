@@ -97,10 +97,7 @@ async function loadSeriesWinBonus(): Promise<Map<string, number>> {
         .map(([playerId]) => playerId)
     );
     for (const playerId of winners) {
-      bonusByPlayer.set(
-        playerId,
-        (bonusByPlayer.get(playerId) ?? 0) + POINTS_PER_SERIES_WIN
-      );
+      bonusByPlayer.set(playerId, (bonusByPlayer.get(playerId) ?? 0) + POINTS_PER_SERIES_WIN);
     }
   }
 
@@ -128,9 +125,7 @@ async function loadUltimosCampeoes(): Promise<Set<string>> {
       if (stat.win) vitorias.set(stat.playerId, (vitorias.get(stat.playerId) ?? 0) + 1);
     }
   }
-  return new Set(
-    [...vitorias.entries()].filter(([, v]) => v >= WINS_TO_CLINCH).map(([id]) => id)
-  );
+  return new Set([...vitorias.entries()].filter(([, v]) => v >= WINS_TO_CLINCH).map(([id]) => id));
 }
 
 export interface LeaderboardEntry {

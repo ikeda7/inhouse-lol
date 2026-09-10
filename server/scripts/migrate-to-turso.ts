@@ -36,9 +36,7 @@ const schemaOnly = process.argv.includes('--schema-only');
 function credenciais(): { url: string; authToken: string } {
   const arquivo = path.join(raiz, '.env.turso');
   if (!existsSync(arquivo)) {
-    throw new Error(
-      'Crie .env.turso na raiz com DATABASE_URL e DATABASE_AUTH_TOKEN do Turso.'
-    );
+    throw new Error('Crie .env.turso na raiz com DATABASE_URL e DATABASE_AUTH_TOKEN do Turso.');
   }
 
   const conteudo = readFileSync(arquivo, 'utf8');

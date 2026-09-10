@@ -54,28 +54,28 @@ export function HistoryPage() {
           return (
             <li key={series.id}>
               <div className="flex items-center gap-2">
-              <button
-                onClick={() => setExpanded(isOpen ? null : series.id)}
-                aria-expanded={isOpen}
-                className="flex min-w-0 flex-1 items-center gap-3 py-3.5 text-left hover:text-gold"
-              >
-                {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                {/* Cor explícita de propósito: esta linha é o nome da noite, o
+                <button
+                  onClick={() => setExpanded(isOpen ? null : series.id)}
+                  aria-expanded={isOpen}
+                  className="flex min-w-0 flex-1 items-center gap-3 py-3.5 text-left hover:text-gold"
+                >
+                  {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  {/* Cor explícita de propósito: esta linha é o nome da noite, o
                     item mais importante da tela, e ela ficava INVISÍVEL porque
                     `text-base` pintava com a cor de fundo (ver index.css). Se
                     depender de herança, um acidente desses volta calado. */}
-                <span className="flex-1 text-[17px] font-semibold text-ink">
-                  {series.name ?? new Date(series.date).toLocaleDateString('pt-BR')}
-                </span>
-                <span className="tabular text-lg font-bold text-gold">{series.scoreline}</span>
-                <span
-                  className={`w-28 text-right text-[13px] ${
-                    series.status === 'ONGOING' ? 'text-amber-400' : 'text-ink-faint'
-                  }`}
-                >
-                  {series.status === 'ONGOING' ? 'em andamento' : 'encerrada'}
-                </span>
-              </button>
+                  <span className="flex-1 text-[17px] font-semibold text-ink">
+                    {series.name ?? new Date(series.date).toLocaleDateString('pt-BR')}
+                  </span>
+                  <span className="tabular text-lg font-bold text-gold">{series.scoreline}</span>
+                  <span
+                    className={`w-28 text-right text-[13px] ${
+                      series.status === 'ONGOING' ? 'text-amber-400' : 'text-ink-faint'
+                    }`}
+                  >
+                    {series.status === 'ONGOING' ? 'em andamento' : 'encerrada'}
+                  </span>
+                </button>
 
                 {/* Só aparece em série sem NENHUM jogo, que por definição é
                     acidente -- um clique a mais em "Abrir nova MD3". O servidor
