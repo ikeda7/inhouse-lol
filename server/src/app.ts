@@ -36,6 +36,12 @@ export function createApp(): Express {
   // do login contaria todo mundo como uma pessoa so.
   if (process.env.VERCEL) app.set('trust proxy', 1);
 
+  // Query string lida pelo `querystring` do Node, nao pelo `qs`. As rotas so
+  // usam parametro plano (?limit=, ?since=, ?includeInactive=), e o `qs` que o
+  // Express 4 traz preso em ~6.15 tem falha de limite de array ao interpretar
+  // chaves com colchete -- que assim nenhuma requisicao alcanca.
+  app.set('query parser', 'simple');
+
   if (env.nodeEnv === 'production' && !env.groupKey) {
     console.warn(
       '[seguranca] GROUP_KEY ausente: qualquer visitante consegue gravar e reivindicar conta.'
