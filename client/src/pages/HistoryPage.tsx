@@ -1,13 +1,19 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, History, TriangleAlert } from 'lucide-react';
+import { ChevronDown, ChevronRight, History, Trash2, TriangleAlert } from 'lucide-react';
 import { seriesApi } from '../api/client';
-import { useAsync } from '../hooks/useAsync';
+import { useAction, useAsync } from '../hooks/useAsync';
 import { Card, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon, ordenarPorLane } from '../components/ChampionIcon';
 import { Highlights } from '../components/Highlights';
 import { MatchBans, MatchObjectives } from '../components/MatchObjectives';
 import { calcularMaximos, MatchPlayerDetail } from '../components/MatchPlayerDetail';
-import { ROLE_LABEL, type MatchStat, type SeriesDetail, type TeamSide } from '../types';
+import {
+  ROLE_LABEL,
+  type MatchStat,
+  type SeriesDetail,
+  type SeriesSummary,
+  type TeamSide,
+} from '../types';
 
 /**
  * Histórico de MD3.
@@ -44,12 +50,14 @@ export function HistoryPage() {
       <ul className="divide-y divide-line/40">
         {data.map((series) => {
           const isOpen = expanded === series.id;
+          const vazia = series.matches.length === 0;
           return (
             <li key={series.id}>
+              <div className="flex items-center gap-2">
               <button
                 onClick={() => setExpanded(isOpen ? null : series.id)}
                 aria-expanded={isOpen}
-                className="flex w-full items-center gap-3 py-3.5 text-left hover:text-gold"
+                className="flex min-w-0 flex-1 items-center gap-3 py-3.5 text-left hover:text-gold"
               >
                 {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                 {/* Cor explícita de propósito: esta linha é o nome da noite, o
@@ -69,12 +77,81 @@ export function HistoryPage() {
                 </span>
               </button>
 
+                {/* Só aparece em série sem NENHUM jogo, que por definição é
+                    acidente -- um clique a mais em "Abrir nova MD3". O servidor
+                    recusa qualquer outra, então a ausência do botão aqui é
+                    conveniência, não a garantia. */}
+                {vazia && <DescartarSerie series={series} onDescartada={reload} />}
+              </div>
+
               {isOpen && <SeriesDetailPanel seriesId={series.id} />}
             </li>
           );
         })}
       </ul>
     </Card>
+  );
+}
+
+/**
+ * Descarta uma série que nunca teve jogo.
+ *
+ * Pede confirmação porque é a única ação do app que APAGA registro, e o nome
+ * da noite entra na pergunta -- "tem certeza?" sozinho não deixa ninguém
+ * conferir se está prestes a sumir com a linha errada.
+ *
+ * Não desfaz nada além disso: uma série com partida é recusada pelo servidor,
+ * e o erro aparece aqui em vez de sumir no console.
+ */
+function DescartarSerie({
+  series,
+  onDescartada,
+}: {
+  series: SeriesSummary;
+  onDescartada: () => void;
+}) {
+  const [confirmando, setConfirmando] = useState(false);
+  const descartar = useAction(seriesApi.discard);
+
+  const rotulo = series.name ?? new Date(series.date).toLocaleDateString('pt-BR');
+
+  if (!confirmando) {
+    return (
+      <button
+        onClick={() => setConfirmando(true)}
+        title={`Descartar "${rotulo}" -- essa série não tem nenhum jogo`}
+        aria-label={`Descartar a série ${rotulo}`}
+        className="shrink-0 rounded p-1.5 text-ink-faint transition hover:bg-loss/10 hover:text-loss"
+      >
+        <Trash2 size={15} />
+      </button>
+    );
+  }
+
+  return (
+    <span className="flex shrink-0 items-center gap-2">
+      <span className="text-[11px] text-ink-muted">Descartar {rotulo}?</span>
+      <button
+        onClick={async () => {
+          if (await descartar.run(series.id)) onDescartada();
+        }}
+        disabled={descartar.loading}
+        className="rounded bg-loss/15 px-2 py-1 text-[11px] font-semibold text-loss transition hover:bg-loss/25 disabled:opacity-60"
+      >
+        {descartar.loading ? 'descartando...' : 'sim'}
+      </button>
+      <button
+        onClick={() => setConfirmando(false)}
+        className="rounded px-2 py-1 text-[11px] font-semibold text-ink-muted transition hover:text-ink"
+      >
+        não
+      </button>
+      {descartar.error && (
+        <span className="text-[11px] text-loss" role="alert">
+          {descartar.error.message}
+        </span>
+      )}
+    </span>
   );
 }
 
