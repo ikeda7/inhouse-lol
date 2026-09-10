@@ -224,7 +224,15 @@ function partidaDoCliente(times, riotIdPorJogador) {
       // da primeira continua valendo em vez de virar "desconhecido".
       return {
         participantId: i + 1,
-        player: { puuid: `ensaio-${a.player.id}`, gameName, tagLine, summonerName: gameName },
+        player: {
+          puuid: `ensaio-${a.player.id}`,
+          gameName,
+          tagLine,
+          summonerName: gameName,
+          // O cliente manda o ícone de invocador de cada um: é de onde vem a
+          // foto de quem ainda não tem, sem chave da Riot.
+          profileIcon: 1000 + i,
+        },
       };
     }),
     teams: [
@@ -653,6 +661,17 @@ await passo('importa o custom game na MD3, ligando cada nick ao cadastro', async
   const detalhe = dados(await api('GET', `/series/${serie.id}`), 'ler');
   exigir(detalhe.matches.length === 1, `${detalhe.matches.length} partidas, esperava 1`);
   exigir(detalhe.matches[0].source === 'LCU', `origem ${detalhe.matches[0].source}, esperava LCU`);
+
+  // Quem jogou e não tinha foto enviada passa a aparecer com o ícone do LoL.
+  const depois = new Map(dados(await api('GET', '/players'), 'listar').map((p) => [p.id, p]));
+  const semIcone = escalados(ctx.times)
+    .map((a) => depois.get(a.player.id))
+    .filter((p) => p && p.photoSource !== 'UPLOAD' && !p.photoUrl?.includes('/profileicon/'));
+  exigir(
+    semIcone.length === 0,
+    `${semIcone.length} jogador(es) sem o ícone do LoL depois da importação (Data Dragon fora do ar?)`
+  );
+
   ctx.jogoLcu = jogo;
   ctx.serieLcu = serie.id;
 });

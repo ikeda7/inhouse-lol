@@ -1,9 +1,9 @@
 import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { mapLcuGame, type LcuGame } from '../lib/lcu.js';
+import { mapLcuGame, type LcuGame, type LcuImportedParticipant } from '../lib/lcu.js';
 import { roflToLcuGame, type RoflMetadata } from '../lib/rofl.js';
-import { resolveChampion } from '../lib/ddragon.js';
+import { getProfileIconUrl, resolveChampion } from '../lib/ddragon.js';
 import {
   recordMatch,
   refreshMatchStats,
@@ -153,6 +153,40 @@ async function loadKnownPlayers() {
   return { players, byPuuid, byRiotId };
 }
 
+/**
+ * Guarda o ícone de invocador de cada participante conhecido.
+ *
+ * O cliente do LoL manda o ícone junto com a partida, de graça -- sem chave da
+ * Riot, que em produção não existe (a de desenvolvimento expira em 24h). Quem
+ * ainda não tem foto, ou já usa o ícone, passa a aparecer com o ícone atual;
+ * foto ENVIADA é escolha da pessoa e não é trocada.
+ *
+ * Falha aqui não derruba a importação: o ícone é enfeite, a partida não.
+ */
+async function guardarIcones(
+  participantes: LcuImportedParticipant[],
+  conhecidos: Map<string, DraftablePlayer>
+): Promise<void> {
+  for (const participante of participantes) {
+    const jogador = participante.puuid ? conhecidos.get(participante.puuid) : undefined;
+    const icone = participante.profileIconId;
+    if (!jogador || !icone) continue;
+    try {
+      const photoUrl = await getProfileIconUrl(icone);
+      await prisma.player.updateMany({
+        where: { id: jogador.id, photoSource: { in: ['NONE', 'LOL_ICON'] } },
+        data: { profileIconId: icone, photoUrl, photoSource: 'LOL_ICON' },
+      });
+      await prisma.player.updateMany({
+        where: { id: jogador.id, photoSource: 'UPLOAD' },
+        data: { profileIconId: icone },
+      });
+    } catch {
+      // enfeite: sem Data Dragon, a pessoa fica sem ícone e a partida entra igual
+    }
+  }
+}
+
 interface IngestOptions {
   seriesId?: string;
   matchNumber?: number;
@@ -272,7 +306,7 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     // scoreboard uma lista manual esquece uma e grava zero sem avisar. Só o que
     // muda de verdade vem sobrescrito abaixo -- e o TypeScript reclama se um
     // campo obrigatorio faltar.
-    const { puuid, riotId, summonerName, win, ...scoreboard } = participant;
+    const { puuid, riotId, summonerName, win, profileIconId, ...scoreboard } = participant;
 
     matched.push({
       ...scoreboard,
@@ -298,6 +332,11 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     });
     return;
   }
+
+  // Antes de decidir entre gravar, atualizar ou avisar que já existe: um
+  // reenvio (--refresh-all) também traz o ícone, e é assim que as partidas
+  // antigas preenchem a foto de quem ainda não tem.
+  if (!options.dryRun) await guardarIcones(imported.participants, known);
 
   // --- idempotencia: o agente pode reenviar o mesmo jogo sem duplicar ---
   //

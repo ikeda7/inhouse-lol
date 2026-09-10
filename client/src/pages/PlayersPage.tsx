@@ -4,7 +4,8 @@ import { playersApi } from '../api/client';
 import { useAction, useAsync } from '../hooks/useAsync';
 import { Button, Card, ErrorState, LoadingState } from '../components/ui';
 import { PlayerRow } from '../components/PlayerRow';
-import { ROLE_LABEL, ROLES, type RoleInput } from '../types';
+import { ROLE_LABEL, ROLES, type Player, type RoleInput } from '../types';
+import { contarPorFiltro, filtrarJogadores, type FiltroDeJogadores } from '../lib/filtroJogadores';
 
 const SELECTABLE_ROLES: RoleInput[] = [...ROLES, 'FILL'];
 
@@ -21,6 +22,7 @@ export function PlayersPage() {
   const [name, setName] = useState('');
   const [riotId, setRiotId] = useState('');
   const [roles, setRoles] = useState<RoleInput[]>([]);
+  const [filtro, setFiltro] = useState<FiltroDeJogadores>('todos');
 
   const create = useAction(playersApi.create);
 
@@ -144,13 +146,59 @@ export function PlayersPage() {
         {loading && <LoadingState />}
         {error && <ErrorState error={error} onRetry={reload} />}
         {players && (
-          <ul className="divide-y divide-line/40">
-            {players.map((player) => (
-              <PlayerRow key={player.id} player={player} onChanged={reload} />
-            ))}
-          </ul>
+          <>
+            <FiltroDaLista players={players} filtro={filtro} onChange={setFiltro} />
+            <ul className="divide-y divide-line/40">
+              {filtrarJogadores(players, filtro).map((player) => (
+                <PlayerRow key={player.id} player={player} onChanged={reload} />
+              ))}
+            </ul>
+            {filtrarJogadores(players, filtro).length === 0 && (
+              <p className="py-3 text-center text-xs text-ink-muted">
+                Ninguém nessa lista: todo mundo em dia.
+              </p>
+            )}
+          </>
         )}
       </Card>
+    </div>
+  );
+}
+
+const ROTULO_DO_FILTRO: Record<FiltroDeJogadores, string> = {
+  todos: 'Todos',
+  'sem-conta': 'Sem conta',
+  'sem-riot-id': 'Sem Riot ID',
+};
+
+/** Atalho para cobrar quem falta, com a contagem de cada caso à vista. */
+function FiltroDaLista({
+  players,
+  filtro,
+  onChange,
+}: {
+  players: Player[];
+  filtro: FiltroDeJogadores;
+  onChange: (filtro: FiltroDeJogadores) => void;
+}) {
+  const contagem = contarPorFiltro(players);
+  return (
+    <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label="Filtrar jogadores">
+      {(Object.keys(ROTULO_DO_FILTRO) as FiltroDeJogadores[]).map((opcao) => (
+        <button
+          key={opcao}
+          type="button"
+          aria-pressed={filtro === opcao}
+          onClick={() => onChange(opcao)}
+          className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+            filtro === opcao
+              ? 'border-gold bg-gold/15 text-ink'
+              : 'border-line text-ink-muted hover:border-gold/50'
+          }`}
+        >
+          {ROTULO_DO_FILTRO[opcao]} <span className="tabular">{contagem[opcao]}</span>
+        </button>
+      ))}
     </div>
   );
 }
