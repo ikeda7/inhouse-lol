@@ -19,7 +19,7 @@
 import { prisma } from '../lib/prisma.js';
 import { applyPick, finalizeCaptainsDraft, type CaptainsDraftState } from '../lib/captainsDraft.js';
 import { DraftError } from '../lib/autoBalance.js';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import type { TeamSide } from '../lib/roles.js';
 
 /**
@@ -37,10 +37,15 @@ const VALIDADE_HORAS = 12;
 /** Quantas vezes tentar de novo se o codigo sorteado ja existir. */
 const TENTATIVAS_DE_CODIGO = 5;
 
+/**
+ * `randomInt` do crypto, não `Math.random`: o código é o que protege a sala de
+ * quem não recebeu o link, e `Math.random` é previsível para quem viu
+ * códigos anteriores.
+ */
 function sortearCodigo(): string {
   let codigo = '';
   for (let i = 0; i < TAMANHO_DO_CODIGO; i++) {
-    codigo += ALFABETO[Math.floor(Math.random() * ALFABETO.length)];
+    codigo += ALFABETO[randomInt(ALFABETO.length)];
   }
   return codigo;
 }

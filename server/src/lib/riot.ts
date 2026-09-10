@@ -156,7 +156,7 @@ interface SpectatorGame {
 export async function captureLiveMatchId(puuid: string): Promise<string | null> {
   try {
     const game = await riotFetch<SpectatorGame>(
-      `${PLATFORM_ROUTE()}/lol/spectator/v5/active-games/by-summoner/${puuid}`
+      `${PLATFORM_ROUTE()}/lol/spectator/v5/active-games/by-summoner/${encodeURIComponent(puuid)}`
     );
     return `${game.platformId}_${game.gameId}`;
   } catch (error) {

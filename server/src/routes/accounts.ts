@@ -2,12 +2,13 @@ import { Router } from 'express';
 import { z } from 'zod';
 import {
   changePassword,
+  emitirSessao,
   getAccountById,
   setUploadedPhoto,
   syncLolPhoto,
 } from '../services/auth.js';
 import { updatePlayer } from '../services/players.js';
-import { requireAuth } from '../middleware/auth.js';
+import { SESSION_COOKIE, SESSION_COOKIE_OPTIONS, requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from './helpers.js';
 
 export const accountsRouter = Router();
@@ -46,6 +47,9 @@ accountsRouter.post(
   asyncHandler(async (req, res) => {
     const input = passwordSchema.parse(req.body);
     await changePassword({ playerId: req.playerId as string, ...input });
+    // A senha nova derruba todas as sessoes emitidas antes (ver versaoDaSenha)
+    // -- inclusive esta. Quem trocou ganha um token novo para nao cair junto.
+    res.cookie(SESSION_COOKIE, await emitirSessao(req.playerId as string), SESSION_COOKIE_OPTIONS);
     res.json({ success: true, data: null });
   })
 );

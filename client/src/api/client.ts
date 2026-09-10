@@ -27,6 +27,7 @@ import type {
   SeriesSummary,
   TeamSide,
 } from '../types';
+import { CABECALHO_DA_CHAVE, lerChaveDoGrupo } from '../lib/chaveDoGrupo';
 
 /**
  * Em dev o Vite faz proxy de /api para o backend, entao caminho relativo
@@ -51,9 +52,16 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
 
+  // A chave do grupo vai em todo pedido: o servidor só olha para ela nas
+  // escritas, e mandar sempre evita cada tela ter de saber quais são.
+  const chave = lerChaveDoGrupo();
+
   try {
     response = await fetch(`${BASE_URL}${path}`, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(chave ? { [CABECALHO_DA_CHAVE]: chave } : {}),
+      },
       // O cookie de sessao (issue #3) precisa ir e voltar mesmo quando front
       // (:5173) e API (:3333) estao em portas diferentes, em dev.
       credentials: 'include',

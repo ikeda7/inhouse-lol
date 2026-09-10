@@ -72,6 +72,25 @@ O sorteio e o draft exigem **exatamente 10** marcados.
 - **Trocou alguém no meio da MD3:** tudo bem. O placar da série segue o
   **elenco** (maioria dos 5), então uma substituição não quebra a contagem.
 
+### 5. Chave do grupo
+
+O site é público. Com a chave do grupo ligada, **só grava quem é do grupo**:
+abrir MD3, cadastrar jogador, registrar partida e criar conta pedem a chave
+(está no zap) ou uma conta logada. Ver tudo continua aberto.
+
+- **No site:** na primeira vez, o próprio aviso de erro pede a chave. Digite
+  uma vez e ela fica salva no navegador. Quem entrou na conta não precisa.
+- **No agente:** defina a variável antes do `--watch`. Prefira a variável ao
+  `--chave`, porque argumento fica no histórico do terminal.
+
+```bash
+# PowerShell
+$env:INHOUSE_CHAVE = "a-chave-do-grupo"
+
+# bash
+export INHOUSE_CHAVE="a-chave-do-grupo"
+```
+
 ---
 
 ## Na hora de jogar

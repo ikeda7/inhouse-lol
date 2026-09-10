@@ -14,6 +14,7 @@ import { riotRouter } from './routes/riot.js';
 import { ingestRouter } from './routes/ingest.js';
 import { authRouter } from './routes/auth.js';
 import { accountsRouter } from './routes/accounts.js';
+import { exigirGrupo } from './middleware/auth.js';
 
 /**
  * Monta o app SEM escutar porta.
@@ -30,6 +31,17 @@ import { accountsRouter } from './routes/accounts.js';
 export function createApp(): Express {
   const app = express();
 
+  // Na Vercel o IP do visitante chega em X-Forwarded-For, posto pela propria
+  // plataforma. Sem isto `req.ip` seria o do proxy, e o limite de tentativas
+  // do login contaria todo mundo como uma pessoa so.
+  if (process.env.VERCEL) app.set('trust proxy', 1);
+
+  if (env.nodeEnv === 'production' && !env.groupKey) {
+    console.warn(
+      '[seguranca] GROUP_KEY ausente: qualquer visitante consegue gravar e reivindicar conta.'
+    );
+  }
+
   // credentials:true e o cookieParser sao o que fazem o cookie de sessao
   // (issue #3) ir e voltar entre o Vite (:5173) e a API (:3333) em dev --
   // em producao os dois ja saem do mesmo host, entao nao muda nada.
@@ -39,8 +51,18 @@ export function createApp(): Express {
   app.use(express.json({ limit: '4mb' }));
 
   app.get('/api/health', (_req, res) => {
-    res.json({ success: true, data: { status: 'ok', uptime: process.uptime() } });
+    res.json({
+      success: true,
+      // Dizer SE a trava esta ligada nao entrega nada; e o que permite
+      // conferir, depois de configurar a GROUP_KEY, que ela pegou.
+      data: { status: 'ok', uptime: process.uptime(), grupoProtegido: env.groupKey !== null },
+    });
   });
+
+  // Escrita so para quem e do grupo: conta logada ou chave do grupo. Fica
+  // ANTES das rotas e vale para todas -- rota nova ja nasce protegida; as
+  // poucas excecoes estao listadas em lib/escritas.ts.
+  app.use('/api', exigirGrupo);
 
   app.use('/api/players', playersRouter);
   app.use('/api/draft', draftRouter);
