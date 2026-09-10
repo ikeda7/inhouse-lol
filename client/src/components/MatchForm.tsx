@@ -176,7 +176,7 @@ export function MatchForm({
         ))}
 
         <label className="ml-auto text-xs text-ink-faint">
-          Duracao (min)
+          Duração (min)
           <input
             value={durationMin}
             onChange={(event) => setDurationMin(event.target.value.replace(/\D/g, ''))}
@@ -204,7 +204,7 @@ export function MatchForm({
                   <tr className="text-left text-[10px] uppercase tracking-wider text-ink-faint">
                     <th className="w-20 font-medium">Role</th>
                     <th className="w-40 font-medium">Jogador</th>
-                    <th className="w-48 font-medium">Campeao</th>
+                    <th className="w-48 font-medium">Campeão</th>
                     <th className="w-14 font-medium">K</th>
                     <th className="w-14 font-medium">D</th>
                     <th className="w-14 font-medium">A</th>
@@ -299,7 +299,8 @@ export function MatchForm({
             {[
               winner === null && 'escolha o vencedor',
               missingPlayers > 0 && `${missingPlayers} jogador(es) sem selecionar`,
-              missingChampions > 0 && `${missingChampions} campeao(oes) faltando`,
+              missingChampions > 0 &&
+                `${missingChampions} ${missingChampions === 1 ? 'campeão faltando' : 'campeões faltando'}`,
             ]
               .filter(Boolean)
               .join(' · ')}

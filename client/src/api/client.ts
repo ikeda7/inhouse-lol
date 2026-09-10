@@ -60,7 +60,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new ApiError(
-      'Nao consegui falar com o servidor. Ele esta rodando? (npm run dev:server)',
+      'Não consegui falar com o servidor. Ele está rodando? (npm run dev:server)',
       0,
       'NETWORK_ERROR'
     );

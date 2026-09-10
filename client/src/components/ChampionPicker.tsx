@@ -29,7 +29,7 @@ export function ChampionPicker({
   onChange,
   burned,
   taken,
-  placeholder = 'Campeao',
+  placeholder = 'Campeão',
 }: ChampionPickerProps) {
   const { manifest, loading, failed } = useChampions();
   const [query, setQuery] = useState('');
@@ -138,7 +138,7 @@ export function ChampionPicker({
           <button
             type="button"
             onClick={() => onChange('', null)}
-            aria-label="Limpar campeao"
+            aria-label="Limpar campeão"
             className="shrink-0 text-ink-faint hover:text-gold"
           >
             <X size={13} />
@@ -152,7 +152,7 @@ export function ChampionPicker({
           className="absolute z-30 mt-1 max-h-64 w-full min-w-[220px] overflow-y-auto rounded-lg border border-line bg-surface shadow-2xl"
         >
           {results.length === 0 && (
-            <li className="px-3 py-2 text-xs text-ink-faint">Nenhum campeao encontrado.</li>
+            <li className="px-3 py-2 text-xs text-ink-faint">Nenhum campeão encontrado.</li>
           )}
 
           {results.map((champion, index) => {
