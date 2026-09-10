@@ -492,6 +492,8 @@ export interface RecentMatch {
 export interface PlayerProfile {
   playerId: string;
   name: string;
+  /** Foto de quem ja reivindicou a conta; null para o resto. */
+  photoUrl: string | null;
   games: number;
   wins: number;
   winRate: number;
@@ -574,7 +576,7 @@ async function loadRecentMatches(playerId: string): Promise<RecentMatch[]> {
 export async function getPlayerProfile(playerId: string): Promise<PlayerProfile | null> {
   const player = await prisma.player.findUnique({
     where: { id: playerId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, photoUrl: true },
   });
   if (!player) return null;
 
@@ -657,6 +659,7 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile 
   return {
     playerId: player.id,
     name: player.name,
+    photoUrl: player.photoUrl,
     games,
     wins,
     winRate: round(safeDivide(wins, games) * 100, 1),
