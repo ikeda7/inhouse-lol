@@ -217,7 +217,9 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
           <Metrica
             rotulo="wards"
             valor={`+${stat.wardsPlaced} / -${stat.wardsKilled}`}
-            detalhe={stat.controlWardsBought > 0 ? `${stat.controlWardsBought} de controle` : undefined}
+            detalhe={
+              stat.controlWardsBought > 0 ? `${stat.controlWardsBought} de controle` : undefined
+            }
           />
           <Metrica
             rotulo="CC aplicado"

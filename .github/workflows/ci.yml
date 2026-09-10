@@ -37,6 +37,12 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
+      # Formatação é tão mecânica quanto tipo: quem esquecer de rodar o
+      # `npm run format` descobre aqui, no PR, e não num review -- e sem o
+      # arquivo de config ninguém consegue acertar o estilo sem querer (#47).
+      - name: Formatação
+        run: npm run format:check
+
       # Precisa vir antes do typecheck: os tipos do banco vêm do client gerado.
       - name: Gerar Prisma Client
         run: npx prisma generate --schema=server/prisma/schema.prisma

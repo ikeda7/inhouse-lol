@@ -12,12 +12,7 @@ const TIME_A = ['vini', 'bruno', 'denyon', 'leo', 'ikeda'];
 const TIME_B = ['lara', 'crepaldi', 'igor', 'kaio', 'marcos'];
 
 /** Monta um jogo dizendo quem estava de azul e quem venceu. */
-function jogo(
-  matchNumber: number,
-  azul: string[],
-  vermelho: string[],
-  winner: 'BLUE' | 'RED'
-) {
+function jogo(matchNumber: number, azul: string[], vermelho: string[], winner: 'BLUE' | 'RED') {
   return {
     matchNumber,
     winner,

@@ -74,9 +74,7 @@ export function ChampionIcon({
  * a cada partida.
  */
 export function ordenarPorLane<T extends { rolePlayed: Role }>(itens: T[]): T[] {
-  return [...itens].sort(
-    (a, b) => ROLES.indexOf(a.rolePlayed) - ROLES.indexOf(b.rolePlayed)
-  );
+  return [...itens].sort((a, b) => ROLES.indexOf(a.rolePlayed) - ROLES.indexOf(b.rolePlayed));
 }
 
 /**

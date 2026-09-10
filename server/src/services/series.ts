@@ -86,7 +86,10 @@ export function computeSeriesStanding(matches: MatchForStanding[]): SeriesStandi
 export const MAX_MATCHES_PER_SERIES = 3;
 
 export class SeriesError extends Error {
-  constructor(message: string, readonly code: string) {
+  constructor(
+    message: string,
+    readonly code: string
+  ) {
     super(message);
     this.name = 'SeriesError';
   }
@@ -290,10 +293,7 @@ function validateMatchPlayers(players: MatchPlayerInput[]): void {
 
   for (const player of players) {
     if (seen.has(player.playerId)) {
-      throw new SeriesError(
-        'O mesmo jogador aparece duas vezes na partida.',
-        'DUPLICATE_PLAYER'
-      );
+      throw new SeriesError('O mesmo jogador aparece duas vezes na partida.', 'DUPLICATE_PLAYER');
     }
     seen.add(player.playerId);
 
@@ -334,9 +334,7 @@ export async function getBurnedChampions(seriesId: string) {
   // imagem em vez de derrubar a tela inteira.
   return Promise.all(
     burned.map(async (entry) => {
-      const asset = await resolveChampion(entry.championId ?? entry.championName).catch(
-        () => null
-      );
+      const asset = await resolveChampion(entry.championId ?? entry.championName).catch(() => null);
       return {
         championName: entry.championName,
         championId: entry.championId,
@@ -603,8 +601,7 @@ export function assertMesmaPartida(
 
   const gravados = new Set(registrada.playerIds);
   const chegando = new Set(playerIds);
-  const iguais =
-    gravados.size === chegando.size && [...chegando].every((id) => gravados.has(id));
+  const iguais = gravados.size === chegando.size && [...chegando].every((id) => gravados.has(id));
 
   if (!iguais) {
     throw new SeriesError(

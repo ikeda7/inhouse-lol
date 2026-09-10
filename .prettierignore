@@ -1,0 +1,11 @@
+# O prettier 3 já respeita o .gitignore (dist, node_modules, coverage,
+# e2e-saida, *.db). Aqui fica só o que é versionado e mesmo assim não deve ser
+# formatado.
+
+# Prosa e tabela formatadas à mão. O prettier realinharia as tabelas do
+# ARCHITECTURE e reembrulharia parágrafos: 177 linhas em 7 de 10 arquivos, em
+# qualquer configuração, sem ganho nenhum.
+*.md
+
+# Gerado pelo npm.
+package-lock.json

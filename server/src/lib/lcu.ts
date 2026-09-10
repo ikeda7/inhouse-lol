@@ -724,9 +724,7 @@ export function mapLcuGame(
     return {
       puuid: identity?.puuid ?? null,
       riotId:
-        identity?.gameName && identity?.tagLine
-          ? `${identity.gameName}#${identity.tagLine}`
-          : null,
+        identity?.gameName && identity?.tagLine ? `${identity.gameName}#${identity.tagLine}` : null,
       summonerName: identity?.summonerName ?? null,
       teamSide: participant.teamId === 100 ? 'BLUE' : 'RED',
       rolePlayed: role,

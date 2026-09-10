@@ -102,18 +102,12 @@ export async function getChampionCatalog(): Promise<ChampionCatalog> {
 }
 
 /** Aceita championId numerico, chave DDragon ou nome exibido. */
-export async function resolveChampion(
-  input: number | string
-): Promise<ChampionEntry | null> {
+export async function resolveChampion(input: number | string): Promise<ChampionEntry | null> {
   const catalog = await getChampionCatalog();
   if (typeof input === 'number') {
     return catalog.byKey.get(input) ?? null;
   }
-  return (
-    catalog.byId.get(input.toLowerCase()) ??
-    catalog.byName.get(normalizeName(input)) ??
-    null
-  );
+  return catalog.byId.get(input.toLowerCase()) ?? catalog.byName.get(normalizeName(input)) ?? null;
 }
 
 export interface ChampionAsset {
@@ -128,9 +122,7 @@ export interface ChampionAsset {
   loadingUrl: string;
 }
 
-export async function getChampionAsset(
-  input: number | string
-): Promise<ChampionAsset | null> {
+export async function getChampionAsset(input: number | string): Promise<ChampionAsset | null> {
   const catalog = await getChampionCatalog();
   const champion = await resolveChampion(input);
   if (!champion) return null;

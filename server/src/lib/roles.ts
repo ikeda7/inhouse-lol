@@ -56,12 +56,13 @@ const ROLE_ALIASES: Record<string, RoleInput> = {
 };
 
 export function normalizeRole(raw: string): RoleInput {
-  const key = raw.trim().toUpperCase().replace(/[\s_-]/g, '');
+  const key = raw
+    .trim()
+    .toUpperCase()
+    .replace(/[\s_-]/g, '');
   const found = ROLE_ALIASES[key];
   if (!found) {
-    throw new Error(
-      `Role invalida: "${raw}". Use ${ROLES.join(', ')} ou ${FILL}.`
-    );
+    throw new Error(`Role invalida: "${raw}". Use ${ROLES.join(', ')} ou ${FILL}.`);
   }
   return found;
 }

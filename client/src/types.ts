@@ -91,7 +91,12 @@ export interface SeriesSummary {
   blueScore: number;
   redScore: number;
   fearless: boolean;
-  matches: { id: string; matchNumber: number; winner: TeamSide | null; gameDurationSec: number | null }[];
+  matches: {
+    id: string;
+    matchNumber: number;
+    winner: TeamSide | null;
+    gameDurationSec: number | null;
+  }[];
   burnedCount: number;
 }
 

@@ -12,7 +12,11 @@ accountsRouter.use(requireAuth);
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
-  riotId: z.string().regex(/^.+#.+$/, 'Formato esperado: Nick#TAG').nullable().optional(),
+  riotId: z
+    .string()
+    .regex(/^.+#.+$/, 'Formato esperado: Nick#TAG')
+    .nullable()
+    .optional(),
 });
 
 /** PATCH /api/accounts/me - edicao do proprio perfil (reusa o service de players). */

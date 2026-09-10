@@ -1,0 +1,11 @@
+# Commits que `git blame` deve pular: mudança mecânica, que não diz quem
+# escreveu a linha nem por quê. O GitHub lê este arquivo sozinho; localmente,
+# rode uma vez:
+#
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# Só funciona porque os PRs entram por merge commit. Um squash reescreveria o
+# hash e a linha abaixo apontaria para o nada.
+
+# style: aplica o prettier no repositório inteiro (#47)
+c6ed96ec2d461571e49724ff1398d1e453c8c7ee

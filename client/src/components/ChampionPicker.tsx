@@ -52,9 +52,7 @@ export function ChampionPicker({
     const champions = manifest?.champions ?? [];
     const normalized = normalizeChampionQuery(query);
     const filtered = normalized
-      ? champions.filter((champion) =>
-          normalizeChampionQuery(champion.name).includes(normalized)
-        )
+      ? champions.filter((champion) => normalizeChampionQuery(champion.name).includes(normalized))
       : champions;
     return filtered.slice(0, 60);
   }, [manifest, query]);
@@ -169,10 +167,10 @@ export function ChampionPicker({
                   onClick={() => select(champion.name, champion.key)}
                   className={`flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs transition ${
                     blocked
-                      // Sem opacidade na LINHA: ela apagava junto o selo
-                      // "queimado", que é justamente a explicação de por que a
-                      // opção está bloqueada. O nome recua, o selo fica.
-                      ? 'cursor-not-allowed text-ink-faint'
+                      ? // Sem opacidade na LINHA: ela apagava junto o selo
+                        // "queimado", que é justamente a explicação de por que a
+                        // opção está bloqueada. O nome recua, o selo fica.
+                        'cursor-not-allowed text-ink-faint'
                       : index === highlight
                         ? 'bg-gold/15 text-ink'
                         : 'text-ink/80 hover:bg-raised'

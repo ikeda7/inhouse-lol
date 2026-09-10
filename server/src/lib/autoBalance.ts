@@ -54,14 +54,7 @@
  * o espaco de busca pela metade sem perder nenhuma composicao real.
  */
 
-import {
-  ROLES,
-  FILL,
-  type Role,
-  type RoleInput,
-  type TeamSide,
-  expandRolePool,
-} from './roles.js';
+import { ROLES, FILL, type Role, type RoleInput, type TeamSide, expandRolePool } from './roles.js';
 
 // ---------------------------------------------------------------------------
 // Tipos publicos
@@ -625,11 +618,9 @@ export function autoBalanceTeams(
   const seenIds = new Set<string>();
   for (const player of roster) {
     if (seenIds.has(player.id)) {
-      throw new DraftError(
-        `Jogador duplicado no elenco: "${player.name}".`,
-        'DUPLICATE_PLAYER',
-        { playerId: player.id }
-      );
+      throw new DraftError(`Jogador duplicado no elenco: "${player.name}".`, 'DUPLICATE_PLAYER', {
+        playerId: player.id,
+      });
     }
     seenIds.add(player.id);
   }
@@ -742,10 +733,7 @@ export function assignRolesWithinTeam(
   );
 
   if (!outcome.best) {
-    throw new DraftError(
-      'Nao consegui distribuir as roles nesse time.',
-      'SEARCH_BUDGET_EXHAUSTED'
-    );
+    throw new DraftError('Nao consegui distribuir as roles nesse time.', 'SEARCH_BUDGET_EXHAUSTED');
   }
 
   return buildTeam(side, outcome.best, prepared, slots);

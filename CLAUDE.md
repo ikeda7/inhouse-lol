@@ -74,6 +74,24 @@ tablet. No screenshot baseline on purpose: both checks are baseline-free.
 The job is **not** a required check yet. Promote it in branch protection once
 it has proven stable across a few PRs.
 
+### Formatting
+
+```bash
+npm run format                       # prettier --write .
+npm run format:check                 # what CI runs, inside the required "Testes, tipos e build" job
+```
+
+`prettier.config.js` describes the style the code already had — it was
+**measured**, not picked: 100 columns, single quotes, `trailingComma: 'es5'`
+(`all` or a wider width changed far more lines). Never run a bare `npx
+prettier` without it being picked up: the defaults put double quotes in every
+file. Markdown is excluded on purpose (`.prettierignore`) — the tables in the
+docs are hand-aligned.
+
+The one-time reformat commit is listed in `.git-blame-ignore-revs`, so blame
+skips it. GitHub applies that automatically; locally run
+`git config blame.ignoreRevsFile .git-blame-ignore-revs` once.
+
 ### Schema change checklist
 
 ```bash

@@ -176,92 +176,96 @@ export function DraftPage() {
             {/* Escolha de modo: os dois começam com os mesmos 10, e é aqui que
                 o caminho se separa. */}
             <div className="flex gap-0.5 rounded-lg bg-raised p-0.5" role="group" aria-label="Modo">
-          {[
-            { valor: false, rotulo: 'Sorteio automático', icone: Dices },
-            { valor: true, rotulo: 'Modo capitães', icone: Crown },
-          ].map(({ valor, rotulo, icone: Icone }) => (
-            <button
-              key={rotulo}
-              onClick={() => trocarModo(valor)}
-              aria-pressed={modoCapitaes === valor}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
-                modoCapitaes === valor
-                  ? 'bg-overlay text-ink shadow-sm'
-                  : 'text-ink-faint hover:text-ink-muted'
-              }`}
-            >
-              <Icone size={15} />
-              {rotulo}
-            </button>
-          ))}
-        </div>
-
-        {!modoCapitaes && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={handleDraw} disabled={!canDraw} loading={draw.loading}>
-              <Dices size={16} />
-              {result ? 'Sortear de novo' : 'Sortear times'}
-            </Button>
-            {result && (
-              <Button variant="ghost" onClick={handleDraw} loading={draw.loading}>
-                <RefreshCw size={16} />
-                Não gostei, tenta outro
-              </Button>
-            )}
-          </div>
-        )}
-
-        {modoCapitaes && !draft && (
-          <div className="mt-4 space-y-3">
-            <div>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-ink-faint">
-                Como escolher os capitães
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {(
-                  [
-                    ['TOP_WINRATE', 'Maior winrate'],
-                    ['LAST_LOSERS', 'Quem perdeu o último'],
-                    ['RANDOM', 'Aleatório'],
-                  ] as [CaptainSelectionMode, string][]
-                ).map(([valor, rotulo]) => (
-                  <button
-                    key={valor}
-                    onClick={() => setCriterio(valor)}
-                    aria-pressed={criterio === valor}
-                    className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
-                      criterio === valor
-                        ? 'border-gold/60 bg-gold/10 text-gold'
-                        : 'border-line/60 bg-raised/40 text-ink-faint hover:border-line'
-                    }`}
-                  >
-                    {rotulo}
-                  </button>
-                ))}
-              </div>
+              {[
+                { valor: false, rotulo: 'Sorteio automático', icone: Dices },
+                { valor: true, rotulo: 'Modo capitães', icone: Crown },
+              ].map(({ valor, rotulo, icone: Icone }) => (
+                <button
+                  key={rotulo}
+                  onClick={() => trocarModo(valor)}
+                  aria-pressed={modoCapitaes === valor}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                    modoCapitaes === valor
+                      ? 'bg-overlay text-ink shadow-sm'
+                      : 'text-ink-faint hover:text-ink-muted'
+                  }`}
+                >
+                  <Icone size={15} />
+                  {rotulo}
+                </button>
+              ))}
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={handleIniciarCapitaes} disabled={!canDraw} loading={iniciar.loading}>
-                <Swords size={16} />
-                Começar o draft
-              </Button>
+            {!modoCapitaes && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button onClick={handleDraw} disabled={!canDraw} loading={draw.loading}>
+                  <Dices size={16} />
+                  {result ? 'Sortear de novo' : 'Sortear times'}
+                </Button>
+                {result && (
+                  <Button variant="ghost" onClick={handleDraw} loading={draw.loading}>
+                    <RefreshCw size={16} />
+                    Não gostei, tenta outro
+                  </Button>
+                )}
+              </div>
+            )}
 
-              {/* Duas formas do mesmo draft: aqui só nesta tela, ou numa sala
+            {modoCapitaes && !draft && (
+              <div className="mt-4 space-y-3">
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-ink-faint">
+                    Como escolher os capitães
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(
+                      [
+                        ['TOP_WINRATE', 'Maior winrate'],
+                        ['LAST_LOSERS', 'Quem perdeu o último'],
+                        ['RANDOM', 'Aleatório'],
+                      ] as [CaptainSelectionMode, string][]
+                    ).map(([valor, rotulo]) => (
+                      <button
+                        key={valor}
+                        onClick={() => setCriterio(valor)}
+                        aria-pressed={criterio === valor}
+                        className={`rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
+                          criterio === valor
+                            ? 'border-gold/60 bg-gold/10 text-gold'
+                            : 'border-line/60 bg-raised/40 text-ink-faint hover:border-line'
+                        }`}
+                      >
+                        {rotulo}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={handleIniciarCapitaes}
+                    disabled={!canDraw}
+                    loading={iniciar.loading}
+                  >
+                    <Swords size={16} />
+                    Começar o draft
+                  </Button>
+
+                  {/* Duas formas do mesmo draft: aqui só nesta tela, ou numa sala
                   com link para os dez acompanharem. A sala custa uma linha no
                   banco, então não é o padrão -- é escolha explícita. */}
-              <Button
-                variant="ghost"
-                onClick={handleAoVivo}
-                disabled={!canDraw}
-                loading={abrirSala.loading}
-              >
-                <Radio size={16} />
-                Draft ao vivo (com link)
-              </Button>
-            </div>
-          </div>
-        )}
+                  <Button
+                    variant="ghost"
+                    onClick={handleAoVivo}
+                    disabled={!canDraw}
+                    loading={abrirSala.loading}
+                  >
+                    <Radio size={16} />
+                    Draft ao vivo (com link)
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -300,8 +304,8 @@ export function DraftPage() {
               escolhem PESSOAS, e quem resolve quem joga o quê dentro do time é
               o pool declarado de cada um. */}
           <p className="text-center text-xs text-ink-faint">
-            Os capitães escolheram os times; as roles foram distribuídas dentro de cada um pelo
-            pool declarado.
+            Os capitães escolheram os times; as roles foram distribuídas dentro de cada um pelo pool
+            declarado.
           </p>
         </div>
       )}

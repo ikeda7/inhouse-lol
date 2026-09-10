@@ -54,10 +54,7 @@ describe('calcularKillParticipation', () => {
   it('usa os abates do time certo, nao o total da partida', () => {
     // Se somasse os dois times (10 + 3 = 13), o jogador do vermelho daria
     // 3/13 = 23% em vez dos 100% que ele de fato participou.
-    const rows = [
-      linha('a', 'm1', 'BLUE', 10, 0),
-      linha('c', 'm1', 'RED', 3, 0),
-    ];
+    const rows = [linha('a', 'm1', 'BLUE', 10, 0), linha('c', 'm1', 'RED', 3, 0)];
 
     expect(calcularKillParticipation(rows).get('c')).toBeCloseTo(1);
   });

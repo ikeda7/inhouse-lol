@@ -43,7 +43,10 @@ export function fromAutoBalance(result: AutoBalanceResult): ActiveDraft {
  * gente. Zero é honesto -- inventar uma semente sugeriria que dá para
  * reproduzir o draft, e não dá.
  */
-export function fromCaptains(teams: { blueTeam: BalancedTeam; redTeam: BalancedTeam }): ActiveDraft {
+export function fromCaptains(teams: {
+  blueTeam: BalancedTeam;
+  redTeam: BalancedTeam;
+}): ActiveDraft {
   return {
     slots: paraSlots(teams.blueTeam, teams.redTeam),
     seed: 0,

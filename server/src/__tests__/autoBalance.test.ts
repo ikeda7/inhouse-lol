@@ -145,9 +145,7 @@ describe('autoBalanceTeams', () => {
         .blueTeam.players.map((e) => e.player.id)
         .join(',');
 
-    const signatures = new Set(
-      Array.from({ length: 30 }, (_, seed) => signature(seed * 137))
-    );
+    const signatures = new Set(Array.from({ length: 30 }, (_, seed) => signature(seed * 137)));
     // Nao exigimos 30 composicoes unicas (o otimo restringe), mas o sorteio nao
     // pode ser sempre igual.
     expect(signatures.size).toBeGreaterThan(1);
@@ -156,9 +154,7 @@ describe('autoBalanceTeams', () => {
   describe('erros', () => {
     it('recusa elenco que nao tem exatamente 10 jogadores', () => {
       expect(() => autoBalanceTeams(ROSTER.slice(0, 9))).toThrowError(DraftError);
-      expect(() => autoBalanceTeams(ROSTER.slice(0, 9))).toThrowError(
-        /exatamente 10 jogadores/
-      );
+      expect(() => autoBalanceTeams(ROSTER.slice(0, 9))).toThrowError(/exatamente 10 jogadores/);
     });
 
     it('recusa jogador duplicado', () => {
@@ -223,8 +219,6 @@ describe('assignRolesWithinTeam', () => {
   });
 
   it('recusa time que nao tem 5 jogadores', () => {
-    expect(() => assignRolesWithinTeam(ROSTER.slice(0, 4))).toThrowError(
-      /exatamente 5 jogadores/
-    );
+    expect(() => assignRolesWithinTeam(ROSTER.slice(0, 4))).toThrowError(/exatamente 5 jogadores/);
   });
 });
