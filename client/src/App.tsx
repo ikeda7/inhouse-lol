@@ -87,12 +87,19 @@ export function App() {
           </NavLink>
 
           <div className="flex items-center gap-1">
+            {/* Entre 640 e 1023px, só ícone. Com rótulo, os seis itens mais
+                "Entrar" pedem ~830px: a 768 a página inteira rolava de lado e o
+                "Entrar" ficava cortado na borda -- em todo tablet e em todo
+                notebook com a janela dividida. Achado pela verificação de telas
+                no CI, não por olho. O rótulo continua no DOM como nome
+                acessível do link (sr-only) e vira `title` para o mouse. */}
             <nav className="hidden gap-0.5 sm:flex" aria-label="Navegação principal">
               {NAV.map(({ to, label, icon: Icon, end }) => (
                 <NavLink
                   key={to}
                   to={to}
                   end={end}
+                  title={label}
                   className={({ isActive }) =>
                     `relative flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
                       isActive ? 'text-ink' : 'text-ink-faint hover:text-ink-muted'
@@ -102,7 +109,7 @@ export function App() {
                   {({ isActive }) => (
                     <>
                       <Icon size={15} />
-                      {label}
+                      <span className="sr-only lg:not-sr-only">{label}</span>
                       {/* Sublinhado do item ativo: marca a posição sem pintar
                           um bloco inteiro de cor. */}
                       {isActive && (
