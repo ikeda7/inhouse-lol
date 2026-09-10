@@ -96,15 +96,27 @@ node companion/inhouse-companion.mjs --watch --api https://SEU-APP.vercel.app/ap
 
 ## Aviso de segurança, antes de divulgar
 
-**O app não tem autenticação.** Quem tiver o link cadastra jogador, registra
-partida e encerra MD3. E ele contém nomes reais e Riot IDs do grupo.
+O site e o repositório são públicos. **Defina a `GROUP_KEY`** na Vercel (ver
+a tabela do passo 2). Sem ela, qualquer pessoa com o link cadastra jogador,
+troca Riot ID, registra partida, encerra MD3 e reivindica a conta de qualquer
+amigo.
 
-Para um link não divulgado entre 10 amigos costuma bastar, mas é uma decisão
-consciente — não um esquecimento. A [issue #3](https://github.com/ikeda7/inhouse-lol/issues/3)
-cobre contas com login e foto de perfil, que resolve isso de vez.
+Com ela, toda escrita exige a chave do grupo ou uma conta logada. Ver
+(ranking, histórico, destaques) continua aberto. Quem já está logado não
+precisa da chave. A chave vai no zap e, para o agente, no `INHOUSE_CHAVE`.
 
-Se quiser proteger antes disso, o caminho mais rápido é pôr o app atrás do
-**Cloudflare Access** (grátis para poucos usuários), sem tocar no código.
+Para conferir: `https://SEU-APP.vercel.app/api/health` tem de mostrar
+`"grupoProtegido": true`.
+
+Alguém reivindicou o jogador errado? Rode, com as credenciais do Turso no
+ambiente:
+
+```bash
+npm run conta:liberar --workspace server -- "Nome" --confirmar
+```
+
+Isso apaga e-mail e senha daquele jogador, derruba as sessões abertas dele e
+devolve o jogador para a lista de "Criar conta". O histórico de partidas fica.
 
 ---
 
