@@ -90,7 +90,7 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
             ) : (
               <span
                 className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-400"
-                title="Sem Riot ID, a importacao automatica nao consegue identificar essa pessoa"
+                title="Sem Riot ID, a importação automática não consegue identificar essa pessoa"
               >
                 sem Riot ID
               </span>
