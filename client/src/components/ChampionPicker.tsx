@@ -1,3 +1,4 @@
+import { ICONE_INDISPONIVEL } from './ChampionIcon';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Ban, Search, X } from 'lucide-react';
 import { useChampions, normalizeChampionQuery } from '../hooks/useChampions';
@@ -168,7 +169,10 @@ export function ChampionPicker({
                   onClick={() => select(champion.name, champion.key)}
                   className={`flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs transition ${
                     blocked
-                      ? 'cursor-not-allowed opacity-40'
+                      // Sem opacidade na LINHA: ela apagava junto o selo
+                      // "queimado", que é justamente a explicação de por que a
+                      // opção está bloqueada. O nome recua, o selo fica.
+                      ? 'cursor-not-allowed text-ink-faint'
                       : index === highlight
                         ? 'bg-gold/15 text-ink'
                         : 'text-ink/80 hover:bg-raised'
@@ -180,7 +184,7 @@ export function ChampionPicker({
                     width={22}
                     height={22}
                     loading="lazy"
-                    className={`h-[22px] w-[22px] rounded ${blocked ? 'grayscale' : ''}`}
+                    className={`h-[22px] w-[22px] rounded ${blocked ? ICONE_INDISPONIVEL : ''}`}
                   />
                   <span className="flex-1 truncate">{champion.name}</span>
                   {status === 'burned' && (

@@ -244,7 +244,7 @@ is refused deliberately — it can carry script).
 
 ### Frontend
 
-- Design tokens are layered (`base → surface → raised → overlay`); gold is an
+- Design tokens are layered (`canvas → surface → raised → overlay`); gold is an
   accent only, never body text; blue/red are reserved for team identity.
   Token values live in `client/src/index.css` **and** are duplicated as
   constants in `client/src/lib/rankingImage.ts` (canvas rendering can't read

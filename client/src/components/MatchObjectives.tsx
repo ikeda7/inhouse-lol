@@ -1,4 +1,4 @@
-import { ChampionIcon } from './ChampionIcon';
+import { ChampionIcon, ICONE_INDISPONIVEL } from './ChampionIcon';
 import type { MatchBan, MatchTeamStat } from '../types';
 
 /**
@@ -30,7 +30,7 @@ export function MatchObjectives({ teams }: { teams: MatchTeamStat[] }) {
   if (!azul || !vermelho) return null;
 
   return (
-    <div className="rounded-lg border border-line/40 bg-base/40 p-2.5">
+    <div className="flex h-full flex-col rounded-lg border border-line/40 bg-canvas/40 p-2.5">
       <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
         Objetivos
       </p>
@@ -63,7 +63,11 @@ export function MatchObjectives({ teams }: { teams: MatchTeamStat[] }) {
         })}
       </ul>
 
-      <Primeiros azul={azul} vermelho={vermelho} />
+      {/* mt-auto: os "primeiros" encostam no rodapé do card quando ele estica
+          para acompanhar o painel vizinho, em vez de deixar o vazio no fim. */}
+      <div className="mt-auto">
+        <Primeiros azul={azul} vermelho={vermelho} />
+      </div>
     </div>
   );
 }
@@ -107,9 +111,13 @@ function Primeiros({ azul, vermelho }: { azul: MatchTeamStat; vermelho: MatchTea
 /**
  * Os bans do draft, na ordem em que foram feitos.
  *
- * Ficam apagados e riscados: banido é campeão que NÃO jogou, e a tela precisa
- * dizer isso de relance -- senão viram só mais dez ícones competindo com os
- * campeões que de fato entraram.
+ * Riscados na cor de quem baniu: banido é campeão que NÃO jogou, e a tela
+ * precisa dizer isso de relance -- senão viram só mais dez ícones competindo
+ * com os campeões que de fato entraram.
+ *
+ * O risco carrega esse recado sozinho. A primeira versão apagava o ícone junto
+ * (`opacity-45 grayscale`) e o resultado foi um bloco onde dava para ver que
+ * houve ban, mas não qual -- ver `ICONE_INDISPONIVEL`.
  */
 export function MatchBans({ bans }: { bans: MatchBan[] }) {
   if (bans.length === 0) return null;
@@ -117,24 +125,39 @@ export function MatchBans({ bans }: { bans: MatchBan[] }) {
   const porLado = (side: 'BLUE' | 'RED') => bans.filter((ban) => ban.teamSide === side);
 
   return (
-    <div className="rounded-lg border border-line/40 bg-base/40 p-2.5">
+    <div className="flex h-full flex-col rounded-lg border border-line/40 bg-canvas/40 p-2.5">
       <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
         Bans do draft
       </p>
 
       {/* Separados por time em vez de uma fila só de dez: o que interessa num
-          ban é QUEM tirou o quê do adversário, e uma fila única perde isso. */}
-      <div className="space-y-2">
+          ban é QUEM tirou o quê do adversário, e uma fila única perde isso.
+
+          CENTRALIZAR, não esticar. A versão anterior deixava os ícones
+          dividirem toda a largura disponível, e num card de 630px isso dava
+          retratos de 100px -- um banner, não um bloco de apoio. Agora eles têm
+          teto (48/56/64px) e o que sobra vira margem simétrica: nos dois eixos
+          o conteúdo fica no meio, então o espaço lê como respiro em vez de
+          buraco. `justify-center` na coluna faz o mesmo na vertical, mantendo
+          as duas fileiras juntas como um bloco só. */}
+      <div className="flex flex-1 flex-col justify-center gap-2.5">
+        {/* O rótulo fica SEMPRE em cima, nunca ao lado. Inline ele ocupava 64px
+            à esquerda e os ícones centralizavam só no que sobrava, então o bloco
+            terminava com 170px de folga de um lado contra 80 do outro -- lido
+            como torto, não como centralizado. Em cima, a fileira centraliza na
+            largura inteira do card e as duas margens ficam iguais. */}
         {(['BLUE', 'RED'] as const).map((side) => (
-          <div key={side} className="flex items-center gap-2">
+          <div key={side} className="flex flex-col gap-1">
             <span
-              className={`w-16 shrink-0 text-[11px] font-bold uppercase ${
+              className={`text-[11px] font-bold uppercase ${
                 side === 'BLUE' ? 'text-blue' : 'text-red'
               }`}
             >
               {side === 'BLUE' ? 'Azul' : 'Vermelho'}
             </span>
-            <div className="flex flex-wrap gap-1.5">
+            {/* gap fixo em 6px: com 8 a fileira de 56px estourava por 4px a
+                1024, e a quinta caía para a linha de baixo. */}
+            <div className="flex min-w-0 flex-1 flex-wrap justify-center gap-1.5">
               {porLado(side).map((ban) => (
                 <BanIcon key={ban.pickTurn} ban={ban} />
               ))}
@@ -151,24 +174,45 @@ function BanIcon({ ban }: { ban: MatchBan }) {
 
   return (
     <span
-      className="relative inline-block"
+      // Porcentagem, não breakpoint. O que decide o tamanho aqui é a largura do
+      // CARD, e ela não acompanha a da janela: em 768px o painel corta ao meio
+      // para virar duas colunas e encolhe de 690 para 330. Com tamanho preso a
+      // breakpoint a fileira quebrava em duas linhas justo aí, e também em
+      // 360px.
+      //
+      // 17% × 5 = 85%, então os 6px de intervalo sempre cabem nos 15% restantes
+      // e a fileira nunca quebra. O teto de 64px é o que impede o retrato de
+      // virar banner e competir com o scoreboard, que é a informação principal;
+      // quando ele age, `justify-center` transforma a sobra em margem simétrica.
+      className="relative block w-[17%] min-w-9 max-w-[72px]"
       title={`${nome} · banido pelo time ${
         ban.teamSide === 'BLUE' ? 'azul' : 'vermelho'
       } (${ban.pickTurn}º do draft)`}
     >
+      {/* Indisponível NÃO é invisível.
+          Estava em `opacity-45 grayscale`, e num fundo escuro isso apaga o
+          ícone: dava para ver que houve um ban, não QUAL foi -- que é a única
+          informação que o bloco carrega. O sinal de "não jogou" vem do risco e
+          de uma dessaturação leve; o campeão continua reconhecível.
+
+          `fluid`: quem manda no tamanho é o grid do MatchBans. O 48 fica só
+          como proporção enquanto a imagem não chegou. */}
       <ChampionIcon
         championName={ban.championName ?? String(ban.championId)}
-        size={34}
-        className="opacity-45 grayscale"
+        size={48}
+        fluid
+        className={ICONE_INDISPONIVEL}
       />
       {/* Barra diagonal cobrindo o ícone: lê como "proibido" de relance, sem
-          precisar de legenda. Em 18px isso era um risco ilegível. */}
+          precisar de legenda. Em 18px isso era um risco ilegível. A espessura
+          acompanha o ícone -- um fio de 2px sobre um retrato grande vira
+          arranhão em vez de proibição. */}
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 overflow-hidden rounded"
       >
         <span
-          className={`absolute left-1/2 top-1/2 h-[2px] w-[150%] -translate-x-1/2 -translate-y-1/2 rotate-45 ${
+          className={`absolute left-1/2 top-1/2 h-[2px] w-[150%] -translate-x-1/2 -translate-y-1/2 rotate-45 sm:h-[3px] ${
             ban.teamSide === 'BLUE' ? 'bg-blue/80' : 'bg-red/80'
           }`}
         />

@@ -1,3 +1,4 @@
+import { ICONE_INDISPONIVEL } from './ChampionIcon';
 import { Flame } from 'lucide-react';
 import type { BurnedChampion } from '../types';
 import { Card, EmptyState } from './ui';
@@ -38,7 +39,7 @@ export function BurnedChampions({
       }
       action={
         <span className="text-xs text-ink-faint">
-          {burned.length} indisponivel{burned.length === 1 ? '' : 'is'}
+          {burned.length} indisponíve{burned.length === 1 ? 'l' : 'is'}
         </span>
       }
     >
@@ -69,22 +70,23 @@ export function BurnedChampions({
                             width={48}
                             height={48}
                             loading="lazy"
-                            className="h-12 w-12 rounded border border-line opacity-40 grayscale transition group-hover:opacity-70"
+                            className={`h-12 w-12 rounded border border-line transition group-hover:grayscale-0 ${ICONE_INDISPONIVEL}`}
                           />
                         ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded border border-line bg-raised text-[9px] opacity-50">
+                          <div className="flex h-12 w-12 items-center justify-center rounded border border-line bg-raised text-[9px] text-ink-muted">
                             {champion.championName.slice(0, 6)}
                           </div>
                         )}
-                        {/* Barra diagonal reforca o "bloqueado" para quem nao
-                            distingue o grayscale. */}
+                        {/* Barra diagonal reforça o "bloqueado". Ela é o recado
+                            principal, não um reforço: o ícone continua colorido
+                            de propósito -- ver `ICONE_INDISPONIVEL`. */}
                         <span
                           aria-hidden
                           className="pointer-events-none absolute inset-0 flex items-center justify-center"
                         >
                           <span className="h-[2px] w-full rotate-45 bg-red/70" />
                         </span>
-                        <span className="sr-only">{champion.championName} indisponivel</span>
+                        <span className="sr-only">{champion.championName} indisponível</span>
                       </li>
                     );
                   })}

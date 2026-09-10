@@ -79,7 +79,7 @@ function AtalhoDaConta() {
 export function App() {
   return (
     <div className="min-h-screen pb-20 sm:pb-0">
-      <header className="sticky top-0 z-30 border-b border-line/50 bg-base/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-line/50 bg-canvas/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-6 px-4 py-3.5 sm:px-6 lg:px-8">
           <NavLink to="/" className="group flex items-baseline gap-1.5">
             <span className="text-lg font-bold tracking-tight text-ink">InHouse</span>
@@ -153,7 +153,7 @@ export function App() {
       {/* Barra inferior no celular. `pb-safe` via padding-bottom evita que o
           gesto de home do iOS cubra os rótulos. */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line/50 bg-base/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line/50 bg-canvas/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl sm:hidden"
         aria-label="Navegação principal"
       >
         {NAV.map(({ to, short, icon: Icon, end }) => (

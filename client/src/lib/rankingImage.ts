@@ -1,3 +1,4 @@
+import { hexDeCorDoNome, iniciaisDoNome } from './avatar';
 import type { LeaderboardEntry } from '../types';
 
 /**
@@ -86,10 +87,21 @@ function cortar(ctx: CanvasRenderingContext2D, texto: string, largura: number): 
 }
 
 function medalha(posicao: number): string {
+  return medalhaOuNada(posicao) ?? COR.fraco;
+}
+
+/**
+ * A mesma escala, mas devolvendo null fora do pódio.
+ *
+ * O número da posição sempre tem cor, então `medalha` cai no cinza. O anel em
+ * volta da foto não: fora dos três primeiros ele simplesmente não existe, e um
+ * anel cinza em todo mundo mataria o sinal que o pódio deveria dar.
+ */
+function medalhaOuNada(posicao: number): string | null {
   if (posicao === 0) return COR.ouro;
   if (posicao === 1) return COR.prata;
   if (posicao === 2) return COR.bronze;
-  return COR.fraco;
+  return null;
 }
 
 /** Retângulo com cantos arredondados -- `roundRect` não existe em Safari antigo. */
@@ -134,14 +146,23 @@ export async function gerarImagemDoRanking(
   // Os ícones vêm todos de uma vez: em série, 45 requisições sequenciais
   // deixariam o botão travado por segundos.
   const icones = new Map<string, HTMLImageElement | null>();
-  await Promise.all(
-    [...new Set(linhas.flatMap((e) => e.topChampions.map((c) => c.championName)))].map(
+  // Foto de perfil de quem tem conta. Entra no MESMO `Promise.all` dos ícones
+  // em vez de num segundo await: são requisições independentes, e enfileirar as
+  // duas levas dobraria a espera do botão à toa.
+  const fotos = new Map<string, HTMLImageElement | null>();
+  await Promise.all([
+    ...[...new Set(linhas.flatMap((e) => e.topChampions.map((c) => c.championName)))].map(
       async (nome) => {
         const url = opcoes.iconeDoCampeao(nome);
         icones.set(nome, url ? await carregarIcone(url) : null);
       }
-    )
-  );
+    ),
+    ...linhas
+      .filter((e) => e.photoUrl)
+      .map(async (e) => {
+        fotos.set(e.playerId, await carregarIcone(e.photoUrl as string));
+      }),
+  ]);
 
   ctx.fillStyle = COR.fundo;
   ctx.fillRect(0, 0, LARGURA, altura);
@@ -149,7 +170,7 @@ export async function gerarImagemDoRanking(
   desenharCabecalho(ctx, opcoes.ordenadoPor);
 
   linhas.forEach((entry, index) => {
-    desenharLinha(ctx, entry, index, icones);
+    desenharLinha(ctx, entry, index, icones, fotos);
   });
 
   desenharRodape(ctx, altura, entries.length);
@@ -204,11 +225,81 @@ function desenharCabecalho(ctx: CanvasRenderingContext2D, ordenadoPor: string) {
   ctx.stroke();
 }
 
+/** Diâmetro do avatar na linha. */
+const TAMANHO_AVATAR = 34;
+
+/**
+ * O avatar do jogador, redondo, com anel de pódio nos três primeiros.
+ *
+ * Espelha o que a tela faz -- e é por isso que as iniciais e a cor saem de
+ * `lib/avatar.ts` em vez de serem recalculadas aqui: se a imagem inventasse a
+ * própria paleta, a mesma pessoa apareceria de uma cor no site e de outra no
+ * zap, e nada acusaria.
+ *
+ * Sem foto NÃO vira buraco: o círculo de iniciais entra no lugar. Um vazio na
+ * coluna leria como erro de carregamento, e boa parte do grupo ainda não criou
+ * conta.
+ */
+function desenharAvatar(
+  ctx: CanvasRenderingContext2D,
+  entry: LeaderboardEntry,
+  foto: HTMLImageElement | null | undefined,
+  cx: number,
+  cy: number,
+  index: number
+) {
+  const raio = TAMANHO_AVATAR / 2;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+  ctx.clip();
+
+  if (foto) {
+    // `drawImage` estica para o quadrado dado; com foto não-quadrada isso
+    // deformaria o rosto. Recorta o centro do lado menor antes.
+    const lado = Math.min(foto.naturalWidth, foto.naturalHeight);
+    ctx.drawImage(
+      foto,
+      (foto.naturalWidth - lado) / 2,
+      (foto.naturalHeight - lado) / 2,
+      lado,
+      lado,
+      cx - raio,
+      cy - raio,
+      TAMANHO_AVATAR,
+      TAMANHO_AVATAR
+    );
+  } else {
+    ctx.fillStyle = hexDeCorDoNome(entry.name);
+    ctx.fillRect(cx - raio, cy - raio, TAMANHO_AVATAR, TAMANHO_AVATAR);
+    ctx.fillStyle = COR.texto;
+    ctx.font = fonte(13, 600);
+    ctx.textAlign = 'center';
+    ctx.fillText(iniciaisDoNome(entry.name), cx, cy + 1);
+  }
+  ctx.restore();
+
+  // O anel fica FORA do clip, senão metade da espessura some sob a borda do
+  // círculo e o ouro do primeiro lugar vira um fio.
+  const corDoAnel = medalhaOuNada(index);
+  if (corDoAnel) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, raio + 2, 0, Math.PI * 2);
+    ctx.strokeStyle = corDoAnel;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  ctx.textAlign = 'left';
+}
+
 function desenharLinha(
   ctx: CanvasRenderingContext2D,
   entry: LeaderboardEntry,
   index: number,
-  icones: Map<string, HTMLImageElement | null>
+  icones: Map<string, HTMLImageElement | null>,
+  fotos: Map<string, HTMLImageElement | null>
 ) {
   const topo = ALTURA_CABECALHO + index * ALTURA_LINHA;
   const meio = topo + ALTURA_LINHA / 2;
@@ -229,7 +320,14 @@ function desenharLinha(
   ctx.fillText(String(index + 1), MARGEM + 14, meio);
   ctx.textAlign = 'left';
 
-  let x = MARGEM + 44;
+  // A foto vem logo depois do número, como na tela: primeiro QUEM, depois o que
+  // a pessoa jogou.
+  const X_AVATAR = MARGEM + 38;
+  desenharAvatar(ctx, entry, fotos.get(entry.playerId), X_AVATAR + TAMANHO_AVATAR / 2, meio, index);
+
+  // +4 de folga para o anel do pódio, que passa 2px do raio.
+  let x = X_AVATAR + TAMANHO_AVATAR + 12;
+  const inicioDosCampeoes = x;
   const TAMANHO_ICONE = 30;
   for (const champion of entry.topChampions.slice(0, 3)) {
     const img = icones.get(champion.championName);
@@ -245,7 +343,9 @@ function desenharLinha(
 
   const nome =
     entry.name + (entry.seriesWon > 0 ? ` ${'🏆'.repeat(Math.min(entry.seriesWon, 3))}` : '');
-  const xDoNome = MARGEM + 44 + 3 * (TAMANHO_ICONE + 5) + 8;
+  // Três posições de campeão SEMPRE, mesmo com menos de três: assim o nome
+  // começa na mesma coluna em toda linha.
+  const xDoNome = inicioDosCampeoes + 3 * (TAMANHO_ICONE + 5) + 8;
   ctx.font = fonte(19, 600);
   ctx.fillStyle = COR.texto;
   // Canvas não quebra nem corta texto sozinho: um nome longo passaria por cima

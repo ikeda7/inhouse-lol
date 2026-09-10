@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Copy, Download, Share2, Trophy } from 'lucide-react';
 import { statsApi } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
-import { Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../components/ui';
+import { Avatar, Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon } from '../components/ChampionIcon';
 import { useChampions } from '../hooks/useChampions';
 import {
@@ -27,6 +27,23 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 /** Ouro, prata e bronze nos três primeiros; o resto só o número. */
 const MEDAL = ['text-gold', 'text-silver', 'text-bronze'];
+
+/**
+ * O mesmo pódio, agora em volta da foto.
+ *
+ * `ring` e não `border`: borda entra no box e empurra a imagem para dentro,
+ * deixando os três primeiros com o rosto menor que o resto da tabela. O anel é
+ * desenhado por fora e não mexe no layout.
+ *
+ * O `ring-offset` na cor da superfície abre um fio escuro entre a foto e o
+ * anel. Sem ele, foto clara encostada em anel dourado vira uma mancha só e o
+ * pódio deixa de ser legível justamente em quem tem foto.
+ */
+const ANEL_DO_PODIO = [
+  'ring-2 ring-gold ring-offset-2 ring-offset-surface',
+  'ring-2 ring-silver ring-offset-2 ring-offset-surface',
+  'ring-2 ring-bronze ring-offset-2 ring-offset-surface',
+];
 
 /**
  * Ranking geral. +3 por mapa vencido, +1 de bônus por vencer a MD3.
@@ -237,14 +254,24 @@ function LinhaTabela({ entry, posicao }: { entry: LeaderboardEntry; posicao: num
       </td>
 
       <td className="py-2.5 pr-2">
-        <Link
-          to={`/jogadores/${entry.playerId}`}
-          className="text-[15px] font-medium text-ink transition group-hover:text-gold"
-        >
-          {entry.name}
-        </Link>
-        <Trofeus quantidade={entry.seriesWon} recente={entry.wonLastSeries} />
-        {entry.isKdaPlayer && <SeloKdaPlayer />}
+        {/* A foto é de quem já criou conta; quem não criou cai nas iniciais,
+            então a coluna nunca fica com buraco nem desalinha. */}
+        <span className="flex items-center gap-2.5">
+          <Avatar
+            photoUrl={entry.photoUrl}
+            name={entry.name}
+            size="sm"
+            className={ANEL_DO_PODIO[posicao] ?? ''}
+          />
+          <Link
+            to={`/jogadores/${entry.playerId}`}
+            className="text-[15px] font-medium text-ink transition group-hover:text-gold"
+          >
+            {entry.name}
+          </Link>
+          <Trofeus quantidade={entry.seriesWon} recente={entry.wonLastSeries} />
+          {entry.isKdaPlayer && <SeloKdaPlayer />}
+        </span>
       </td>
 
       <td className="py-2.5 pr-2">
@@ -256,7 +283,7 @@ function LinhaTabela({ entry, posicao }: { entry: LeaderboardEntry; posicao: num
               {/* Quantas vezes jogou, no canto. Três ícones sem número dizem
                   "joga esses"; com número dizem "esse é O campeão dele". */}
               {champion.games > 1 && (
-                <span className="tabular absolute -bottom-1 -right-1 rounded bg-base px-1 text-[9px] font-bold leading-tight text-ink-muted ring-1 ring-line/60">
+                <span className="tabular absolute -bottom-1 -right-1 rounded bg-canvas px-1 text-[9px] font-bold leading-tight text-ink-muted ring-1 ring-line/60">
                   {champion.games}
                 </span>
               )}
@@ -385,6 +412,13 @@ function LinhaCelular({ entry, posicao }: { entry: LeaderboardEntry; posicao: nu
         >
           {posicao + 1}
         </span>
+
+        <Avatar
+          photoUrl={entry.photoUrl}
+          name={entry.name}
+          size="sm"
+          className={ANEL_DO_PODIO[posicao] ?? ''}
+        />
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-medium text-ink">

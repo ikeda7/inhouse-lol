@@ -3,6 +3,13 @@ import { calcularMaximos } from '../components/MatchPlayerDetail';
 import { ordenarPorLane } from '../components/ChampionIcon';
 import { parseItems } from '../hooks/useBuild';
 import { nomeDaSequencia, nomeDoMultikill } from '../lib/lolTerms';
+import {
+  CORES_DE_AVATAR,
+  classeDeCorDoNome,
+  hexDeCorDoNome,
+  indiceDeCorDoNome,
+  iniciaisDoNome,
+} from '../lib/avatar';
 import type { MatchStat, Role } from '../types';
 
 /**
@@ -157,5 +164,44 @@ describe('nomes que o jogo usa', () => {
     expect(nomeDoMultikill(5)).toBe('PENTAKILL');
     expect(nomeDoMultikill(4)).toBe('QUADRA KILL');
     expect(nomeDoMultikill(3)).toBe('TRIPLE KILL');
+  });
+});
+
+describe('identidade do avatar sem foto', () => {
+  // Estas funções existem num módulo próprio porque DUAS superfícies precisam
+  // chegar ao mesmo resultado: a tela (classe do Tailwind) e a imagem do
+  // ranking (canvas, que precisa de hexadecimal). Se divergirem, a mesma pessoa
+  // aparece de uma cor no site e de outra no zap, sem erro em lugar nenhum.
+
+  it('dá a MESMA cor para o mesmo nome nas duas superfícies', () => {
+    for (const nome of ['Vini', 'amar dps dos 40', 'Ígor', 'Farei o L']) {
+      const i = indiceDeCorDoNome(nome);
+      expect(classeDeCorDoNome(nome)).toBe(CORES_DE_AVATAR[i].classe);
+      expect(hexDeCorDoNome(nome)).toBe(CORES_DE_AVATAR[i].hex);
+    }
+  });
+
+  it('é estável: o mesmo nome sempre cai na mesma cor', () => {
+    // Se o hash mudar, todo mundo troca de cor de uma vez -- e a galera se
+    // reconhece por essa cor numa lista de quinze.
+    expect(indiceDeCorDoNome('Vini')).toBe(indiceDeCorDoNome('Vini'));
+    expect(hexDeCorDoNome('Crepaldi')).toBe(hexDeCorDoNome('Crepaldi'));
+  });
+
+  it('sempre devolve um índice dentro da paleta', () => {
+    // `hash | 0` pode dar negativo; sem o Math.abs isso indexaria fora e
+    // devolveria undefined, que no canvas vira fillStyle inválido.
+    for (const nome of ['', 'a', 'Zzzzzzzzzzzzzzzz', '🏆', 'Ígor', 'amar dps dos 40']) {
+      const i = indiceDeCorDoNome(nome);
+      expect(i).toBeGreaterThanOrEqual(0);
+      expect(i).toBeLessThan(CORES_DE_AVATAR.length);
+    }
+  });
+
+  it('tira duas letras do apelido, iniciais do nome composto', () => {
+    expect(iniciaisDoNome('Vini')).toBe('VI');
+    expect(iniciaisDoNome('amar dps dos 40')).toBe('A4');
+    expect(iniciaisDoNome('Farei o L')).toBe('FL');
+    expect(iniciaisDoNome('Ígor')).toBe('ÍG');
   });
 });

@@ -160,7 +160,7 @@ interface IngestOptions {
   autoLink: boolean;
   autoCreatePlayers?: boolean;
   refreshStats?: boolean;
-  /** Rotulo da origem, so para a resposta. */
+  /** De onde a partida veio. Vai para a resposta E para a coluna `source`. */
   source: 'LCU' | 'ROFL';
 }
 
@@ -414,7 +414,7 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     winner: imported.winner,
     gameDurationSec: imported.gameDurationSec,
     riotMatchId: imported.riotMatchId,
-    source: 'RIOT_API',
+    source: options.source,
     gameVersion: imported.gameVersion,
     surrendered: imported.surrendered,
     players: matched,
