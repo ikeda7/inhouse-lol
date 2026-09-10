@@ -46,6 +46,32 @@ node companion/inhouse-companion.mjs --who "Nick#TAG"
 O agente é **zero-dependência** de propósito: só `node`, sem `npm install`.
 Se `node --version` responde, está pronto.
 
+### 3. Chegou alguém que nunca jogou
+
+[Jogadores](https://inhouse-lol.vercel.app/jogadores) → **Novo jogador**:
+
+- **Nome**: como a galera chama. Tem de ser único.
+- **Riot ID**: `Nick#TAG`, exatamente como no cliente. Diz "opcional", mas
+  numa noite de jogo **não é**: sem ele a partida chega e o servidor recusa
+  com "participante(s) não estão vinculados", porque não sabe quem é quem.
+- **Roles**: clique **na ordem de preferência** — a primeira vira a main, e é
+  isso que o sorteio usa para decidir quem sai da main.
+
+O selo **"sem conta"** ao lado do nome não atrapalha nada na noite: conta é
+só para a pessoa pôr foto e entrar no próprio perfil. Quem quiser cria em
+**Entrar → Criar conta**, e o histórico já vem junto.
+
+### 4. A lista não fechou em 10
+
+O sorteio e o draft exigem **exatamente 10** marcados.
+
+- **Mais de 10:** marque só os 10 que vão jogar esta rodada. Reserva fica
+  desmarcada e continua no cadastro.
+- **Menos de 10:** o sorteio recusa em vez de montar time torto. Não tem modo
+  4x5 — ou chega o décimo, ou a noite não conta para o ranking.
+- **Trocou alguém no meio da MD3:** tudo bem. O placar da série segue o
+  **elenco** (maioria dos 5), então uma substituição não quebra a contagem.
+
 ---
 
 ## Na hora de jogar
@@ -112,6 +138,25 @@ ranking para quem venceu.
 
 Para ver o que ele mandaria sem gravar nada, acrescente `--dry-run` a qualquer
 comando.
+
+---
+
+## Ensaio antes da noite (para quem mexe no código)
+
+`client/e2e/ensaio-da-noite.mjs` percorre pela API o caminho inteiro de uma
+noite: cadastro na hora, sorteio, sala de draft, MD3 com Fearless, lados
+trocados, importação do LCU. O CI roda em todo PR. Para rodar na mão, sempre
+num banco descartável — o script **grava** e recusa qualquer servidor que não
+seja local:
+
+```bash
+cd server
+DATABASE_URL=file:./ensaio.db npx prisma db push --skip-generate
+DATABASE_URL=file:./ensaio.db npm run db:seed
+DATABASE_URL=file:./ensaio.db PORT=3334 npx tsx src/index.ts
+# em outro terminal, na raiz:
+node client/e2e/ensaio-da-noite.mjs --base http://localhost:3334
+```
 
 ---
 
