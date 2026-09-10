@@ -1,6 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { changePassword, setUploadedPhoto, syncLolPhoto } from '../services/auth.js';
+import {
+  changePassword,
+  getAccountById,
+  setUploadedPhoto,
+  syncLolPhoto,
+} from '../services/auth.js';
 import { updatePlayer } from '../services/players.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from './helpers.js';
@@ -24,8 +29,10 @@ accountsRouter.patch(
   '/me',
   asyncHandler(async (req, res) => {
     const input = updateSchema.parse(req.body);
-    const player = await updatePlayer(req.playerId as string, input);
-    res.json({ success: true, data: player });
+    await updatePlayer(req.playerId as string, input);
+    // Devolve a CONTA, não o jogador público: quem editou o próprio perfil
+    // continua precisando ver o próprio e-mail na tela.
+    res.json({ success: true, data: await getAccountById(req.playerId as string) });
   })
 );
 

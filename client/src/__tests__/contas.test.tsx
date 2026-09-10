@@ -48,7 +48,7 @@ beforeEach(() => {
               roles: ['FILL'],
               internalRating: 1000,
               active: true,
-              email: null,
+              hasAccount: false,
               photoUrl: null,
               photoSource: 'NONE',
             },

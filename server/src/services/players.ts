@@ -18,10 +18,25 @@ export interface PlayerDTO {
   roles: RoleInput[];
   internalRating: number;
   active: boolean;
-  /** null = ainda nao reivindicou a conta (issue #3). Nunca expor passwordHash. */
-  email: string | null;
+  /**
+   * Se a pessoa já reivindicou a conta (issue #3). É só isso que o público
+   * precisa saber: o e-mail fica no AccountDTO, que só o dono recebe.
+   */
+  hasAccount: boolean;
   photoUrl: string | null;
   photoSource: 'LOL_ICON' | 'UPLOAD' | 'NONE';
+}
+
+/**
+ * O jogador visto por ele mesmo, logado: o único lugar em que o e-mail sai do
+ * servidor.
+ *
+ * Antes o e-mail vinha no PlayerDTO, e a lista pública de jogadores (GET
+ * /api/players, sem login) entregava o e-mail de todo mundo que tinha criado
+ * conta -- num site e num repositório públicos.
+ */
+export interface AccountDTO extends PlayerDTO {
+  email: string | null;
 }
 
 type PlayerWithRoles = {
@@ -31,6 +46,7 @@ type PlayerWithRoles = {
   internalRating: number;
   active: boolean;
   email: string | null;
+  passwordHash: string | null;
   photoUrl: string | null;
   photoSource: string;
   roles: { role: string; priority: number }[];
@@ -46,10 +62,16 @@ export function toPlayerDTO(player: PlayerWithRoles): PlayerDTO {
       .map((entry) => entry.role as RoleInput),
     internalRating: player.internalRating,
     active: player.active,
-    email: player.email,
+    // Monta campo a campo em vez de espalhar `player`: um espalhamento levaria
+    // junto email e passwordHash sem ninguém perceber.
+    hasAccount: player.passwordHash !== null,
     photoUrl: player.photoUrl,
     photoSource: player.photoSource as PlayerDTO['photoSource'],
   };
+}
+
+export function toAccountDTO(player: PlayerWithRoles): AccountDTO {
+  return { ...toPlayerDTO(player), email: player.email };
 }
 
 /** Formato que o algoritmo de draft consome. */

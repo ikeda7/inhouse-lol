@@ -6,12 +6,12 @@ import { useAuth } from '../context/AuthContext';
 import { useAction, useAsync } from '../hooks/useAsync';
 import { resizeToDataUrl } from '../lib/imageResize';
 import { Avatar, Button, Card, CardTitle, ErrorState, Input, LoadingState } from '../components/ui';
-import type { Player } from '../types';
+import type { Account } from '../types';
 
 /** Cada seção recebe o jogador e como avisar o resto do app que ele mudou. */
 interface SecaoProps {
-  player: Player;
-  onChanged: (player: Player) => void;
+  player: Account;
+  onChanged: (player: Account) => void;
 }
 
 export function AccountPage() {
