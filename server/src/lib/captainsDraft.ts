@@ -167,18 +167,18 @@ export function applyPick(
   firstPick: TeamSide = 'BLUE'
 ): CaptainsDraftState {
   if (state.finished) {
-    throw new DraftError('O draft ja terminou.', 'DRAFT_FINISHED');
+    throw new DraftError('O draft já terminou.', 'DRAFT_FINISHED');
   }
 
   const order = buildPickOrder(firstPick);
   const currentPick = order[state.pickNumber - 1];
   if (!currentPick) {
-    throw new DraftError('Nao ha mais escolhas nesse draft.', 'DRAFT_FINISHED');
+    throw new DraftError('Não há mais escolhas nesse draft.', 'DRAFT_FINISHED');
   }
 
   const chosen = state.available.find((p) => p.id === playerId);
   if (!chosen) {
-    throw new DraftError('Esse jogador nao esta disponivel para escolha.', 'PLAYER_NOT_AVAILABLE', {
+    throw new DraftError('Esse jogador não está disponível para escolha.', 'PLAYER_NOT_AVAILABLE', {
       playerId,
     });
   }

@@ -70,7 +70,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     payload = (await response.json()) as ApiResponse<T>;
   } catch {
-    throw new ApiError(`Resposta invalida do servidor (HTTP ${response.status}).`, response.status);
+    throw new ApiError(`Resposta inválida do servidor (HTTP ${response.status}).`, response.status);
   }
 
   if (!response.ok || !payload.success) {

@@ -48,10 +48,10 @@ export interface RegisterInput {
 export async function registerAccount(input: RegisterInput): Promise<PlayerDTO> {
   const existing = await prisma.player.findUnique({ where: { id: input.playerId } });
   if (!existing) {
-    throw new AuthError('Jogador nao encontrado.', 'PLAYER_NOT_FOUND');
+    throw new AuthError('Jogador não encontrado.', 'PLAYER_NOT_FOUND');
   }
   if (existing.passwordHash) {
-    throw new AuthError('Esse jogador ja tem uma conta.', 'ALREADY_CLAIMED');
+    throw new AuthError('Esse jogador já tem uma conta.', 'ALREADY_CLAIMED');
   }
 
   const passwordHash = await hashPassword(input.password);
@@ -128,7 +128,7 @@ export async function changePassword(input: ChangePasswordInput): Promise<void> 
 export async function syncLolPhoto(playerId: string): Promise<PlayerDTO> {
   const existing = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
   if (!existing.puuid) {
-    throw new AuthError('Esse jogador ainda nao tem Riot ID vinculado.', 'NO_RIOT_ID');
+    throw new AuthError('Esse jogador ainda não tem Riot ID vinculado.', 'NO_RIOT_ID');
   }
 
   const { profileIconId } = await getSummonerByPuuid(existing.puuid);
@@ -155,13 +155,13 @@ const IMAGE_DATA_URL = /^data:image\/(jpeg|png|webp);base64,([a-zA-Z0-9+/]+=*)$/
 export async function setUploadedPhoto(playerId: string, imageBase64: string): Promise<PlayerDTO> {
   const match = IMAGE_DATA_URL.exec(imageBase64);
   if (!match) {
-    throw new AuthError('Formato de imagem invalido. Use JPEG, PNG ou WebP.', 'INVALID_IMAGE');
+    throw new AuthError('Formato de imagem inválido. Use JPEG, PNG ou WebP.', 'INVALID_IMAGE');
   }
 
   const byteLength = Buffer.from(match[2], 'base64').length;
   if (byteLength > MAX_PHOTO_BYTES) {
     throw new AuthError(
-      'Imagem grande demais (limite de 300 KB apos compressao).',
+      'Imagem grande demais (limite de 300 KB após compressão).',
       'PHOTO_TOO_LARGE'
     );
   }

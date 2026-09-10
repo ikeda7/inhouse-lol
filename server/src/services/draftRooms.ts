@@ -101,7 +101,7 @@ export async function criarSala(state: CaptainsDraftState): Promise<SalaDeDraft>
   }
 
   throw new DraftError(
-    'Nao consegui gerar um codigo livre para a sala. Tente de novo.',
+    'Não consegui gerar um código livre para a sala. Tente de novo.',
     'ROOM_CODE_EXHAUSTED'
   );
 }
@@ -129,13 +129,13 @@ export async function pegarLado(
 ): Promise<{ sala: SalaDeDraft; token: string }> {
   const atual = await prisma.draftRoom.findUnique({ where: { code: code.toUpperCase() } });
   if (!atual || atual.expiresAt.getTime() < Date.now()) {
-    throw new DraftError('Sala nao encontrada ou expirada.', 'ROOM_NOT_FOUND');
+    throw new DraftError('Sala não encontrada ou expirada.', 'ROOM_NOT_FOUND');
   }
 
   const campo = side === 'BLUE' ? 'blueToken' : 'redToken';
   if (atual[campo] !== null) {
     throw new DraftError(
-      `O lado ${side === 'BLUE' ? 'azul' : 'vermelho'} ja tem capitao. Peca para liberar.`,
+      `O lado ${side === 'BLUE' ? 'azul' : 'vermelho'} já tem capitão. Peça para liberar.`,
       'SIDE_ALREADY_CLAIMED'
     );
   }
@@ -149,7 +149,7 @@ export async function pegarLado(
   });
 
   if (alterados.count === 0) {
-    throw new DraftError('Alguem pegou esse lado primeiro.', 'SIDE_ALREADY_CLAIMED');
+    throw new DraftError('Alguém pegou esse lado primeiro.', 'SIDE_ALREADY_CLAIMED');
   }
 
   return { sala: (await buscarSala(atual.code))!, token };
@@ -164,7 +164,7 @@ export async function pegarLado(
  */
 export async function liberarLado(code: string, side: TeamSide): Promise<SalaDeDraft> {
   const sala = await buscarSala(code);
-  if (!sala) throw new DraftError('Sala nao encontrada ou expirada.', 'ROOM_NOT_FOUND');
+  if (!sala) throw new DraftError('Sala não encontrada ou expirada.', 'ROOM_NOT_FOUND');
 
   await prisma.draftRoom.update({
     where: { code: sala.code },
@@ -182,7 +182,7 @@ export async function escolherNaSala(
 ): Promise<SalaDeDraft> {
   const linha = await prisma.draftRoom.findUnique({ where: { code: code.toUpperCase() } });
   if (!linha || linha.expiresAt.getTime() < Date.now()) {
-    throw new DraftError('Sala nao encontrada ou expirada.', 'ROOM_NOT_FOUND');
+    throw new DraftError('Sala não encontrada ou expirada.', 'ROOM_NOT_FOUND');
   }
   const sala = montar(linha);
 
@@ -193,7 +193,7 @@ export async function escolherNaSala(
     const esperado = daVez === 'BLUE' ? linha.blueToken : linha.redToken;
     if (esperado !== null && esperado !== token) {
       throw new DraftError(
-        `A vez e do capitao ${daVez === 'BLUE' ? 'azul' : 'vermelho'}.`,
+        `A vez é do capitão ${daVez === 'BLUE' ? 'azul' : 'vermelho'}.`,
         'NOT_YOUR_TURN'
       );
     }
@@ -201,7 +201,7 @@ export async function escolherNaSala(
 
   if (sala.version !== versaoVista) {
     throw new DraftError(
-      'Alguem escolheu antes de voce. A tela ja foi atualizada.',
+      'Alguém escolheu antes de você. A tela já foi atualizada.',
       'ROOM_VERSION_CONFLICT'
     );
   }
@@ -218,7 +218,7 @@ export async function escolherNaSala(
 
   if (alterados.count === 0) {
     throw new DraftError(
-      'Alguem escolheu antes de voce. A tela ja foi atualizada.',
+      'Alguém escolheu antes de você. A tela já foi atualizada.',
       'ROOM_VERSION_CONFLICT'
     );
   }

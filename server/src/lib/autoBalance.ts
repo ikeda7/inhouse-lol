@@ -208,7 +208,7 @@ function preparePlayer(
 ): PreparedPlayer {
   if (!player.roles || player.roles.length === 0) {
     throw new DraftError(
-      `Jogador "${player.name}" nao tem nenhuma role cadastrada.`,
+      `Jogador "${player.name}" não tem nenhuma role cadastrada.`,
       'PLAYER_WITHOUT_ROLES',
       { playerId: player.id }
     );
@@ -293,10 +293,10 @@ function assertFeasible(players: PreparedPlayer[], slots: Slot[]): void {
     const trapped = players.filter((p) => (p.roleMask & ~subset) === 0);
     if (trapped.length > capacity) {
       throw new DraftError(
-        `Composicao impossivel: ${trapped.length} jogadores (${trapped
+        `Composição impossível: ${trapped.length} jogadores (${trapped
           .map((p) => p.source.name)
-          .join(', ')}) so jogam ${subsetRoles.join('/')}, ` +
-          `mas existem apenas ${capacity} vaga(s) nessas posicoes.`,
+          .join(', ')}) só jogam ${subsetRoles.join('/')}, ` +
+          `mas existem apenas ${capacity} vaga(s) nessas posições.`,
         'INFEASIBLE_ROLES',
         {
           roles: subsetRoles,
@@ -665,7 +665,7 @@ export function autoBalanceTeams(
     // Hall garantiu que existe solucao, entao chegar aqui significa que o teto
     // de nos foi baixo demais. Nao mentimos dizendo "impossivel".
     throw new DraftError(
-      'A busca estourou o limite de exploracao antes de fechar um time valido. Aumente `maxNodes`.',
+      'A busca estourou o limite de exploração antes de fechar um time válido. Aumente `maxNodes`.',
       'SEARCH_BUDGET_EXHAUSTED',
       { maxNodes: opts.maxNodes }
     );
@@ -733,7 +733,7 @@ export function assignRolesWithinTeam(
   );
 
   if (!outcome.best) {
-    throw new DraftError('Nao consegui distribuir as roles nesse time.', 'SEARCH_BUDGET_EXHAUSTED');
+    throw new DraftError('Não consegui distribuir as roles nesse time.', 'SEARCH_BUDGET_EXHAUSTED');
   }
 
   return buildTeam(side, outcome.best, prepared, slots);

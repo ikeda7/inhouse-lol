@@ -33,7 +33,7 @@ beforeEach(() => {
       if (entrada.includes('/auth/me')) {
         return responder(401, {
           success: false,
-          error: 'Nao autenticado.',
+          error: 'Não autenticado.',
           code: 'NOT_AUTHENTICATED',
         });
       }
@@ -55,7 +55,7 @@ beforeEach(() => {
           ],
         });
       }
-      return responder(404, { success: false, error: 'Rota nao encontrada.' });
+      return responder(404, { success: false, error: 'Rota não encontrada.' });
     })
   );
 });
