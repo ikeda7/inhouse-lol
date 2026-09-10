@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Crown, History, Swords } from 'lucide-react';
 import { playersApi } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
-import { Card, CardTitle, ErrorState, LoadingState, EmptyState } from '../components/ui';
+import { Avatar, Card, CardTitle, ErrorState, LoadingState, EmptyState } from '../components/ui';
 import { ChampionIcon } from '../components/ChampionIcon';
 import { Highlights } from '../components/Highlights';
 import { ROLE_LABEL, type PlayerProfile, type RecentMatch } from '../types';
@@ -51,7 +51,13 @@ function Cabecalho({ data }: { data: PlayerProfile }) {
   return (
     <Card>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+        <div className="flex items-center gap-4">
+          {/* Esta é A tela sobre uma pessoa, e era a única lista do app onde ela
+              não tinha rosto. `lg` porque aqui a foto é o assunto, não um
+              marcador ao lado de um nome numa linha de tabela. */}
+          <Avatar photoUrl={data.photoUrl} name={data.name} size="lg" />
+
+          <div>
           <h1 className="text-3xl font-bold text-gold">{data.name}</h1>
           <p className="mt-0.5 text-sm text-ink-faint">
             {data.games} partida{data.games === 1 ? '' : 's'} registrada
@@ -65,6 +71,7 @@ function Cabecalho({ data }: { data: PlayerProfile }) {
               </>
             )}
           </p>
+          </div>
         </div>
 
         {/* Troféus grandes: é o único lugar onde eles são o assunto e não um
@@ -142,24 +149,46 @@ function PorRole({ data }: { data: PlayerProfile }) {
   return (
     <Card title={<CardTitle icon={Swords}>Desempenho por role</CardTitle>}>
       <ul className="space-y-2.5">
-        {data.byRole.map((role) => (
-          <li key={role.role} className="flex items-center gap-3 text-sm">
-            <span className="w-20 shrink-0 text-xs font-semibold uppercase tracking-wider text-ink-faint">
-              {ROLE_LABEL[role.role]}
-            </span>
-            {/* Barra proporcional ao winrate; o número ao lado mantém a
-                informação acessível sem depender da largura da barra. */}
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-raised">
-              <div
-                className={`h-full rounded-full ${role.winRate >= 50 ? 'bg-win/70' : 'bg-loss/70'}`}
-                style={{ width: `${role.games > 0 ? role.winRate : 0}%` }}
-              />
-            </div>
-            <span className="tabular w-28 shrink-0 text-right text-xs text-ink-faint">
-              {role.games === 0 ? 'sem jogos' : `${role.wins}/${role.games} · ${role.winRate}%`}
-            </span>
-          </li>
-        ))}
+        {data.byRole.map((role) => {
+          const jogou = role.games > 0;
+          return (
+            <li key={role.role} className="flex items-center gap-3 text-sm">
+              <span
+                className={`w-20 shrink-0 text-xs font-semibold uppercase tracking-wider ${
+                  jogou ? 'text-ink-muted' : 'text-ink-faint'
+                }`}
+              >
+                {ROLE_LABEL[role.role]}
+              </span>
+
+              {/* "Nunca jogou" e "jogou e perdeu tudo" são coisas diferentes, e
+                  a trilha sólida desenhava as duas igual: uma barra vazia do
+                  mesmo tamanho, parecendo medição onde não há dado nenhum.
+                  Sem jogo, a trilha vira tracejado -- lê como lacuna, não como
+                  zero medido. */}
+              {jogou ? (
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-raised">
+                  <div
+                    className={`h-full rounded-full ${
+                      role.winRate >= 50 ? 'bg-win/70' : 'bg-loss/70'
+                    }`}
+                    style={{ width: `${role.winRate}%` }}
+                  />
+                </div>
+              ) : (
+                <div className="h-2 flex-1 rounded-full border border-dashed border-line/60" />
+              )}
+
+              <span
+                className={`tabular w-28 shrink-0 text-right text-xs ${
+                  jogou ? 'text-ink-muted' : 'text-ink-faint'
+                }`}
+              >
+                {jogou ? `${role.wins}/${role.games} · ${role.winRate}%` : 'sem jogos'}
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </Card>
   );

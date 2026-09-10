@@ -262,6 +262,8 @@ export interface RecentMatch {
 export interface PlayerProfile {
   playerId: string;
   name: string;
+  /** Foto de quem já reivindicou a conta; null para o resto. */
+  photoUrl: string | null;
   games: number;
   wins: number;
   winRate: number;
