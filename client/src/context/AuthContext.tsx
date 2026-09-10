@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { authApi } from '../api/client';
-import type { Player } from '../types';
+import type { Account } from '../types';
 
 /**
  * Sessao do jogador logado (issue #3).
@@ -12,20 +12,20 @@ import type { Player } from '../types';
  */
 
 interface AuthValue {
-  player: Player | null;
+  player: Account | null;
   /** true enquanto o /auth/me inicial nao respondeu -- evita piscar "Entrar". */
   loading: boolean;
-  login: (input: { email: string; password: string }) => Promise<Player>;
-  register: (input: { playerId: string; email: string; password: string }) => Promise<Player>;
+  login: (input: { email: string; password: string }) => Promise<Account>;
+  register: (input: { playerId: string; email: string; password: string }) => Promise<Account>;
   logout: () => Promise<void>;
   /** Atualiza o jogador em memoria depois de mexer no proprio perfil. */
-  setPlayer: (player: Player) => void;
+  setPlayer: (player: Account) => void;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [player, setPlayer] = useState<Player | null>(null);
+  const [player, setPlayer] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

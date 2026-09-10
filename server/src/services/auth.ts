@@ -11,7 +11,13 @@ import { prisma } from '../lib/prisma.js';
 import { hashPassword, verifyPassword } from '../lib/auth.js';
 import { getSummonerByPuuid } from '../lib/riot.js';
 import { getProfileIconUrl } from '../lib/ddragon.js';
-import { toPlayerDTO, withRoles, type PlayerDTO } from './players.js';
+import {
+  toAccountDTO,
+  toPlayerDTO,
+  withRoles,
+  type AccountDTO,
+  type PlayerDTO,
+} from './players.js';
 
 export class AuthError extends Error {
   constructor(
@@ -45,7 +51,7 @@ export interface RegisterInput {
   password: string;
 }
 
-export async function registerAccount(input: RegisterInput): Promise<PlayerDTO> {
+export async function registerAccount(input: RegisterInput): Promise<AccountDTO> {
   const existing = await prisma.player.findUnique({ where: { id: input.playerId } });
   if (!existing) {
     throw new AuthError('Jogador não encontrado.', 'PLAYER_NOT_FOUND');
@@ -76,7 +82,7 @@ export async function registerAccount(input: RegisterInput): Promise<PlayerDTO> 
     where: { id: player.id },
     include: withRoles,
   });
-  return toPlayerDTO(refreshed);
+  return toAccountDTO(refreshed);
 }
 
 export interface LoginInput {
@@ -84,7 +90,7 @@ export interface LoginInput {
   password: string;
 }
 
-export async function loginAccount(input: LoginInput): Promise<PlayerDTO> {
+export async function loginAccount(input: LoginInput): Promise<AccountDTO> {
   const player = await prisma.player.findUnique({
     where: { email: input.email.trim().toLowerCase() },
     include: withRoles,
@@ -99,12 +105,12 @@ export async function loginAccount(input: LoginInput): Promise<PlayerDTO> {
     throw new AuthError('E-mail ou senha incorretos.', 'INVALID_CREDENTIALS');
   }
 
-  return toPlayerDTO(player);
+  return toAccountDTO(player);
 }
 
-export async function getAccountById(playerId: string): Promise<PlayerDTO | null> {
+export async function getAccountById(playerId: string): Promise<AccountDTO | null> {
   const player = await prisma.player.findUnique({ where: { id: playerId }, include: withRoles });
-  return player ? toPlayerDTO(player) : null;
+  return player ? toAccountDTO(player) : null;
 }
 
 export interface ChangePasswordInput {
@@ -125,7 +131,7 @@ export async function changePassword(input: ChangePasswordInput): Promise<void> 
 }
 
 /** Busca o icone de invocador atual na Riot e o grava como foto. */
-export async function syncLolPhoto(playerId: string): Promise<PlayerDTO> {
+export async function syncLolPhoto(playerId: string): Promise<AccountDTO> {
   const existing = await prisma.player.findUniqueOrThrow({ where: { id: playerId } });
   if (!existing.puuid) {
     throw new AuthError('Esse jogador ainda não tem Riot ID vinculado.', 'NO_RIOT_ID');
@@ -139,7 +145,7 @@ export async function syncLolPhoto(playerId: string): Promise<PlayerDTO> {
     data: { profileIconId, photoUrl, photoSource: 'LOL_ICON' },
     include: withRoles,
   });
-  return toPlayerDTO(player);
+  return toAccountDTO(player);
 }
 
 const MAX_PHOTO_BYTES = 300 * 1024;
@@ -152,7 +158,7 @@ const IMAGE_DATA_URL = /^data:image\/(jpeg|png|webp);base64,([a-zA-Z0-9+/]+=*)$/
  * mesmo banco funciona identico em dev e producao, sem infra nova. O
  * redimensionamento para caber no limite acontece no client, antes do POST.
  */
-export async function setUploadedPhoto(playerId: string, imageBase64: string): Promise<PlayerDTO> {
+export async function setUploadedPhoto(playerId: string, imageBase64: string): Promise<AccountDTO> {
   const match = IMAGE_DATA_URL.exec(imageBase64);
   if (!match) {
     throw new AuthError('Formato de imagem inválido. Use JPEG, PNG ou WebP.', 'INVALID_IMAGE');
@@ -171,5 +177,5 @@ export async function setUploadedPhoto(playerId: string, imageBase64: string): P
     data: { photoUrl: imageBase64, photoSource: 'UPLOAD' },
     include: withRoles,
   });
-  return toPlayerDTO(player);
+  return toAccountDTO(player);
 }

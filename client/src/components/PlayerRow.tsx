@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Link2, Pencil, X, EyeOff, Eye } from 'lucide-react';
+import { Check, Link2, Pencil, X, EyeOff, Eye, UserCheck } from 'lucide-react';
 import { playersApi } from '../api/client';
 import { useAction } from '../hooks/useAsync';
 import { Avatar, Button, ErrorState, RoleBadge } from './ui';
@@ -93,6 +93,26 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
                 title="Sem Riot ID, a importação automática não consegue identificar essa pessoa"
               >
                 sem Riot ID
+              </span>
+            )}
+
+            {/* Quem já tem conta ganha o selo; quem não tem aparece com um
+                lembrete neutro -- não é erro, é convite. O e-mail nunca vem
+                para cá: a lista é pública. */}
+            {player.hasAccount ? (
+              <span
+                className="flex items-center gap-1 text-[10px] font-semibold uppercase text-win"
+                title="Já criou a conta no InHouse"
+              >
+                <UserCheck size={11} />
+                conta
+              </span>
+            ) : (
+              <span
+                className="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-semibold uppercase text-ink-muted"
+                title="Ainda não criou a conta. É em Entrar → Criar conta."
+              >
+                sem conta
               </span>
             )}
 

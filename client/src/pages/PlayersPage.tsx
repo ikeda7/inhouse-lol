@@ -24,8 +24,11 @@ export function PlayersPage() {
 
   const create = useAction(playersApi.create);
 
+  // Só quem está ativo conta: inativo não entra no sorteio nem na importação.
+  const ativos = (players ?? []).filter((p) => p.active);
   // Sem Riot ID o agente local nao consegue casar a pessoa com o scoreboard.
-  const missingRiotId = (players ?? []).filter((p) => !p.riotId).length;
+  const missingRiotId = ativos.filter((p) => !p.riotId).length;
+  const comConta = ativos.filter((p) => p.hasAccount).length;
 
   const toggleRole = (role: RoleInput) =>
     setRoles((current) =>
@@ -124,13 +127,18 @@ export function PlayersPage() {
       <Card
         title={`Jogadores (${players?.length ?? 0})`}
         action={
-          missingRiotId > 0 ? (
-            <span className="text-[11px] text-amber-400/80">
-              {missingRiotId} sem Riot ID -- a importação automática não identifica essas pessoas
+          <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[11px]">
+            <span className="text-ink-muted">
+              {comConta} de {ativos.length} com conta
             </span>
-          ) : (
-            <span className="text-[11px] text-emerald-400/70">todos vinculados</span>
-          )
+            {missingRiotId > 0 ? (
+              <span className="text-amber-400/80">
+                {missingRiotId} sem Riot ID -- a importação automática não identifica essas pessoas
+              </span>
+            ) : (
+              <span className="text-emerald-400/70">todos vinculados</span>
+            )}
+          </span>
         }
       >
         {loading && <LoadingState />}
