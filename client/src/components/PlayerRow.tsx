@@ -130,9 +130,12 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
           </div>
         </div>
 
+        {/* Botão só de ícone: o nome acessível leva o nome da pessoa, senão o
+            leitor de tela lê quinze "Editar" iguais na lista. */}
         <button
           onClick={toggleActive}
           title={player.active ? 'Desativar (some do sorteio)' : 'Reativar'}
+          aria-label={player.active ? `Desativar ${player.name}` : `Reativar ${player.name}`}
           className="shrink-0 text-ink-faint hover:text-gold"
         >
           {player.active ? <Eye size={15} /> : <EyeOff size={15} />}
@@ -140,6 +143,7 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
         <button
           onClick={() => setEditing(true)}
           title="Editar"
+          aria-label={`Editar ${player.name}`}
           className="shrink-0 text-ink-faint hover:text-gold"
         >
           <Pencil size={15} />
