@@ -146,7 +146,11 @@ function desenharPlacar(
     ctx.textAlign = direita ? 'right' : 'left';
     ctx.font = fonte(13, 700);
     ctx.fillStyle = venceu ? COR.ouro : COR.fraco;
-    ctx.fillText(titulo, x, topo + 26);
+    // O troféu vai do lado de dentro, virado para o placar -- e só com a MD3
+    // encerrada: quem está 1-0 no meio da noite ainda não levou nada.
+    const campeao = venceu && serie.status === 'FINISHED';
+    const comTrofeu = campeao ? (direita ? `🏆 ${titulo}` : `${titulo} 🏆`) : titulo;
+    ctx.fillText(comTrofeu, x, topo + 26);
     ctx.font = fonte(15);
     ctx.fillStyle = COR.texto;
     nomes.forEach((nome, i) => {

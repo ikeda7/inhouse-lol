@@ -1,0 +1,62 @@
+import { describe, expect, it } from 'vitest';
+import { momentosDaUltimaNoite, porJogo } from '../lib/imagem/momentos';
+import type { MomentEntry } from '../types';
+
+/**
+ * O que decide O QUE entra na imagem dos momentos. O desenho só se confere num
+ * navegador de verdade (jsdom não tem canvas).
+ */
+
+function momento(seriesId: string, matchNumber: number, tipo: MomentEntry['tipo']): MomentEntry {
+  return {
+    playerId: `p-${seriesId}-${matchNumber}-${tipo}`,
+    playerName: 'Alguém',
+    championName: 'Ahri',
+    ddragonId: null,
+    rolePlayed: 'MID',
+    matchId: `m-${seriesId}-${matchNumber}`,
+    matchNumber,
+    seriesId,
+    seriesName: seriesId,
+    playedAt: '2026-09-10T21:00:00.000Z',
+    tipo,
+    valor: 1,
+    peso: 10,
+    kills: 1,
+    deaths: 0,
+    assists: 1,
+    win: true,
+  };
+}
+
+describe('momentosDaUltimaNoite', () => {
+  it('fica só com a noite mais recente -- a primeira da lista', () => {
+    const lista = [
+      momento('quinta', 2, 'CARRY'),
+      momento('quinta', 1, 'SPREE'),
+      momento('segunda', 1, 'PENTA'),
+    ];
+    expect(momentosDaUltimaNoite(lista).map((m) => m.seriesId)).toEqual(['quinta', 'quinta']);
+  });
+
+  it('sem momento nenhum, devolve vazio em vez de quebrar', () => {
+    expect(momentosDaUltimaNoite([])).toEqual([]);
+  });
+});
+
+describe('porJogo', () => {
+  it('separa por jogo na ordem em que foram jogados, mantendo a ordem dentro do jogo', () => {
+    const lista = [
+      momento('quinta', 2, 'CARRY'),
+      momento('quinta', 1, 'SPREE'),
+      momento('quinta', 2, 'VISAO'),
+      momento('quinta', 1, 'FARM'),
+    ];
+
+    const grupos = porJogo(lista);
+
+    expect(grupos.map((g) => g.jogo)).toEqual([1, 2]);
+    expect(grupos[0].momentos.map((m) => m.tipo)).toEqual(['SPREE', 'FARM']);
+    expect(grupos[1].momentos.map((m) => m.tipo)).toEqual(['CARRY', 'VISAO']);
+  });
+});
