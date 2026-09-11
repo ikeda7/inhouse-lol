@@ -61,8 +61,8 @@ const CATEGORIA: Record<string, { label: string; icon: LucideIcon; tom?: 'zoeira
 export function HighlightsPage() {
   const { data, loading, error, reload } = useAsync(() => statsApi.highlights());
   const { manifest } = useChampions();
-  /** O que a imagem dos Momentos leva: a noite inteira, por jogo, ou um jogo só. */
-  const [escopo, setEscopo] = useState<'noite' | number>('noite');
+  /** O que os Momentos mostram (e a imagem leva): tudo, a última noite ou um jogo dela. */
+  const [escopo, setEscopo] = useState<'todas' | 'noite' | number>('todas');
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -74,13 +74,22 @@ export function HighlightsPage() {
     );
   }
 
-  // A noite mais recente, para a imagem dos Momentos: a noite inteira (por
-  // jogo) ou um jogo só, conforme o seletor do card.
+  // O seletor do card manda na TELA e na IMAGEM ao mesmo tempo -- antes ele só
+  // mudava a imagem, e trocar de "Jogo 1" para "Jogo 2" parecia não fazer nada.
+  //   Tudo         -> a tela mostra todas as noites; a imagem, a última noite
+  //   Última noite -> as duas mostram a última noite, por jogo
+  //   Jogo N       -> as duas mostram só aquele jogo da última noite
   const ultimaNoite = momentosDaUltimaNoite(data.momentos);
   const jogosDaNoite = [...new Set(ultimaNoite.map((m) => m.matchNumber))].sort((a, b) => a - b);
-  const escopos: ('noite' | number)[] = ['noite', ...jogosDaNoite];
-  const momentosDoEscopo =
-    escopo === 'noite' ? ultimaNoite : ultimaNoite.filter((m) => m.matchNumber === escopo);
+  const escopos: ('todas' | 'noite' | number)[] = ['todas', 'noite', ...jogosDaNoite];
+  const jogoEscolhido = typeof escopo === 'number' ? escopo : null;
+  const momentosDaImagem =
+    jogoEscolhido === null
+      ? ultimaNoite
+      : ultimaNoite.filter((m) => m.matchNumber === jogoEscolhido);
+  const momentosNaTela = escopo === 'todas' ? data.momentos : momentosDaImagem;
+  const rotuloDoEscopo = (opcao: 'todas' | 'noite' | number) =>
+    opcao === 'todas' ? 'Tudo' : opcao === 'noite' ? 'Última noite' : `Jogo ${opcao}`;
 
   return (
     <div className="space-y-6">
@@ -132,15 +141,10 @@ export function HighlightsPage() {
         action={
           ultimaNoite.length > 0 && (
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <span className="text-[11px] text-ink-faint">
-                {ultimaNoite[0].seriesName ?? 'Última noite'}
-              </span>
-              {/* O que a imagem leva: a noite inteira, separada por jogo, ou um
-                  jogo só -- para mandar no grupo logo depois de cada partida. */}
               <div
                 role="group"
-                aria-label="O que a imagem dos momentos leva"
-                className="flex items-center gap-0.5 rounded-md border border-line/60 bg-raised p-0.5"
+                aria-label="Quais momentos mostrar"
+                className="flex flex-wrap items-center gap-0.5 rounded-md border border-line/60 bg-raised p-0.5"
               >
                 {escopos.map((opcao) => (
                   <button
@@ -152,23 +156,30 @@ export function HighlightsPage() {
                       escopo === opcao ? 'bg-gold/15 text-gold' : 'text-ink-muted hover:text-ink'
                     }`}
                   >
-                    {opcao === 'noite' ? 'Noite' : `Jogo ${opcao}`}
+                    {rotuloDoEscopo(opcao)}
                   </button>
                 ))}
               </div>
+              {/* Diz o que a imagem leva: com "Tudo" a tela mostra todas as
+                  noites, mas a imagem é só da última -- imagem de várias noites
+                  não caberia num balão de conversa. */}
+              <span className="text-[11px] text-ink-faint">
+                Imagem: {ultimaNoite[0].seriesName ?? 'última noite'}
+                {jogoEscolhido !== null ? ` · Jogo ${jogoEscolhido}` : ''}
+              </span>
               <ExportarImagem
                 gerar={() =>
-                  gerarImagemDosMomentos(momentosDoEscopo, {
+                  gerarImagemDosMomentos(momentosDaImagem, {
                     iconeDoCampeao: resolvedorDeIcone(manifest),
                     momento: textoDoMomento,
-                    jogo: escopo === 'noite' ? undefined : escopo,
+                    jogo: jogoEscolhido ?? undefined,
                   })
                 }
                 nomeDoArquivo={`inhouse-lol-momentos-${ultimaNoite[0].playedAt.slice(0, 10)}${
-                  escopo === 'noite' ? '' : `-jogo-${escopo}`
+                  jogoEscolhido !== null ? `-jogo-${jogoEscolhido}` : ''
                 }.png`}
                 titulo={`Momentos · ${ultimaNoite[0].seriesName ?? 'InHouse LoL'}`}
-                vazio={momentosDoEscopo.length === 0}
+                vazio={momentosDaImagem.length === 0}
               />
             </div>
           )
@@ -183,7 +194,7 @@ export function HighlightsPage() {
             </p>
           </div>
         ) : (
-          <LinhaDoTempo momentos={data.momentos} />
+          <LinhaDoTempo momentos={momentosNaTela} />
         )}
       </Card>
     </div>
