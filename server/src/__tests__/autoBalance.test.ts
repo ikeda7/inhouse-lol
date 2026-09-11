@@ -54,13 +54,16 @@ describe('autoBalanceTeams', () => {
     expectRolesRespected(result);
   });
 
+  // Timeout próprio: sozinho roda em ~1s, mas com a suíte inteira em paralelo
+  // numa máquina Windows já passou dos 5s do padrão -- e um vermelho que só
+  // depende da carga da máquina não diz nada sobre o sorteio.
   it('nunca aloca ninguem fora do pool declarado, em 200 sorteios diferentes', () => {
     for (let seed = 0; seed < 200; seed++) {
       const result = autoBalanceTeams(ROSTER, { seed });
       expectValidTeams(result);
       expectRolesRespected(result);
     }
-  });
+  }, 15_000);
 
   it('resolve o gargalo primeiro e usa o Fill para tapar o buraco', () => {
     // 8 jogadores travados em 4 roles + 2 Fill. A unica saida possivel e os
