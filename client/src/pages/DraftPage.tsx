@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dices, Users, RefreshCw, ArrowRight, Check, Crown, Radio, Swords } from 'lucide-react';
+import { Dices, Users, RefreshCw, Check, Crown, Radio, Swords } from 'lucide-react';
 import { draftApi, playersApi } from '../api/client';
 import { useAction, useAsync } from '../hooks/useAsync';
 import { Avatar, Button, Card, ErrorState, LoadingState, RoleBadge } from '../components/ui';
 import { TeamCard } from '../components/TeamCard';
+import { UsarTimesNaSerie } from '../components/UsarTimesNaSerie';
 import { CaptainsDraft } from '../components/CaptainsDraft';
 import { fromAutoBalance, fromCaptains, saveActiveDraft } from '../lib/activeDraft';
 import {
@@ -30,7 +31,6 @@ export function DraftPage() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [result, setResult] = useState<AutoBalanceResult | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
 
   // O modo Capitães divide a tela com o sorteio em vez de ter aba própria: o
   // começo é idêntico (marcar quem veio hoje), e o grupo decide DEPOIS de ter
@@ -87,17 +87,7 @@ export function DraftPage() {
 
   const handleDraw = async () => {
     const drawn = await draw.run([...selected], {});
-    if (drawn) {
-      setResult(drawn);
-      setConfirmed(false);
-    }
-  };
-
-  const handleUseTeams = () => {
-    if (!result) return;
-    saveActiveDraft(fromAutoBalance(result));
-    setConfirmed(true);
-    navigate('/serie');
+    if (drawn) setResult(drawn);
   };
 
   const handleIniciarCapitaes = async () => {
@@ -120,19 +110,11 @@ export function DraftPage() {
     if (proximo) setDraft({ ...proximo, pickOrder: draft.pickOrder });
   };
 
-  const handleUsarTimesDoDraft = () => {
-    if (!times) return;
-    saveActiveDraft(fromCaptains(times));
-    setConfirmed(true);
-    navigate('/serie');
-  };
-
   /** Trocar de modo joga fora o resultado do outro -- misturar confundiria. */
   const trocarModo = (paraCapitaes: boolean) => {
     setModoCapitaes(paraCapitaes);
     setResult(null);
     setDraft(null);
-    setConfirmed(false);
   };
 
   if (loading) return <LoadingState label="Carregando jogadores..." />;
@@ -332,12 +314,7 @@ export function DraftPage() {
             <TeamCard team={times.redTeam} />
           </div>
 
-          <div className="flex justify-center">
-            <Button onClick={handleUsarTimesDoDraft}>
-              {confirmed ? <Check size={16} /> : <ArrowRight size={16} />}
-              Usar esses times na série
-            </Button>
-          </div>
+          <UsarTimesNaSerie salvar={() => saveActiveDraft(fromCaptains(times))} />
 
           {/* As roles saem do mesmo distribuidor do sorteio: os capitães
               escolhem PESSOAS, e quem resolve quem joga o quê dentro do time é
@@ -356,12 +333,7 @@ export function DraftPage() {
             <TeamCard team={result.redTeam} averageRating />
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button onClick={handleUseTeams}>
-              {confirmed ? <Check size={16} /> : <ArrowRight size={16} />}
-              Usar esses times na série
-            </Button>
-          </div>
+          <UsarTimesNaSerie salvar={() => saveActiveDraft(fromAutoBalance(result))} />
 
           {/* Transparencia do algoritmo: a seed permite reproduzir um sorteio
               contestado, e o custo justifica as escolhas de role. */}

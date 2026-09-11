@@ -4,6 +4,7 @@ import {
   createSeries,
   discardEmptySeries,
   finishSeries,
+  garantirSerieDaNoite,
   getBurnedChampions,
   getSeriesDetail,
   listSeries,
@@ -96,12 +97,25 @@ const createSeriesSchema = z.object({
   fearless: z.boolean().optional(),
 });
 
-/** POST /api/series - abre a noite de jogos. */
+/** POST /api/series - abre a noite de jogos. Recusa se já houver uma em andamento. */
 seriesRouter.post(
   '/',
   asyncHandler(async (req, res) => {
     const input = createSeriesSchema.parse(req.body);
     res.status(201).json({ success: true, data: await createSeries(input) });
+  })
+);
+
+/**
+ * POST /api/series/garantir - a MD3 em andamento, ou uma nova.
+ * É o "Usar esses times" do Sorteio e da sala de draft (#77).
+ */
+seriesRouter.post(
+  '/garantir',
+  asyncHandler(async (req, res) => {
+    const input = createSeriesSchema.parse(req.body);
+    const { serie, criada } = await garantirSerieDaNoite(input);
+    res.status(criada ? 201 : 200).json({ success: true, data: { serie, criada } });
   })
 );
 
