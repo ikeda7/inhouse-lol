@@ -20,14 +20,18 @@
  *   6. Ajuda: o "?" do cabeçalho leva para "Como funciona".
  *   7. Sorteio → Série (só com --preparar): marcar 10, sortear, "Usar esses
  *      times na série" abre a MD3 e leva para a Série.
+ *   8. Série (só com --preparar): registra o jogo 1 pelo formulário, linha a
+ *      linha -- os menus da última linha abrem inteiros, sem rolar a tabela --,
+ *      confere placar e API, o Fearless recusa no jogo 2 um campeão do jogo 1,
+ *      e "Encerrar" fecha a MD3.
  *
  * Uso (servidor servindo API e front no mesmo endereço):
  *
  *   node client/e2e/fluxos.mjs --base http://localhost:3333 --preparar
  *
  *   --preparar   GRAVA: garante duas noites com momentos (o seletor de noite
- *                precisa de mais de uma) e abre uma MD3 pelo Sorteio. Recusa
- *                servidor que não seja local.
+ *                precisa de mais de uma) e abre duas MD3, pelo Sorteio e pela
+ *                Série, fechando as duas. Recusa servidor que não seja local.
  *   --saida DIR  onde guardar as imagens baixadas (padrão: e2e-saida)
  *
  * Sai com 1 se algum fluxo falhar, 2 se não conseguir nem começar.
@@ -315,18 +319,21 @@ async function fluxoDaOrdenacao(pagina) {
     ordens.push(ranking.map((entrada) => entrada.name));
   }
   if (ordens[0].length < 3) return 'menos de três no ranking';
-  // Com as quatro ordens iguais, uma aba que não faz nada passaria.
-  exigir(
-    new Set(ordens.map((ordem) => ordem.join('|'))).size > 1,
-    'as quatro ordens da API são iguais: não dá para ver a tabela reordenar'
-  );
 
   await pagina.goto(`${BASE}/`, { waitUntil: 'networkidle' });
   const grupo = pagina.getByRole('group', { name: 'Ordenar por' });
   const nomesNaTabela = pagina.locator('table tbody tr td:nth-child(2) a');
-  for (const [indice, [, rotulo]] of ORDENACOES.entries()) {
+  for (const [indice, [chave, rotulo]] of ORDENACOES.entries()) {
     const botao = grupo.getByRole('button', { name: rotulo, exact: true });
+    // A ordem da tela sozinha não prova nada quando o dado dá a mesma ordem
+    // nas quatro abas (o banco do CI dá). O pedido com o sortBy daquela aba
+    // prova que ela não é enfeite, com qualquer dado.
+    const jaMarcada = (await botao.getAttribute('aria-pressed')) === 'true';
+    const pedido = jaMarcada
+      ? null
+      : pagina.waitForRequest((req) => req.url().includes(`sortBy=${chave}`), { timeout: 15000 });
     await botao.click();
+    if (pedido) await pedido;
     exigir((await botao.getAttribute('aria-pressed')) === 'true', `"${rotulo}" não ficou marcado`);
     const esperado = ordens[indice].join(' > ');
     await esperarAte(async () => {
@@ -480,6 +487,132 @@ async function fluxoDoSorteio(pagina) {
   await api('POST', `/series/${atual.id}/finish`);
 }
 
+/**
+ * Quanto um menu aberto passa do que dá para ver: da janela e da borda de cada
+ * ancestral que corta ou rola. O formulário mora numa tabela com
+ * `overflow-x-auto`, que também corta na vertical, dentro de um card com
+ * `overflow-hidden` -- um menu preso ali abria escondido nas últimas linhas.
+ */
+function excessoDoMenu(menu) {
+  const caixa = menu.getBoundingClientRect();
+  let excesso = Math.max(
+    caixa.bottom - window.innerHeight,
+    caixa.right - window.innerWidth,
+    -caixa.top
+  );
+  for (let no = menu.parentElement; no; no = no.parentElement) {
+    const { overflowX, overflowY } = getComputedStyle(no);
+    if (/(auto|scroll|hidden|clip)/.test(`${overflowX} ${overflowY}`)) {
+      const borda = no.getBoundingClientRect();
+      excesso = Math.max(
+        excesso,
+        caixa.bottom - borda.bottom,
+        caixa.right - borda.right,
+        borda.top - caixa.top
+      );
+    }
+  }
+  return Math.max(0, Math.round(excesso));
+}
+
+/**
+ * Mede o menu aberto depois da animação de entrada (`.surgir`, 220ms), e
+ * quanto a tabela rolou por dentro -- o Select rolava para mostrar a opção
+ * ativa, e isso escondia o corte de quem medisse na hora.
+ */
+async function medirMenuAberto(pagina, linha) {
+  await pagina.waitForTimeout(300);
+  const excesso = await pagina.getByRole('listbox').evaluate(excessoDoMenu);
+  const rolou = await linha.evaluate((tr) => tr.closest('.overflow-x-auto')?.scrollTop ?? 0);
+  return { excesso, rolou };
+}
+
+/**
+ * O formulário manual da Série. É caminho de primeira classe (a API da Riot
+ * não lista custom game) e é o que se usa quando o agente não rodou: abre a MD3
+ * pela tela, registra o jogo 1 escolhendo cada linha na mão, confere placar e
+ * API, e vê o Fearless recusar no jogo 2 um campeão do jogo 1.
+ */
+async function fluxoDoRegistroManual(pagina) {
+  if (!PREPARAR) return 'grava dados; rode com --preparar';
+  await fecharMd3Aberta();
+  const veteranos = (await api('GET', '/players'))
+    .filter((p) => p.active && !SOBRA.test(p.name))
+    .slice(0, 10);
+  exigir(veteranos.length === 10, `só há ${veteranos.length} veteranos`);
+  const campeoes = ['Garen', 'Amumu', 'Annie', 'Ashe', 'Leona'].concat([
+    'Darius',
+    'Warwick',
+    'Lux',
+    'Caitlyn',
+    'Braum',
+  ]);
+
+  await pagina.goto(`${BASE}/serie`, { waitUntil: 'networkidle' });
+  await pagina.getByRole('button', { name: /Abrir nova MD3/ }).click();
+  const registrar = pagina.getByRole('button', { name: 'Registrar jogo 1' });
+  await registrar.waitFor({ timeout: 20000 });
+  // Times de um sorteio anterior preencheriam as linhas; aqui cada uma é
+  // escolhida na mão.
+  const descartar = pagina.getByRole('button', { name: 'descartar' });
+  if ((await descartar.count()) > 0) await descartar.click();
+  await registrar.click();
+
+  const formulario = pagina.locator('section', { has: pagina.getByText('Quem venceu?') });
+  await formulario.getByRole('button', { name: 'Azul', exact: true }).click();
+  await formulario.getByPlaceholder('30').fill('31');
+
+  const linhas = formulario.locator('tbody tr');
+  for (let i = 0; i < 10; i++) {
+    const linha = linhas.nth(i);
+    await linha.getByRole('combobox').click();
+    // A última linha é a que tem menos espaço embaixo: é onde o menu corta.
+    if (i === 9) {
+      const { excesso, rolou } = await medirMenuAberto(pagina, linha);
+      exigir(excesso === 0, `o menu de jogadores da última linha sai ${excesso}px cortado`);
+      exigir(rolou === 0, `abrir o menu de jogadores rolou a tabela por dentro (${rolou}px)`);
+    }
+    await pagina.getByRole('option', { name: veteranos[i].name, exact: true }).click();
+
+    const campeao = linha.locator('input').first();
+    await campeao.fill(campeoes[i]);
+    if (i === 9) {
+      const { excesso, rolou } = await medirMenuAberto(pagina, linha);
+      exigir(excesso === 0, `a lista de campeões da última linha sai ${excesso}px cortada`);
+      exigir(rolou === 0, `abrir a lista de campeões rolou a tabela por dentro (${rolou}px)`);
+    }
+    await campeao.press('Enter');
+    const ficou = await campeao.inputValue();
+    exigir(ficou === campeoes[i], `linha ${i + 1}: o campeão ficou "${ficou}"`);
+    await linha.getByRole('textbox', { name: /^kills de/ }).fill(String(i + 1));
+  }
+
+  await formulario.getByRole('button', { name: /Salvar partida/ }).click();
+  await pagina.getByText('Jogos da série (1)').waitFor({ timeout: 20000 });
+  const atual = await api('GET', '/series/current');
+  exigir(atual?.matches.length === 1, 'a API não tem o jogo 1');
+  exigir(
+    atual.blueScore === 1 && atual.redScore === 0,
+    `placar ${atual.blueScore}x${atual.redScore} depois do azul vencer o jogo 1`
+  );
+
+  // Fearless: quem jogou o jogo 1 aparece bloqueado, com o motivo.
+  await pagina.getByRole('button', { name: 'Registrar jogo 2' }).click();
+  const campeao = formulario.locator('tbody tr').first().locator('input').first();
+  await campeao.fill(campeoes[0]);
+  const opcao = pagina.getByRole('option', { name: new RegExp(`^${campeoes[0]}`) });
+  exigir(await opcao.isDisabled(), `${campeoes[0]} jogou o jogo 1 e o jogo 2 deixa escolher`);
+  exigir(/queimado/i.test(await opcao.innerText()), 'o campeão bloqueado não diz "queimado"');
+  await campeao.press('Enter');
+  await campeao.press('Escape');
+  exigir((await campeao.inputValue()) === '', 'Enter num campeão queimado preencheu a linha');
+  await formulario.getByRole('button', { name: 'Cancelar' }).click();
+
+  await pagina.getByRole('button', { name: /Encerrar/ }).click();
+  await pagina.getByText('Nenhuma MD3 em andamento.').waitFor({ timeout: 20000 });
+  exigir((await api('GET', '/series/current')) === null, '"Encerrar" não fechou a MD3');
+}
+
 // ---------------------------------------------------------------------------
 
 async function main() {
@@ -517,6 +650,10 @@ async function main() {
     ['Sorteio: capitães escolhidos na mão, draft fecha 5x5', fluxoDosCapitaes],
     ['Ajuda: o "?" leva para "Como funciona"', fluxoDaAjuda],
     ['Sorteio: usar os times abre a MD3 e leva para a Série', fluxoDoSorteio],
+    [
+      'Série: registrar o jogo pelo formulário, Fearless no jogo 2, encerrar',
+      fluxoDoRegistroManual,
+    ],
   ];
   for (const [nome, fn] of passos) {
     const pagina = await contexto.newPage();
