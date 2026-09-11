@@ -468,6 +468,36 @@ await passo('modo capitães: 8 escolhas fecham os dois times', async () => {
   validarTimes(estado.teams, 'capitães');
 });
 
+await passo(
+  'capitães escolhidos na mão: o primeiro tira o azul, o segundo o vermelho',
+  async () => {
+    precisa('elenco');
+    const [azul, vermelho] = [ctx.elenco[3], ctx.elenco[7]];
+    const pedido = (captainIds) => ({ playerIds: ctx.elenco, mode: 'MANUAL', captainIds });
+
+    const estado = dados(
+      await api('POST', '/draft/captains/start', pedido([azul, vermelho])),
+      'começar com os capitães escolhidos'
+    );
+    exigir(
+      estado.captains.BLUE.id === azul && estado.captains.RED.id === vermelho,
+      'os capitães do draft não são os escolhidos'
+    );
+    recusa(
+      await api('POST', '/draft/captains/start', pedido([azul, azul])),
+      'INVALID_CAPTAINS',
+      'o mesmo capitão nos dois lados'
+    );
+
+    // A sala ao vivo passa pelo mesmo critério.
+    const sala = dados(
+      await api('POST', '/draft/rooms', pedido([azul, vermelho])),
+      'sala com os capitães escolhidos'
+    );
+    exigir(sala.state.captains.BLUE.id === azul, 'a sala ao vivo ignorou o capitão escolhido');
+  }
+);
+
 await passo('sala ao vivo: o capitão pega o lado e ninguém rouba', async () => {
   precisa('elenco');
   const sala = dados(
