@@ -435,7 +435,11 @@ function PlayerRow({
       }`}
     >
       <ChampionIcon championName={stat.championName} size={32} />
-      <span className="w-14 shrink-0 text-[11px] font-medium uppercase tracking-wide text-ink-faint">
+      {/* A role some quando a coluna do time é estreita -- no celular e entre
+          768 e 1023px, onde os dois times dividem a tela. As linhas já vêm na
+          ordem das lanes, com o campeão do lado: ali o rótulo custava 66px que
+          eram do nome ("Deny…"). */}
+      <span className="hidden w-14 shrink-0 text-[11px] font-medium uppercase tracking-wide text-ink-faint sm:block md:hidden lg:block">
         {ROLE_LABEL[stat.rolePlayed]}
       </span>
       <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{stat.player.name}</span>
