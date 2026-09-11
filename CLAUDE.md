@@ -106,7 +106,11 @@ Fearless-burned champion in game 2, and "Encerrar" closes the MD3; and the
 live draft room runs with two captains in separate browser contexts (one at
 phone width): each claims a side and the other sees it taken, the captain
 not on the clock cannot click the pool, every pick leaves the pool on the
-other captain's screen through polling, and both screens close 5x5.
+other captain's screen through polling, and both screens close 5x5; and
+Jogadores registers a player with roles in click order, edits Riot ID and
+roles, and deactivates them, checking the API after each step and that the
+Sorteio no longer lists them. Icon-only buttons carry an `aria-label` with
+the player's name ("Editar Fulano"), which is also what the flow clicks.
 `--preparar` writes (a second night with moments, two MD3s it finishes
 afterwards) and refuses a non-local
 `--base`. A JavaScript error on the page fails the flow. **When you add an

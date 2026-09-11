@@ -27,6 +27,9 @@
  *   9. Sala ao vivo (só com --preparar): dois capitães em navegadores
  *      diferentes pegam um lado cada; quem não está na vez não clica no pote;
  *      cada escolha aparece na tela do outro pela consulta; as duas fecham 5x5.
+ *  10. Jogadores (só com --preparar): cadastrar com roles na ordem do clique,
+ *      editar Riot ID e roles, desativar -- e conferir cada passo na API e no
+ *      Sorteio.
  *
  * Uso (servidor servindo API e front no mesmo endereço):
  *
@@ -552,6 +555,71 @@ async function fluxoDaSalaAoVivo(pagina) {
   }
 }
 
+/**
+ * Jogadores pela tela: cadastrar, editar e desativar. É o que se faz quando
+ * alguém novo aparece na noite -- e o Riot ID é o que liga a pessoa à
+ * importação, então o que sai da tela tem que chegar igual na API.
+ */
+async function fluxoDoCadastro(pagina) {
+  if (!PREPARAR) return 'grava dados; rode com --preparar';
+  const sufixo = Date.now().toString(36);
+  const nome = `Fluxo ${sufixo}`;
+  // Por rodada: o ensaio roda de novo no mesmo banco, e Riot ID não repete.
+  const riotId = `Fluxo${sufixo}#BR1`;
+  const daApi = async () =>
+    (await api('GET', '/players?includeInactive=true')).find((p) => p.name === nome);
+
+  await pagina.goto(`${BASE}/jogadores`, { waitUntil: 'networkidle' });
+  const novo = pagina.locator('section', { has: pagina.getByText('Novo jogador') });
+  await novo.getByPlaceholder('Como a galera chama').fill(nome);
+  // A ordem do clique é a preferência: Top vira a main.
+  await novo.getByRole('button', { name: /Top$/ }).click();
+  await novo.getByRole('button', { name: /Mid$/ }).click();
+  const primeira = (await novo.getByRole('button', { name: /Top$/ }).innerText()).trim();
+  exigir(/^1\.\s*Top$/.test(primeira), `o primeiro clique mostrou "${primeira}", não "1. Top"`);
+  await novo.getByRole('button', { name: /Cadastrar/ }).click();
+
+  const linha = pagina.locator('li', {
+    has: pagina.getByRole('link', { name: nome, exact: true }),
+  });
+  await linha.waitFor({ timeout: 20000 });
+  let jogador = await daApi();
+  exigir(
+    JSON.stringify(jogador?.roles) === '["TOP","MID"]',
+    `cadastrado com roles ${JSON.stringify(jogador?.roles)}`
+  );
+  exigir(
+    (await linha.getByText('sem Riot ID', { exact: true }).count()) === 1,
+    'cadastrado sem Riot ID e a linha não avisa'
+  );
+
+  // Editar: Riot ID e roles -- tira Top, põe Jungle, e Mid vira a main.
+  await pagina.getByRole('button', { name: `Editar ${nome}` }).click();
+  const edicao = pagina.locator('li', { has: pagina.getByRole('button', { name: 'Salvar' }) });
+  await edicao.getByPlaceholder('Cangosul#PCBR').fill(riotId);
+  await edicao.getByRole('button', { name: /Top$/ }).click();
+  await edicao.getByRole('button', { name: /Jungle$/ }).click();
+  await edicao.getByRole('button', { name: 'Salvar' }).click();
+  await linha.getByText(riotId).waitFor({ timeout: 20000 });
+  jogador = await daApi();
+  exigir(jogador.riotId === riotId, `Riot ID na API: ${jogador.riotId}`);
+  exigir(
+    JSON.stringify(jogador.roles) === '["MID","JUNGLE"]',
+    `roles na API depois de editar: ${JSON.stringify(jogador.roles)}`
+  );
+
+  // Desativar tira do Sorteio; a linha continua na lista, marcada.
+  await pagina.getByRole('button', { name: `Desativar ${nome}` }).click();
+  await linha.getByText('inativo', { exact: true }).waitFor({ timeout: 20000 });
+  exigir((await daApi()).active === false, 'desativado na tela e ainda ativo na API');
+  await pagina.goto(`${BASE}/sorteio`, { waitUntil: 'networkidle' });
+  await pagina.locator('li > label').first().waitFor({ timeout: 20000 });
+  exigir(
+    (await pagina.getByText(nome, { exact: true }).count()) === 0,
+    'o jogador desativado ainda aparece no Sorteio'
+  );
+}
+
 async function fluxoDoSorteio(pagina) {
   if (!PREPARAR) return 'grava dados; rode com --preparar';
   await fecharMd3Aberta();
@@ -740,6 +808,7 @@ async function main() {
       fluxoDoRegistroManual,
     ],
     ['Sala ao vivo: dois capitães, a vez trava o pote, escolhas sincronizam', fluxoDaSalaAoVivo],
+    ['Jogadores: cadastrar, editar Riot ID e roles, desativar', fluxoDoCadastro],
   ];
   for (const [nome, fn] of passos) {
     const pagina = await contexto.newPage();
