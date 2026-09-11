@@ -58,7 +58,10 @@ Chromium and fails on what typecheck, tests and build all pass: horizontal
 scroll, text below WCAG AA **after** compositing opacity and backgrounds, a
 screen that loaded an error (`role="alert"`, API 5xx), and content clipped by
 a card that cuts overflow — the page does not scroll, but the K/D/A is cut in
-half (#84). That class of bug has shipped here repeatedly — text painted in
+half (#84). The two edge checks then run a second time with every `truncate`
+text stretched to a long name, because a grid/flex item missing `min-w-0`
+only overflows when the real data has a long name (the records card at
+390px passed with the seed and failed in CI). That class of bug has shipped here repeatedly — text painted in
 the background color, `opacity-40` on a whole row, a nav that overflowed every
 tablet. No screenshot baseline on purpose: both checks are baseline-free.
 

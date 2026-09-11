@@ -283,8 +283,9 @@ function CartaoDeRecorde({ recorde }: { recorde: RecordEntry }) {
     <Link
       to={`/jogadores/${recorde.playerId}`}
       // A faixa esquerda é o lado em que o recorde foi feito: os times trocam
-      // de lado na MD3, então a cor é a daquele jogo.
-      className={`group flex items-center gap-3 rounded-lg border border-l-[3px] border-line/40 bg-raised/40 p-3 transition hover:bg-raised ${
+      // de lado na MD3, então a cor é a daquele jogo. `min-w-0`: sem ele o item
+      // da grade cresce até caber o nome inteiro e o `truncate` nunca corta.
+      className={`group flex min-w-0 items-center gap-3 rounded-lg border border-l-[3px] border-line/40 bg-raised/40 p-3 transition hover:bg-raised ${
         recorde.teamSide === 'BLUE' ? 'border-l-blue' : 'border-l-red'
       }`}
     >
@@ -468,7 +469,7 @@ function CartaoDeMomento({ momento, largo = false }: { momento: MomentEntry; lar
   return (
     <Link
       to={`/jogadores/${momento.playerId}`}
-      className={`group flex items-center gap-3 rounded-lg border border-l-[3px] p-3 transition hover:bg-raised ${
+      className={`group flex min-w-0 items-center gap-3 rounded-lg border border-l-[3px] p-3 transition hover:bg-raised ${
         largo ? 'sm:col-span-2 xl:col-span-1' : ''
       } ${meta.destaque ? 'border-gold/30 bg-gold/[0.04]' : 'border-line/40 bg-raised/40'} ${
         // Faixa do lado em que o jogador estava naquele jogo.

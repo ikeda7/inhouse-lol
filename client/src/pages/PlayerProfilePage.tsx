@@ -30,7 +30,9 @@ export function PlayerProfilePage() {
     <div className="space-y-5">
       <Cabecalho data={data} />
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+      {/* `grid-cols-1` e não a coluna implícita: a implícita é `auto` e cresce
+          até caber um nome de campeão ou de série inteiro, rolando a página. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         <div className="space-y-5">
           <Campeoes data={data} />
           <PorRole data={data} />

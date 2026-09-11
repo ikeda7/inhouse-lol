@@ -450,7 +450,9 @@ function PlayerToggle({
   onToggle: () => void;
 }) {
   return (
-    <li>
+    // `min-w-0`: item de grade; sem ele um nome comprido alarga a coluna em vez
+    // de cair no `truncate`.
+    <li className="min-w-0">
       <label
         // "Não cabe mais" é dito pela BORDA e pelo cursor, nunca apagando a
         // pessoa. A `opacity-40` que estava aqui derrubava o nome para 3.4:1

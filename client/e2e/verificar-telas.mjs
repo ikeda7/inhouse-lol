@@ -23,6 +23,10 @@
  *   4. CONTEÚDO CORTADO: nada visível passando da borda de um card que corta
  *      (overflow hidden). A página não rola, mas o K/D/A some pela metade --
  *      foi o Histórico a 390px (#84), que passou pelas outras três.
+ *   5. NOME COMPRIDO: 1 e 4 medidos de novo com todo texto em `truncate`
+ *      esticado. O cartão de recorde a 390px só quebrava quando o recordista
+ *      tinha nome longo; com o seed passava. Esticar na página tira a
+ *      dependência do dado.
  *
  * O que nenhuma destas pega é interação: um seletor que desenha certo e não
  * filtra nada. Isso é com o fluxos.mjs.
@@ -386,6 +390,48 @@ function medirNaPagina() {
   return { reprovados, vazamento, cortado, alertas };
 }
 
+/**
+ * Estica todo texto com reticências (`truncate`) para um nome comprido.
+ *
+ * `truncate` só corta se o contêiner segurar a largura. Num item de grade ou
+ * de flex sem `min-w-0`, o texto empurra o item e o card vaza -- mas só com
+ * nome longo, então a mesma tela passava ou falhava conforme o dado. Aqui o
+ * pior caso vale para toda tela, sempre. Mexe só no primeiro nó de texto de
+ * cada um, para manter ícones e filhos no lugar.
+ */
+function alongarTextos() {
+  const LONGO = ' Nome Comprido Demais Para Caber'.repeat(6);
+  for (const el of document.body.querySelectorAll('*')) {
+    if (getComputedStyle(el).textOverflow !== 'ellipsis') continue;
+    const percurso = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    while (percurso.nextNode()) {
+      if (percurso.currentNode.textContent.trim()) {
+        percurso.currentNode.textContent += LONGO;
+        break;
+      }
+    }
+  }
+}
+
+/** As linhas de rolagem lateral e de corte, com um prefixo para a medição esticada. */
+function problemasDeBorda({ vazamento, cortado }, prefixo = '') {
+  const linhas = [];
+  if (vazamento) {
+    const c = vazamento.culpado;
+    linhas.push(
+      `${prefixo}rolagem lateral: ${vazamento.largura}px numa janela de ${vazamento.limite}px` +
+        (c ? ` -- <${c.tag}> .${c.classe}` : '')
+    );
+  }
+  if (cortado) {
+    linhas.push(
+      `${prefixo}cortado pelo card: <${cortado.tag}> "${cortado.texto}" passa ` +
+        `${cortado.excesso}px da borda  .${cortado.classe}`
+    );
+  }
+  return linhas;
+}
+
 // ---------------------------------------------------------------------------
 // Execução
 // ---------------------------------------------------------------------------
@@ -436,14 +482,23 @@ async function main() {
         // medir no meio dela daria contraste de um frame que ninguém vê parado.
         await pagina.waitForTimeout(600);
 
-        const { reprovados, vazamento, cortado, alertas } = await pagina.evaluate(medirNaPagina);
+        const medida = await pagina.evaluate(medirNaPagina);
+        const { reprovados, alertas } = medida;
         await pagina.screenshot({
           path: join(SAIDA, `${tela.nome}-${largura}.png`),
           fullPage: true,
         });
 
+        // Depois do screenshot, que fica com o texto de verdade.
+        await pagina.evaluate(alongarTextos);
+        const esticada = await pagina.evaluate(medirNaPagina);
+        const bordas = [
+          ...problemasDeBorda(medida),
+          ...problemasDeBorda(esticada, 'com nome comprido, '),
+        ];
+
         const carregou = alertas.length === 0 && apiSemResposta.length === 0;
-        if (reprovados.length === 0 && !vazamento && !cortado && carregou) {
+        if (reprovados.length === 0 && bordas.length === 0 && carregou) {
           console.log(`  ok    ${rotulo}`);
         } else {
           falhas++;
@@ -452,19 +507,7 @@ async function main() {
           if (apiSemResposta.length > 0) {
             console.log(`        API: ${[...new Set(apiSemResposta)].slice(0, 4).join(', ')}`);
           }
-          if (vazamento) {
-            const c = vazamento.culpado;
-            console.log(
-              `        rolagem lateral: ${vazamento.largura}px numa janela de ${vazamento.limite}px` +
-                (c ? ` -- <${c.tag}> .${c.classe}` : '')
-            );
-          }
-          if (cortado) {
-            console.log(
-              `        cortado pelo card: <${cortado.tag}> "${cortado.texto}" passa ` +
-                `${cortado.excesso}px da borda  .${cortado.classe}`
-            );
-          }
+          for (const linha of bordas) console.log(`        ${linha}`);
           for (const r of reprovados.slice(0, 8)) {
             console.log(
               `        ${r.razao}:1 (mín ${r.minimo}, ${r.px}px) "${r.texto}"  .${r.classe}`
