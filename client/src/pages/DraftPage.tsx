@@ -505,7 +505,7 @@ function PlayerToggle({
             checked={checked}
             disabled={disabled}
             onChange={onToggle}
-            className="peer absolute inset-0 m-0 h-full w-full cursor-[inherit] appearance-none rounded-md border border-ink-faint/70 bg-canvas transition checked:border-gold checked:bg-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:border-line"
+            className="peer absolute inset-0 m-0 h-full w-full cursor-[inherit] appearance-none rounded border border-ink-faint/70 bg-canvas transition checked:border-gold checked:bg-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:border-line"
           />
           <Check
             size={14}
