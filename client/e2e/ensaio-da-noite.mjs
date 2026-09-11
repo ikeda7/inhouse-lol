@@ -691,6 +691,13 @@ await passo('importa o custom game na MD3, ligando cada nick ao cadastro', async
   const detalhe = dados(await api('GET', `/series/${serie.id}`), 'ler');
   exigir(detalhe.matches.length === 1, `${detalhe.matches.length} partidas, esperava 1`);
   exigir(detalhe.matches[0].source === 'LCU', `origem ${detalhe.matches[0].source}, esperava LCU`);
+  // A hora do jogo é a do LoL, não a da importação: a noite de 10/09 entrou
+  // com os jogos das 21h marcados às 22h33, a hora em que foram enviados.
+  const gravadoEm = new Date(detalhe.matches[0].playedAt).getTime();
+  exigir(
+    gravadoEm === jogo.gameCreation,
+    `playedAt ${detalhe.matches[0].playedAt}, esperava o gameCreation ${new Date(jogo.gameCreation).toISOString()}`
+  );
 
   // Quem jogou e não tinha foto enviada passa a aparecer com o ícone do LoL.
   const depois = new Map(dados(await api('GET', '/players'), 'listar').map((p) => [p.id, p]));
@@ -718,6 +725,22 @@ await passo('reenviar a mesma partida não duplica; refreshStats atualiza no lug
   exigir(refeito.refreshed === true, 'refreshStats não atualizou');
   const detalhe = dados(await api('GET', `/series/${ctx.serieLcu}`), 'ler');
   exigir(detalhe.matches.length === 1, `${detalhe.matches.length} partidas depois do reenvio`);
+
+  // O --refresh-all também acerta a hora de partida gravada com a hora errada.
+  const duasHorasAntes = ctx.jogoLcu.gameCreation - 7_200_000;
+  dados(
+    await api('POST', '/ingest/lcu', {
+      ...corpo,
+      game: { ...ctx.jogoLcu, gameCreation: duasHorasAntes },
+      refreshStats: true,
+    }),
+    'refreshStats com outra hora'
+  );
+  const corrigido = dados(await api('GET', `/series/${ctx.serieLcu}`), 'ler de novo');
+  exigir(
+    new Date(corrigido.matches[0].playedAt).getTime() === duasHorasAntes,
+    `o refresh não corrigiu a hora: ${corrigido.matches[0].playedAt}`
+  );
 });
 
 await passo('participante desconhecido: recusa dizendo quem falta', async () => {

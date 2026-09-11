@@ -275,6 +275,15 @@ export interface RecordMatchInput {
   source?: 'LCU' | 'ROFL' | 'RIOT_API' | 'MANUAL';
   gameVersion?: string | null;
   surrendered?: boolean;
+  /**
+   * Quando o jogo foi jogado, segundo a origem (o `gameCreation` do LoL).
+   *
+   * Sem isto a coluna caía no `@default(now())` e guardava a hora da
+   * IMPORTAÇÃO: jogos das 21h importados às 22h33 ficavam às 22h33, e uma
+   * noite importada dias depois mudava de data. Omitido (registro manual),
+   * continua valendo o agora.
+   */
+  playedAt?: Date;
   players: MatchPlayerInput[];
   teams?: MatchTeamInput[];
   bans?: MatchBanInput[];
@@ -407,6 +416,7 @@ export async function recordMatch(input: RecordMatchInput) {
         source: input.source ?? 'MANUAL',
         gameVersion: input.gameVersion ?? null,
         surrendered: input.surrendered ?? false,
+        ...(input.playedAt ? { playedAt: input.playedAt } : {}),
         stats: {
           create: input.players.map((player) => ({
             playerId: player.playerId,
@@ -633,6 +643,8 @@ export async function refreshMatchStats(
     bans?: MatchBanInput[];
     gameVersion?: string | null;
     surrendered?: boolean;
+    /** Corrige a hora das partidas gravadas antes de o ingest guardar o `gameCreation`. */
+    playedAt?: Date;
   } = {}
 ) {
   validateMatchPlayers(players);
@@ -683,12 +695,17 @@ export async function refreshMatchStats(
       });
     }
 
-    if (extras.gameVersion !== undefined || extras.surrendered !== undefined) {
+    if (
+      extras.gameVersion !== undefined ||
+      extras.surrendered !== undefined ||
+      extras.playedAt !== undefined
+    ) {
       await tx.match.update({
         where: { id: matchId },
         data: {
           ...(extras.gameVersion !== undefined ? { gameVersion: extras.gameVersion } : {}),
           ...(extras.surrendered !== undefined ? { surrendered: extras.surrendered } : {}),
+          ...(extras.playedAt !== undefined ? { playedAt: extras.playedAt } : {}),
         },
       });
     }
