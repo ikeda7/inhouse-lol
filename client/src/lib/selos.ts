@@ -9,7 +9,7 @@ import { milhar } from './imagem/canvas';
  * da mesma partida: mais dano, mais mortes, menos mortes... É a conversa de
  * fim de jogo ("quem deu mais dano?") respondida na própria linha.
  *
- * Duas regras seguram o valor do selo:
+ * Três regras seguram o valor do selo:
  *
  *   - Um vencedor só. Empate no topo = ninguém leva. Três jogadores com 2
  *     mortes não são "o que menos morreu", e um selo repartido não destaca.
@@ -18,16 +18,42 @@ import { milhar } from './imagem/canvas';
  *     corte, o selo seria sempre dele e deixaria de ser zoeira para virar
  *     acusação.
  *
+ *   - Número PAR. A imagem do jogo mostra os selos em duas colunas, e um
+ *     número ímpar deixava a última linha com um cartão sozinho. Quando isso
+ *     acontece, entra o primeiro selo de RESERVA que tiver dono único. Se
+ *     nenhum tiver, fica ímpar mesmo -- inventar selo empatado seria pior.
+ *
  * Esta é a fonte única: a tela do Histórico e a imagem da partida usam a
  * mesma conta, então nunca discordam de quem ganhou o quê.
  */
 
 export type SeloId =
-  'maisDano' | 'paredao' | 'visao' | 'farm' | 'garcom' | 'intocavel' | 'maisMortes' | 'pacifista';
+  | 'maisDano'
+  | 'paredao'
+  | 'visao'
+  | 'farm'
+  | 'garcom'
+  | 'intocavel'
+  | 'maisMortes'
+  | 'pacifista'
+  | 'melhorKda'
+  | 'maisAbates'
+  | 'maisOuro'
+  | 'firstBlood';
 
 type Linha = Pick<
   MatchStat,
-  'playerId' | 'rolePlayed' | 'damage' | 'damageTaken' | 'visionScore' | 'cs' | 'assists' | 'deaths'
+  | 'playerId'
+  | 'rolePlayed'
+  | 'kills'
+  | 'deaths'
+  | 'assists'
+  | 'damage'
+  | 'damageTaken'
+  | 'visionScore'
+  | 'cs'
+  | 'goldEarned'
+  | 'firstBloodKill'
 >;
 
 export interface Selo {
@@ -46,8 +72,10 @@ interface Regra extends Selo {
   elegivel?: (linha: Linha) => boolean;
 }
 
-// A ordem é a de exibição: os de mérito primeiro, a zoeira no fim.
-const REGRAS: Regra[] = [
+const kda = (l: Linha) => (l.kills + l.assists) / Math.max(1, l.deaths);
+
+/** Os selos de sempre, na ordem de exibição dos de mérito e depois a zoeira. */
+const PRINCIPAIS: Regra[] = [
   {
     id: 'maisDano',
     emoji: '💥',
@@ -124,17 +152,94 @@ const REGRAS: Regra[] = [
   },
 ];
 
-export const SELOS: readonly Selo[] = REGRAS.map(({ id, emoji, nome, zoeira, descrever }) => ({
+/**
+ * Reservas: só entram para fechar um número par, na ordem desta lista. São de
+ * mérito e fazem sentido sozinhas -- um "melhor KDA" é conversa de fim de jogo
+ * tanto quanto "mais dano".
+ */
+const RESERVAS: Regra[] = [
+  {
+    id: 'melhorKda',
+    emoji: '🎯',
+    nome: 'Melhor KDA',
+    zoeira: false,
+    descrever: (v) => `KDA ${v.toFixed(2)}, o melhor do jogo`,
+    valor: kda,
+    sentido: 'max',
+  },
+  {
+    id: 'maisAbates',
+    emoji: '⚔️',
+    nome: 'Mais abates',
+    zoeira: false,
+    descrever: (v) => `${v} abates`,
+    valor: (l) => l.kills,
+    sentido: 'max',
+  },
+  {
+    id: 'maisOuro',
+    emoji: '💰',
+    nome: 'Mais ouro',
+    zoeira: false,
+    descrever: (v) => `${milhar(v)} de ouro`,
+    valor: (l) => l.goldEarned,
+    sentido: 'max',
+  },
+  {
+    id: 'firstBlood',
+    emoji: '🩸',
+    nome: 'First blood',
+    zoeira: false,
+    descrever: () => 'abriu o placar da partida',
+    valor: (l) => (l.firstBloodKill ? 1 : 0),
+    sentido: 'max',
+  },
+];
+
+const semRegra = ({ id, emoji, nome, zoeira, descrever }: Regra): Selo => ({
   id,
   emoji,
   nome,
   zoeira,
   descrever,
-}));
+});
+
+/**
+ * Ordem de exibição: mérito primeiro (os de sempre, depois as reservas) e a
+ * zoeira no fim, como sempre foi.
+ */
+export const SELOS: readonly Selo[] = [
+  ...PRINCIPAIS.filter((r) => !r.zoeira),
+  ...RESERVAS,
+  ...PRINCIPAIS.filter((r) => r.zoeira),
+].map(semRegra);
+
+const ORDEM = new Map(SELOS.map((selo, i) => [selo.id, i]));
 
 export interface SeloConquistado {
   selo: Selo;
   valor: number;
+}
+
+/** O único dono de uma regra na partida, ou null (empate, sem dado, poucos candidatos). */
+function aplicar(
+  regra: Regra,
+  linhas: readonly Linha[]
+): { playerId: string; conquista: SeloConquistado } | null {
+  const candidatos = linhas.filter((l) => regra.elegivel?.(l) ?? true);
+  if (candidatos.length < 2) return null;
+
+  const valores = candidatos.map(regra.valor);
+  const alvo = regra.sentido === 'max' ? Math.max(...valores) : Math.min(...valores);
+  if (regra.sentido === 'max' && alvo <= 0) return null;
+
+  const vencedores = candidatos.filter((l) => regra.valor(l) === alvo);
+  if (vencedores.length !== 1) return null;
+
+  return {
+    playerId: vencedores[0].playerId,
+    conquista: { selo: semRegra(regra), valor: alvo },
+  };
 }
 
 /**
@@ -145,25 +250,30 @@ export interface SeloConquistado {
  * segura o caso de um só ter número.
  */
 export function selosDaPartida(linhas: readonly Linha[]): Map<string, SeloConquistado[]> {
-  const porJogador = new Map<string, SeloConquistado[]>();
+  const ganhos = PRINCIPAIS.map((regra) => aplicar(regra, linhas)).filter(
+    (ganho): ganho is NonNullable<typeof ganho> => ganho !== null
+  );
 
-  for (const regra of REGRAS) {
-    const candidatos = linhas.filter((l) => regra.elegivel?.(l) ?? true);
-    if (candidatos.length < 2) continue;
-
-    const valores = candidatos.map(regra.valor);
-    const alvo = regra.sentido === 'max' ? Math.max(...valores) : Math.min(...valores);
-    if (regra.sentido === 'max' && alvo <= 0) continue;
-
-    const vencedores = candidatos.filter((l) => regra.valor(l) === alvo);
-    if (vencedores.length !== 1) continue;
-
-    const [vencedor] = vencedores;
-    const { valor: _valor, sentido: _sentido, elegivel: _elegivel, ...selo } = regra;
-    const lista = porJogador.get(vencedor.playerId) ?? [];
-    porJogador.set(vencedor.playerId, [...lista, { selo, valor: alvo }]);
+  if (ganhos.length % 2 === 1) {
+    for (const regra of RESERVAS) {
+      const ganho = aplicar(regra, linhas);
+      if (ganho) {
+        ganhos.push(ganho);
+        break;
+      }
+    }
   }
 
+  const porJogador = new Map<string, SeloConquistado[]>();
+  for (const { playerId, conquista } of ganhos) {
+    porJogador.set(playerId, [...(porJogador.get(playerId) ?? []), conquista]);
+  }
+  for (const [playerId, lista] of porJogador) {
+    porJogador.set(
+      playerId,
+      [...lista].sort((a, b) => (ORDEM.get(a.selo.id) ?? 0) - (ORDEM.get(b.selo.id) ?? 0))
+    );
+  }
   return porJogador;
 }
 

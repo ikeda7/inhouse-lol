@@ -11,12 +11,15 @@ function partidaNeutra(): Linha[] {
   return Array.from({ length: 10 }, (_, i) => ({
     playerId: `p${i}`,
     rolePlayed: ROLES[i % 5],
+    kills: 3,
     damage: 15000,
     damageTaken: 20000,
     visionScore: 20,
     cs: 150,
+    goldEarned: 10000,
     assists: 5,
     deaths: 5,
+    firstBloodKill: false,
   }));
 }
 
@@ -79,6 +82,49 @@ describe('selosDaPartida', () => {
   it('mantém a ordem de exibição: mérito antes da zoeira', () => {
     const linhas = com(partidaNeutra(), 'p5', { damage: 40000, deaths: 12 });
     expect(idsDe(selosDaPartida(linhas), 'p5')).toEqual(['maisDano', 'maisMortes']);
+  });
+});
+
+describe('número par de selos', () => {
+  const total = (mapa: ReturnType<typeof selosDaPartida>) =>
+    [...mapa.values()].reduce((soma, lista) => soma + lista.length, 0);
+
+  it('ímpar é completado pelo primeiro selo de reserva com dono único', () => {
+    // Um selo só (mais dano, de p3) e um KDA claramente melhor em p8 -- com as
+    // mesmas mortes de todo mundo, para p8 não levar o "Intocável" (que já
+    // fecharia o par sozinho).
+    let linhas = com(partidaNeutra(), 'p3', { damage: 31000 });
+    linhas = com(linhas, 'p8', { kills: 20 });
+    const mapa = selosDaPartida(linhas);
+
+    expect(total(mapa)).toBe(2);
+    expect(idsDe(mapa, 'p8')).toEqual(['melhorKda']);
+  });
+
+  it('pula a reserva empatada e usa a próxima', () => {
+    // KDA empatado em todo mundo; p6 abriu o placar (first blood é único por natureza).
+    let linhas = com(partidaNeutra(), 'p3', { damage: 31000 });
+    linhas = com(linhas, 'p6', { firstBloodKill: true });
+    const mapa = selosDaPartida(linhas);
+
+    expect(idsDe(mapa, 'p6')).toEqual(['firstBlood']);
+    expect(total(mapa)).toBe(2);
+  });
+
+  it('par já fechado não ganha reserva', () => {
+    let linhas = com(partidaNeutra(), 'p3', { damage: 31000 });
+    linhas = com(linhas, 'p7', { deaths: 11 });
+    linhas = com(linhas, 'p8', { kills: 20 });
+    const mapa = selosDaPartida(linhas);
+
+    // mais dano + mais mortes = 2; o "mais abates" de p8 não entra.
+    expect(total(mapa)).toBe(2);
+    expect(idsDe(mapa, 'p8')).toEqual([]);
+  });
+
+  it('sem reserva com dono único, fica ímpar -- não inventa selo', () => {
+    const mapa = selosDaPartida(com(partidaNeutra(), 'p3', { damage: 31000 }));
+    expect(total(mapa)).toBe(1);
   });
 });
 
