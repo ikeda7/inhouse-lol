@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, History, Trash2, TriangleAlert } from 'lucid
 import { seriesApi } from '../api/client';
 import { useChampions } from '../hooks/useChampions';
 import { ExportarImagem } from '../components/ExportarImagem';
-import { milhar, resolvedorDeIcone } from '../lib/imagem/canvas';
+import { resolvedorDeIcone } from '../lib/imagem/canvas';
 import { gerarImagemDaPartida } from '../lib/imagem/partida';
 import { gerarImagemDaSerie } from '../lib/imagem/serie';
 import { useAction, useAsync } from '../hooks/useAsync';
@@ -11,13 +11,7 @@ import { Card, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon, ordenarPorLane } from '../components/ChampionIcon';
 import { Highlights } from '../components/Highlights';
 import { conquistasEmOrdem, selosDaPartida, type SeloConquistado } from '../lib/selos';
-import {
-  estatisticasDaSerie,
-  kdaNaSerie,
-  porMinuto,
-  selosDaMd3,
-  type JogadorNaSerie,
-} from '../lib/serieStats';
+import { NaSerie } from '../components/NaSerie';
 import { MatchBans, MatchObjectives } from '../components/MatchObjectives';
 import { calcularMaximos, MatchPlayerDetail } from '../components/MatchPlayerDetail';
 import {
@@ -209,136 +203,6 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
         </p>
       )}
     </div>
-  );
-}
-
-/**
- * A MD3 inteira por jogador (issue #97): os jogos somados, um bloco por time.
- *
- * Time por ELENCO, como o placar -- quem trocou de lado continua no mesmo
- * time. Os selos da MD3 têm as regras dos selos do jogo e só contam quem
- * jogou todos os jogos (lib/serieStats); a imagem da série usa as mesmas
- * contas.
- */
-function NaSerie({ serie }: { serie: SeriesDetail }) {
-  const jogadores = estatisticasDaSerie(serie.matches);
-  if (jogadores.length === 0) return null;
-
-  const conquistas = conquistasEmOrdem(selosDaMd3(jogadores), jogadores);
-  const totalDeJogos = serie.matches.filter((match) => match.stats.length > 0).length;
-  const levou = (time: 'A' | 'B') =>
-    serie.status === 'FINISHED' &&
-    (time === 'A' ? serie.blueScore > serie.redScore : serie.redScore > serie.blueScore);
-
-  return (
-    <div
-      role="region"
-      aria-label="A MD3 inteira"
-      className="rounded-lg border border-line/50 bg-raised/30 p-3 sm:p-4"
-    >
-      <p className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-ink-faint">
-        A MD3 inteira
-        <span className="ml-2 font-normal normal-case tracking-normal">
-          {totalDeJogos} {totalDeJogos === 1 ? 'jogo' : 'jogos somados'}
-        </span>
-      </p>
-
-      {conquistas.length > 0 && (
-        <ul className="mb-3 flex flex-wrap gap-1.5" aria-label="Selos da MD3">
-          {conquistas.map(({ selo, valor, nome }) => (
-            <li
-              key={selo.id}
-              title={selo.descrever(valor)}
-              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] ${
-                selo.zoeira ? 'border-loss/30 bg-loss/10' : 'border-line/60 bg-raised/60'
-              }`}
-            >
-              <span aria-hidden="true">{selo.emoji}</span>
-              <span className={`font-semibold ${selo.zoeira ? 'text-loss' : 'text-ink'}`}>
-                {selo.nome}
-              </span>
-              <span className="text-ink-muted">{nome}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="grid items-start gap-3 md:grid-cols-2">
-        {(['A', 'B'] as const).map((time) => (
-          <div key={time} className="min-w-0 rounded-md border border-line/40 bg-canvas/40">
-            <p className="flex items-center justify-between gap-2 border-b border-line/40 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-muted">
-              Time {time}
-              {levou(time) && (
-                <span className="normal-case tracking-normal text-gold">🏆 levou a MD3</span>
-              )}
-            </p>
-            <ul className="divide-y divide-line/30">
-              {jogadores
-                .filter((jogador) => jogador.time === time)
-                .map((jogador) => (
-                  <LinhaNaSerie
-                    key={jogador.playerId}
-                    jogador={jogador}
-                    totalDeJogos={totalDeJogos}
-                  />
-                ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Uma pessoa na MD3, em duas faixas: role, nome, campeões e K/D/A em cima; as
- * médias embaixo. Uma linha só não cabe a 390px sem espremer o nome.
- */
-function LinhaNaSerie({
-  jogador,
-  totalDeJogos,
-}: {
-  jogador: JogadorNaSerie;
-  totalDeJogos: number;
-}) {
-  const danoPorMinuto = porMinuto(jogador.damage, jogador.minutos);
-  const csPorMinuto = porMinuto(jogador.cs, jogador.minutos);
-  // Zero em dano, farm ou visão é importação antiga sem a coluna, não um jogo
-  // sem dano: some da linha em vez de virar "0 dano/min" (a mesma leitura dos
-  // selos, que não premiam coluna zerada).
-  const detalhes = [
-    `KDA ${kdaNaSerie(jogador).toFixed(2)}`,
-    jogador.damage > 0 &&
-      (danoPorMinuto === null
-        ? `${milhar(jogador.damage)} de dano`
-        : `${Math.round(danoPorMinuto)} dano/min`),
-    jogador.cs > 0 &&
-      (csPorMinuto === null ? `${jogador.cs} cs` : `${csPorMinuto.toFixed(1)} cs/min`),
-    jogador.visionScore > 0 && `${jogador.visionScore} de visão`,
-    // Aparece, mas avisado: os totais de quem entrou depois são de menos jogos.
-    !jogador.completo && `jogou ${jogador.jogos} de ${totalDeJogos}`,
-  ].filter(Boolean);
-
-  return (
-    <li className="px-3 py-2">
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
-          {ROLE_LABEL[jogador.rolePlayed]}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
-          {jogador.player.name}
-        </span>
-        <span className="flex shrink-0 gap-0.5">
-          {jogador.campeoes.map((campeao, i) => (
-            <ChampionIcon key={`${campeao}-${i}`} championName={campeao} size={20} />
-          ))}
-        </span>
-        <span className="tabular w-[4.75rem] shrink-0 text-right text-sm font-semibold text-ink">
-          {jogador.kills}/{jogador.deaths}/{jogador.assists}
-        </span>
-      </div>
-      <p className="tabular mt-0.5 pl-14 text-[11px] text-ink-faint">{detalhes.join(' · ')}</p>
-    </li>
   );
 }
 
