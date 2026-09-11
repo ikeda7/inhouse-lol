@@ -228,14 +228,12 @@ Se algo estiver errado, o que fazer depende de onde:
 
 1. **Reimportar depois de cada noite virou hábito manual.** Vale um comando só
    (`--watch` já existe, mas ninguém lembra de deixar rodando).
-2. **Teste de componente das barras e da vez.** `Select` (teclado e portal)
-   entrou em 11/09; os que faltam com regra de verdade são
-   `MatchPlayerDetail` (as barras de comparação) e `CaptainsDraft` (de quem é
-   a vez). A vez da sala ao vivo já é coberta pelo fluxo de dois navegadores.
 
 Feito em 11/09 e fora desta lista: a aba Série em duas colunas com "A MD3 até
 agora" e o placar por elenco; o `autoBalance` de 200 sorteios roda em ~1s e
-ganhou timeout próprio; stats da MD3 inteira (#97).
+ganhou timeout próprio; stats da MD3 inteira (#97); teste de componente do
+`Select` (teclado e portal), do `CaptainsDraft` (de quem é a vez) e do
+`MatchPlayerDetail` (barras relativas ao melhor da partida).
 
 ---
 
