@@ -1,5 +1,5 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
-import { Trophy, Dices, Swords, Users, History, Flame, LogIn } from 'lucide-react';
+import { Trophy, Dices, Swords, Users, History, Flame, LogIn, CircleHelp } from 'lucide-react';
 import { DashboardPage } from './pages/DashboardPage';
 import { DraftPage } from './pages/DraftPage';
 import { SeriesPage } from './pages/SeriesPage';
@@ -11,6 +11,7 @@ import { LiveDraftPage } from './pages/LiveDraftPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { AccountPage } from './pages/AccountPage';
+import { AjudaPage } from './pages/AjudaPage';
 import { useAuth } from './context/AuthContext';
 import { Avatar } from './components/ui';
 
@@ -121,6 +122,21 @@ export function App() {
               ))}
             </nav>
 
+            {/* A ajuda fica no cabeçalho pelo mesmo motivo da conta: uma
+                sétima aba na barra de baixo não cabe num celular de 320px. */}
+            <NavLink
+              to="/ajuda"
+              title="Como funciona"
+              aria-label="Ajuda: como funciona"
+              className={({ isActive }) =>
+                `flex h-8 w-8 items-center justify-center rounded-md transition ${
+                  isActive ? 'text-gold' : 'text-ink-faint hover:text-ink-muted'
+                }`
+              }
+            >
+              <CircleHelp size={17} />
+            </NavLink>
+
             <AtalhoDaConta />
           </div>
         </div>
@@ -148,6 +164,7 @@ export function App() {
           <Route path="/entrar" element={<LoginPage />} />
           <Route path="/criar-conta" element={<RegisterPage />} />
           <Route path="/conta" element={<AccountPage />} />
+          <Route path="/ajuda" element={<AjudaPage />} />
           <Route
             path="*"
             element={

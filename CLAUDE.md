@@ -53,7 +53,7 @@ build output. Don't remove that scoping.
 
 ### Screen check (CI job "Telas no navegador")
 
-`client/e2e/verificar-telas.mjs` opens seven screens at 390/768/1024/1440px in
+`client/e2e/verificar-telas.mjs` opens eight screens at 390/768/1024/1440px in
 Chromium and fails on two things that typecheck, tests and build all pass:
 horizontal scroll, and text below WCAG AA **after** compositing opacity and
 backgrounds. That class of bug has shipped here repeatedly — text painted in
