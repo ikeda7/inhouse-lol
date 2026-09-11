@@ -95,13 +95,18 @@ export INHOUSE_CHAVE="a-chave-do-grupo"
 
 ## Na hora de jogar
 
-### 1. Abra a MD3 no site
+### 1. A MD3 abre sozinha
 
-[Série](https://inhouse-lol.vercel.app/serie) → **Abrir nova MD3**.
+Ao clicar em **Usar esses times na série** (no Sorteio, no draft ou na sala ao
+vivo), o site abre a MD3 da noite — ou usa a que já estiver em andamento. O
+nome sai do dia: "Quinta 10/09" (depois da meia-noite ainda vale a noite
+anterior).
 
-**Isto é obrigatório e vem primeiro.** O agente recusa mandar partida quando não
-há série em andamento — ele responde `NO_ONGOING_SERIES` e não grava nada. Não é
-bug: é o que impede um custom aleatório de entrar no histórico do grupo.
+Sem MD3 em andamento o agente recusa mandar partida — ele responde
+`NO_ONGOING_SERIES` e não grava nada. Não é bug: é o que impede um custom
+aleatório de entrar no histórico do grupo. Se tirarem os times fora do site,
+abram na mão: [Série](https://inhouse-lol.vercel.app/serie) → **Abrir nova
+MD3**. O servidor não abre uma segunda enquanto houver uma em andamento.
 
 > Abriu sem querer? Agora dá para descartar: a série sem nenhum jogo mostra um
 > ícone de lixeira no Histórico. Série **com** jogo o servidor recusa apagar.
