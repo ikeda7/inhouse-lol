@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, History, Trash2, TriangleAlert } from 'lucide-react';
 import { seriesApi } from '../api/client';
+import { useChampions } from '../hooks/useChampions';
+import { ExportarImagem } from '../components/ExportarImagem';
+import { resolvedorDeIcone } from '../lib/imagem/canvas';
+import { gerarImagemDaPartida } from '../lib/imagem/partida';
+import { gerarImagemDaSerie } from '../lib/imagem/serie';
 import { useAction, useAsync } from '../hooks/useAsync';
 import { Card, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon, ordenarPorLane } from '../components/ChampionIcon';
@@ -164,15 +169,28 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
     () => seriesApi.get(seriesId),
     [seriesId]
   );
+  const { manifest } = useChampions();
 
   if (loading) return <LoadingState label="Carregando jogos..." />;
   if (error) return <ErrorState error={error} />;
   if (!data) return null;
 
+  const serie = data;
   return (
     <div className="space-y-4 pb-4 sm:pl-7">
-      {data.matches.map((match) => (
-        <MatchCard key={match.id} match={match} />
+      {serie.matches.length > 0 && (
+        <div className="flex items-center justify-end gap-2">
+          <span className="text-[11px] text-ink-faint">Imagem da série</span>
+          <ExportarImagem
+            gerar={() => gerarImagemDaSerie(serie, { iconeDoCampeao: resolvedorDeIcone(manifest) })}
+            nomeDoArquivo={`inhouse-lol-serie-${serie.date.slice(0, 10)}.png`}
+            titulo={`${serie.name ?? 'MD3'} · InHouse LoL`}
+          />
+        </div>
+      )}
+
+      {serie.matches.map((match) => (
+        <MatchCard key={match.id} match={match} nomeDaSerie={serie.name} />
       ))}
 
       {data.burnedChampions.length > 0 && (
@@ -186,16 +204,17 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
 
 type Match = SeriesDetail['matches'][number];
 
-function MatchCard({ match }: { match: Match }) {
+function MatchCard({ match, nomeDaSerie }: { match: Match; nomeDaSerie: string | null }) {
   // Um jogador aberto por vez na partida. Dois painéis abertos juntos empurram
   // o time de baixo para fora da tela e a comparação, que é o ponto, se perde.
   const [aberto, setAberto] = useState<string | null>(null);
+  const { manifest } = useChampions();
   const maximos = calcularMaximos(match.stats);
   const statAberto = match.stats.find((stat) => stat.id === aberto) ?? null;
 
   return (
     <div className="rounded-lg border border-line/50 bg-raised/30 p-3 sm:p-4">
-      <p className="mb-2.5 flex flex-wrap items-center gap-2.5 text-[13px] font-semibold uppercase tracking-wider text-ink-faint">
+      <div className="mb-2.5 flex flex-wrap items-center gap-2.5 text-[13px] font-semibold uppercase tracking-wider text-ink-faint">
         <span>Jogo {match.matchNumber}</span>
         {match.gameDurationSec && (
           <span className="tabular font-normal normal-case tracking-normal">
@@ -222,7 +241,19 @@ function MatchCard({ match }: { match: Match }) {
             rendição
           </span>
         )}
-      </p>
+        <div className="ml-auto">
+          <ExportarImagem
+            gerar={() =>
+              gerarImagemDaPartida(match, {
+                nomeDaSerie,
+                iconeDoCampeao: resolvedorDeIcone(manifest),
+              })
+            }
+            nomeDoArquivo={`inhouse-lol-jogo-${match.matchNumber}-${match.playedAt.slice(0, 10)}.png`}
+            titulo={`Jogo ${match.matchNumber} · InHouse LoL`}
+          />
+        </div>
+      </div>
 
       {/* `items-start` protege contra time desfalcado (4 contra 5): sem isso o
           grid estica a coluna menor e a faixa verde do vencedor fica com um

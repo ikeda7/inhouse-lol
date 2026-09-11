@@ -21,6 +21,10 @@ import { Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../compon
 import { ChampionIcon } from '../components/ChampionIcon';
 import { nomeDaSequencia } from '../lib/lolTerms';
 import { harmonizarNoite } from '../lib/momentos';
+import { useChampions } from '../hooks/useChampions';
+import { ExportarImagem } from '../components/ExportarImagem';
+import { resolvedorDeIcone } from '../lib/imagem/canvas';
+import { gerarImagemDosDestaques } from '../lib/imagem/destaques';
 import { ROLE_LABEL, type MomentEntry, type MomentType, type RecordEntry } from '../types';
 
 /**
@@ -54,6 +58,7 @@ const CATEGORIA: Record<string, { label: string; icon: LucideIcon; tom?: 'zoeira
 
 export function HighlightsPage() {
   const { data, loading, error, reload } = useAsync(() => statsApi.highlights());
+  const { manifest } = useChampions();
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -71,9 +76,32 @@ export function HighlightsPage() {
         padding={false}
         title={<CardTitle icon={Award}>Recordes</CardTitle>}
         action={
-          <span className="text-[11px] text-ink-faint">
-            de {data.partidas} partida{data.partidas === 1 ? '' : 's'}
-          </span>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="text-[11px] text-ink-faint">
+              de {data.partidas} partida{data.partidas === 1 ? '' : 's'}
+            </span>
+            {/* A imagem usa os MESMOS textos da tela (rótulo, "LEGENDARY", a
+                frase): se a tela mudar, a imagem muda junto. */}
+            <ExportarImagem
+              gerar={() =>
+                gerarImagemDosDestaques(data, {
+                  iconeDoCampeao: resolvedorDeIcone(manifest),
+                  categoria: (chave) => {
+                    const meta = CATEGORIA[chave];
+                    return meta ? { label: meta.label, zoeira: meta.tom === 'zoeira' } : null;
+                  },
+                  momento: (m) => ({
+                    titulo: MOMENTO[m.tipo].titulo(m.valor),
+                    frase: MOMENTO[m.tipo].frase(m),
+                    destaque: MOMENTO[m.tipo].destaque ?? false,
+                  }),
+                })
+              }
+              nomeDoArquivo={`inhouse-lol-destaques-${new Date().toISOString().slice(0, 10)}.png`}
+              titulo="Destaques · InHouse LoL"
+              vazio={data.recordes.length === 0}
+            />
+          </div>
         }
       >
         {data.recordes.length === 0 ? (
