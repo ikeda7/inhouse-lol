@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
+import { mostrarNaLista, useMenuFlutuante } from '../hooks/useMenuFlutuante';
 
 export interface SelectOption {
   value: string;
@@ -53,6 +55,8 @@ export function Select({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const typedRef = useRef({ termo: '', quando: 0 });
+  const estilo = useMenuFlutuante(buttonRef, open, 180);
+  const listaMontada = estilo !== null;
 
   const selected = useMemo(
     () => options.find((option) => option.value === value),
@@ -63,20 +67,27 @@ export function Select({
 
   useEffect(() => {
     if (!open) return;
+    // A lista mora no body (ver useMenuFlutuante): clicar nela não é "fora".
     const onClickOutside = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+      const alvo = event.target as Node;
+      if (!containerRef.current?.contains(alvo) && !listRef.current?.contains(alvo)) {
+        setOpen(false);
+      }
     };
     document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [open]);
 
-  // Mantém a opção ativa visível quando navega por teclado numa lista longa.
+  // Mantém a opção ativa visível numa lista longa, rolando só a lista. Depende
+  // de `listaMontada` porque a lista só existe depois da posição calculada.
   useEffect(() => {
-    if (!open || activeIndex < 0) return;
-    listRef.current
-      ?.querySelector(`[data-index="${activeIndex}"]`)
-      ?.scrollIntoView({ block: 'nearest' });
-  }, [open, activeIndex]);
+    if (!open || activeIndex < 0 || !listaMontada) return;
+    const lista = listRef.current;
+    mostrarNaLista(
+      lista,
+      lista?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`) ?? null
+    );
+  }, [open, activeIndex, listaMontada]);
 
   const abrir = () => {
     const atual = options.findIndex((option) => option.value === value);
@@ -199,32 +210,35 @@ export function Select({
         />
       </button>
 
-      {open && (
-        <ul
-          ref={listRef}
-          role="listbox"
-          aria-label={ariaLabel}
-          className="surgir absolute z-40 mt-1.5 max-h-64 w-full min-w-[180px] overflow-y-auto rounded-lg border border-line bg-overlay p-1 shadow-2xl shadow-black/60"
-        >
-          {options.length === 0 && (
-            <li className="px-3 py-2 text-xs text-ink-faint">Nenhuma opção.</li>
-          )}
+      {open &&
+        estilo &&
+        createPortal(
+          <ul
+            ref={listRef}
+            role="listbox"
+            aria-label={ariaLabel}
+            style={estilo}
+            className="surgir z-50 overflow-y-auto rounded-lg border border-line bg-overlay p-1 shadow-2xl shadow-black/60"
+          >
+            {options.length === 0 && (
+              <li className="px-3 py-2 text-xs text-ink-faint">Nenhuma opção.</li>
+            )}
 
-          {options.map((option, index) => {
-            const ativo = index === activeIndex;
-            const escolhido = option.value === value;
-            return (
-              <li key={option.value}>
-                <button
-                  type="button"
-                  id={`opt-${index}`}
-                  data-index={index}
-                  role="option"
-                  aria-selected={escolhido}
-                  disabled={option.disabled}
-                  onMouseEnter={() => !option.disabled && setActiveIndex(index)}
-                  onClick={() => escolher(index)}
-                  className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition
+            {options.map((option, index) => {
+              const ativo = index === activeIndex;
+              const escolhido = option.value === value;
+              return (
+                <li key={option.value}>
+                  <button
+                    type="button"
+                    id={`opt-${index}`}
+                    data-index={index}
+                    role="option"
+                    aria-selected={escolhido}
+                    disabled={option.disabled}
+                    onMouseEnter={() => !option.disabled && setActiveIndex(index)}
+                    onClick={() => escolher(index)}
+                    className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition
                     ${
                       option.disabled
                         ? 'cursor-not-allowed text-ink-faint'
@@ -232,20 +246,21 @@ export function Select({
                           ? 'bg-gold/15 text-ink'
                           : 'text-ink-muted'
                     }`}
-                >
-                  <span className="flex-1 truncate">{option.label}</span>
-                  {option.hint && (
-                    <span className="shrink-0 text-[10px] uppercase tracking-wide text-ink-faint">
-                      {option.hint}
-                    </span>
-                  )}
-                  {escolhido && <Check size={14} className="shrink-0 text-gold" />}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                  >
+                    <span className="flex-1 truncate">{option.label}</span>
+                    {option.hint && (
+                      <span className="shrink-0 text-[10px] uppercase tracking-wide text-ink-faint">
+                        {option.hint}
+                      </span>
+                    )}
+                    {escolhido && <Check size={14} className="shrink-0 text-gold" />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>,
+          document.body
+        )}
     </div>
   );
 }

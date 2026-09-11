@@ -90,10 +90,21 @@ renders fine and does nothing. That shipped twice in the Momentos selector
 (tabs that did not filter, then tabs only for the latest night). `fluxos.mjs`
 clicks: every night and every game in the Destaques selector must filter the
 list and the image caption; Histórico opens series → game → player and the
-series/game images download as real PNGs; the ranking image downloads; the
+series/game images download as real PNGs; the ranking image downloads and
+each sort tab requests its own `sortBy` and leaves the table in that order
+(the request is the proof when the data gives the same order in all four,
+as the CI database does); each
+Jogadores filter shows exactly as many rows as the API says are missing;
+Sorteio's "tenta outro" brings a new seed, and captains mode with two
+hand-picked captains drafts to 5x5 (draw and draft are stateless
+calculators, so these run read-only against production too); the
 "?" reaches the help page; and (with `--preparar`) Sorteio → "Usar esses times
-na série" opens the MD3 and lands on Série. `--preparar` writes (a second
-night with moments, an MD3 it finishes afterwards) and refuses a non-local
+na série" opens the MD3 and lands on Série, and the Série manual form
+registers game 1 row by row — the player and champion menus on the last row
+must open unclipped and without scrolling the table — scores it, refuses a
+Fearless-burned champion in game 2, and "Encerrar" closes the MD3.
+`--preparar` writes (a second night with moments, two MD3s it finishes
+afterwards) and refuses a non-local
 `--base`. A JavaScript error on the page fails the flow. **When you add an
 interactive control, add its flow here.**
 
@@ -408,7 +419,10 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
   render on; measure, don't eyeball (see the `ink-muted`/`ink-faint` incident
   in ARCHITECTURE.md).
   - `Select` is a custom component, not `<select>` — the native menu doesn't
-  accept styling on Windows.
+  accept styling on Windows. Its menu (and `ChampionPicker`'s) renders in
+  `document.body` with `position: fixed` through `hooks/useMenuFlutuante.ts`:
+  inside the match form's `overflow-x-auto` table an `absolute` menu opened
+  clipped on the last rows, and `scrollIntoView` scrolled the table itself.
 - Match history is three levels deep behind clicks (series → game → player);
   the player level exists specifically so post-game stats don't require the
   LoL client to still be open.

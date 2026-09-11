@@ -1,7 +1,9 @@
 import { ICONE_INDISPONIVEL } from './ChampionIcon';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Ban, Search, X } from 'lucide-react';
 import { useChampions, normalizeChampionQuery } from '../hooks/useChampions';
+import { useMenuFlutuante } from '../hooks/useMenuFlutuante';
 
 interface ChampionPickerProps {
   value: string;
@@ -36,13 +38,19 @@ export function ChampionPicker({
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const campoRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   // Fecha ao clicar fora. Sem isso, varias listas ficariam abertas ao mesmo
-  // tempo numa tela com 10 pickers.
+  // tempo numa tela com 10 pickers. A lista mora no body (ver
+  // useMenuFlutuante): clicar nela não é "fora".
   useEffect(() => {
     if (!open) return;
     const onClickOutside = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+      const alvo = event.target as Node;
+      if (!containerRef.current?.contains(alvo) && !listRef.current?.contains(alvo)) {
+        setOpen(false);
+      }
     };
     document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
@@ -56,6 +64,8 @@ export function ChampionPicker({
       : champions;
     return filtered.slice(0, 60);
   }, [manifest, query]);
+
+  const estilo = useMenuFlutuante(campoRef, open, 220);
 
   const statusOf = (name: string): 'burned' | 'taken' | 'free' => {
     const key = name.toLowerCase();
@@ -87,7 +97,10 @@ export function ChampionPicker({
 
   return (
     <div ref={containerRef} className="relative">
-      <div className="flex items-center gap-1.5 rounded border border-line bg-raised px-2 py-1 focus-within:border-gold">
+      <div
+        ref={campoRef}
+        className="flex items-center gap-1.5 rounded border border-line bg-raised px-2 py-1 focus-within:border-gold"
+      >
         {selected ? (
           <img
             src={selected.squareUrl}
@@ -144,64 +157,69 @@ export function ChampionPicker({
         )}
       </div>
 
-      {open && (
-        <ul
-          role="listbox"
-          className="absolute z-30 mt-1 max-h-64 w-full min-w-[220px] overflow-y-auto rounded-lg border border-line bg-surface shadow-2xl"
-        >
-          {results.length === 0 && (
-            <li className="px-3 py-2 text-xs text-ink-faint">Nenhum campeão encontrado.</li>
-          )}
+      {open &&
+        estilo &&
+        createPortal(
+          <ul
+            ref={listRef}
+            role="listbox"
+            style={estilo}
+            className="z-50 overflow-y-auto rounded-lg border border-line bg-surface shadow-2xl"
+          >
+            {results.length === 0 && (
+              <li className="px-3 py-2 text-xs text-ink-faint">Nenhum campeão encontrado.</li>
+            )}
 
-          {results.map((champion, index) => {
-            const status = statusOf(champion.name);
-            const blocked = status !== 'free';
-            return (
-              <li key={champion.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={index === highlight}
-                  disabled={blocked}
-                  onMouseEnter={() => setHighlight(index)}
-                  onClick={() => select(champion.name, champion.key)}
-                  className={`flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs transition ${
-                    blocked
-                      ? // Sem opacidade na LINHA: ela apagava junto o selo
-                        // "queimado", que é justamente a explicação de por que a
-                        // opção está bloqueada. O nome recua, o selo fica.
-                        'cursor-not-allowed text-ink-faint'
-                      : index === highlight
-                        ? 'bg-gold/15 text-ink'
-                        : 'text-ink/80 hover:bg-raised'
-                  }`}
-                >
-                  <img
-                    src={champion.squareUrl}
-                    alt=""
-                    width={22}
-                    height={22}
-                    loading="lazy"
-                    className={`h-[22px] w-[22px] rounded ${blocked ? ICONE_INDISPONIVEL : ''}`}
-                  />
-                  <span className="flex-1 truncate">{champion.name}</span>
-                  {status === 'burned' && (
-                    <span className="flex items-center gap-1 text-[10px] font-semibold uppercase text-orange-400">
-                      <Ban size={11} />
-                      queimado
-                    </span>
-                  )}
-                  {status === 'taken' && (
-                    <span className="text-[10px] font-semibold uppercase text-slate-400">
-                      em uso
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+            {results.map((champion, index) => {
+              const status = statusOf(champion.name);
+              const blocked = status !== 'free';
+              return (
+                <li key={champion.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={index === highlight}
+                    disabled={blocked}
+                    onMouseEnter={() => setHighlight(index)}
+                    onClick={() => select(champion.name, champion.key)}
+                    className={`flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs transition ${
+                      blocked
+                        ? // Sem opacidade na LINHA: ela apagava junto o selo
+                          // "queimado", que é justamente a explicação de por que a
+                          // opção está bloqueada. O nome recua, o selo fica.
+                          'cursor-not-allowed text-ink-faint'
+                        : index === highlight
+                          ? 'bg-gold/15 text-ink'
+                          : 'text-ink/80 hover:bg-raised'
+                    }`}
+                  >
+                    <img
+                      src={champion.squareUrl}
+                      alt=""
+                      width={22}
+                      height={22}
+                      loading="lazy"
+                      className={`h-[22px] w-[22px] rounded ${blocked ? ICONE_INDISPONIVEL : ''}`}
+                    />
+                    <span className="flex-1 truncate">{champion.name}</span>
+                    {status === 'burned' && (
+                      <span className="flex items-center gap-1 text-[10px] font-semibold uppercase text-orange-400">
+                        <Ban size={11} />
+                        queimado
+                      </span>
+                    )}
+                    {status === 'taken' && (
+                      <span className="text-[10px] font-semibold uppercase text-slate-400">
+                        em uso
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>,
+          document.body
+        )}
     </div>
   );
 }
