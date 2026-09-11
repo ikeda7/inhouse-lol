@@ -653,6 +653,25 @@ await passo('MD3 aberta sem querer é descartável; com jogo, não', async () =>
   recusa(await api('DELETE', `/series/${ctx.serie}`), 'SERIES_NOT_EMPTY', 'descartar a jogada');
 });
 
+await passo('série encerrada pode ser renomeada; nome vazio, não', async () => {
+  precisa('serie');
+  // A noite de 07/09 entrou como "Domingo" e foi numa segunda (feriado): o
+  // nome aparece na tela e nas imagens, então tem de dar para corrigir depois.
+  const nome = `Segunda ${rodada}`;
+  const renomeada = dados(await api('PATCH', `/series/${ctx.serie}`, { name: nome }), 'renomear');
+  exigir(renomeada.name === nome, `renomeou para ${renomeada.name}`);
+  const lida = dados(await api('GET', `/series/${ctx.serie}`), 'ler');
+  exigir(lida.name === nome, `a série lida continua como ${lida.name}`);
+  exigir(lida.matches.length > 0, 'renomear mexeu nos jogos da série');
+
+  const vazio = await api('PATCH', `/series/${ctx.serie}`, { name: '   ' });
+  exigir(!vazio.success && vazio.status === 400, `nome vazio: HTTP ${vazio.status}`);
+  if (CHAVE) {
+    const visitante = await api('PATCH', `/series/${ctx.serie}`, { name: 'x' }, { semChave: true });
+    exigir(visitante.status === 401, `visitante sem chave: HTTP ${visitante.status}`);
+  }
+});
+
 // ---------------------------------------------------------------------------
 console.log('\nImportação pelo cliente do LoL (o que o companion manda)');
 

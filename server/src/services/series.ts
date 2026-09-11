@@ -580,6 +580,25 @@ export async function discardEmptySeries(seriesId: string) {
   return { id: series.id, name: series.name };
 }
 
+/**
+ * Renomeia uma série -- inclusive encerrada.
+ *
+ * O nome é o que a tela e as imagens mostram no lugar da data ("Quinta
+ * 03/09"), então um nome errado ("Domingo" numa noite de segunda-feira) fica
+ * errado em todo lugar. Só o nome muda: placar, jogos e queimados não são
+ * tocados.
+ */
+export async function renameSeries(seriesId: string, name: string) {
+  const series = await prisma.series.findUnique({ where: { id: seriesId }, select: { id: true } });
+  if (!series) throw new SeriesError('Série não encontrada.', 'SERIES_NOT_FOUND');
+
+  return prisma.series.update({
+    where: { id: seriesId },
+    data: { name: name.trim() },
+    select: { id: true, name: true },
+  });
+}
+
 /** O que ja esta gravado na partida que se pretende atualizar. */
 export interface PartidaRegistrada {
   winner: string | null;

@@ -8,6 +8,7 @@ import {
   getSeriesDetail,
   listSeries,
   recordMatch,
+  renameSeries,
 } from '../services/series.js';
 import { prisma } from '../lib/prisma.js';
 import { ROLES, TEAM_SIDES } from '../lib/roles.js';
@@ -132,5 +133,18 @@ seriesRouter.delete(
   '/:id',
   asyncHandler(async (req, res) => {
     res.json({ success: true, data: await discardEmptySeries(req.params.id) });
+  })
+);
+
+const renameSeriesSchema = z.object({
+  name: z.string().trim().min(1, 'Dê um nome à série').max(60),
+});
+
+/** PATCH /api/series/:id - corrige o nome (ex.: "Domingo 07/09" que foi numa segunda). */
+seriesRouter.patch(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const { name } = renameSeriesSchema.parse(req.body);
+    res.json({ success: true, data: await renameSeries(req.params.id, name) });
   })
 );
