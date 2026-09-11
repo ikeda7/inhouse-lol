@@ -283,6 +283,23 @@ async function fluxoDoHistorico(pagina) {
   await pagina.locator('li > div > button[aria-expanded]', { hasText: rotulo }).first().click();
   await pagina.getByText('Imagem da série').waitFor({ timeout: 20000 });
 
+  // A MD3 inteira (#97): os dois times, e uma linha por pessoa que jogou a
+  // série -- nem a mais (alguém contado duas vezes), nem a menos.
+  const detalhe = await api('GET', `/series/${comJogo.id}`);
+  const pessoas = new Set(detalhe.matches.flatMap((m) => m.stats.map((s) => s.playerId))).size;
+  const naSerie = pagina.getByRole('region', { name: 'A MD3 inteira' });
+  const linhasNaSerie = await naSerie.locator('ul.divide-y > li').count();
+  exigir(
+    linhasNaSerie === pessoas,
+    `"A MD3 inteira" mostra ${linhasNaSerie} jogadores, a série teve ${pessoas}`
+  );
+  for (const time of ['Time A', 'Time B']) {
+    exigir(
+      (await naSerie.getByText(new RegExp(`^${time}`)).count()) > 0,
+      `"A MD3 inteira" sem o bloco do ${time}`
+    );
+  }
+
   const baixares = pagina.getByRole('button', { name: 'Baixar' });
   await baixar(pagina, baixares.nth(0), 'serie.png');
   await baixar(pagina, baixares.nth(1), 'jogo.png');

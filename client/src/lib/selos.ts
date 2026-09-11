@@ -196,6 +196,27 @@ const RESERVAS: Regra[] = [
   },
 ];
 
+/**
+ * Onde o selo foi ganho: num jogo ou na MD3 inteira (issue #97). A regra é a
+ * mesma -- um dono só, empate ninguém leva -- e só o texto muda.
+ */
+export type Escopo = 'jogo' | 'md3';
+
+const TEXTO_NA_MD3: Partial<Record<SeloId, (valor: number) => string>> = {
+  maisDano: (v) => `${milhar(v)} de dano, o maior da MD3`,
+  melhorKda: (v) => `KDA ${v.toFixed(2)}, o melhor da MD3`,
+};
+
+/** First blood é fato de uma partida; somado na MD3 não diz nada. */
+const SO_NO_JOGO: ReadonlySet<SeloId> = new Set<SeloId>(['firstBlood']);
+
+function paraEscopo(regras: readonly Regra[], escopo: Escopo): Regra[] {
+  if (escopo === 'jogo') return [...regras];
+  return regras
+    .filter((regra) => !SO_NO_JOGO.has(regra.id))
+    .map((regra) => ({ ...regra, descrever: TEXTO_NA_MD3[regra.id] ?? regra.descrever }));
+}
+
 const semRegra = ({ id, emoji, nome, zoeira, descrever }: Regra): Selo => ({
   id,
   emoji,
@@ -250,12 +271,25 @@ function aplicar(
  * segura o caso de um só ter número.
  */
 export function selosDaPartida(linhas: readonly Linha[]): Map<string, SeloConquistado[]> {
-  const ganhos = PRINCIPAIS.map((regra) => aplicar(regra, linhas)).filter(
-    (ganho): ganho is NonNullable<typeof ganho> => ganho !== null
-  );
+  return selosNoEscopo(linhas, 'jogo');
+}
+
+/**
+ * Selos da MD3 inteira, sobre os totais de cada jogador. Quem disputa é
+ * decisão de quem chama: `lib/serieStats` só passa quem jogou todos os jogos,
+ * para um substituto de um jogo não perder "mais dano" por ter jogado menos.
+ */
+export function selosDaSerie(linhas: readonly Linha[]): Map<string, SeloConquistado[]> {
+  return selosNoEscopo(linhas, 'md3');
+}
+
+function selosNoEscopo(linhas: readonly Linha[], escopo: Escopo): Map<string, SeloConquistado[]> {
+  const ganhos = paraEscopo(PRINCIPAIS, escopo)
+    .map((regra) => aplicar(regra, linhas))
+    .filter((ganho): ganho is NonNullable<typeof ganho> => ganho !== null);
 
   if (ganhos.length % 2 === 1) {
-    for (const regra of RESERVAS) {
+    for (const regra of paraEscopo(RESERVAS, escopo)) {
       const ganho = aplicar(regra, linhas);
       if (ganho) {
         ganhos.push(ganho);

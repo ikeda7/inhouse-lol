@@ -15,6 +15,10 @@ import {
   paraPng,
   type ResolverIcone,
 } from './canvas';
+import { elencoDoTimeA, ladoDoTimeA } from '../timeDaSerie';
+import { conquistasEmOrdem } from '../selos';
+import { estatisticasDaSerie, selosDaMd3, type JogadorNaSerie } from '../serieStats';
+import { alturaDoBlocoDeSelos, desenharSelos } from './partida';
 
 /**
  * A MD3 inteira como imagem: o placar, um bloco por jogo e os queimados.
@@ -37,35 +41,19 @@ const ALTURA_TITULO_QUEIMADOS = 34;
 const ICONE_DO_JOGO = 32;
 const ICONE_QUEIMADO = 30;
 const ALTURA_RODAPE = 50;
+const ALTURA_TITULO_NA_SERIE = 38;
+const ALTURA_CABECA_DO_TIME = 24;
+const ALTURA_LINHA_NA_SERIE = 28;
+const ESPACO_ENTRE_COLUNAS = 28;
+const ICONE_NA_SERIE = 22;
 
 const ordemDaRole = (stat: MatchStat) => {
   const indice = ROLES.indexOf(stat.rolePlayed);
   return indice < 0 ? ROLES.length : indice;
 };
 
-/** Quem jogou de azul no primeiro jogo: é essa gente que o placar chama de "time A". */
-export function elencoDoTimeA(
-  partidas: readonly Pick<Partida, 'matchNumber' | 'stats'>[]
-): Set<string> {
-  const primeira = [...partidas].sort((a, b) => a.matchNumber - b.matchNumber)[0];
-  return new Set(
-    (primeira?.stats ?? []).filter((s) => s.teamSide === 'BLUE').map((s) => s.player.id)
-  );
-}
-
-/**
- * Lado em que o time A jogou numa partida: o lado com a maioria do elenco.
- * Maioria, e não todos, para uma substituição no meio da MD3 não trocar o time
- * de identidade -- a mesma tolerância do servidor.
- */
-export function ladoDoTimeA(
-  stats: readonly Pick<MatchStat, 'teamSide' | 'player'>[],
-  elencoA: ReadonlySet<string>
-): TeamSide {
-  const doLado = (lado: TeamSide) =>
-    stats.filter((s) => s.teamSide === lado && elencoA.has(s.player.id)).length;
-  return doLado('RED') > doLado('BLUE') ? 'RED' : 'BLUE';
-}
+// Moraram aqui até as stats da série precisarem delas também.
+export { elencoDoTimeA, ladoDoTimeA };
 
 export async function gerarImagemDaSerie(
   serie: SeriesDetail,
@@ -79,10 +67,22 @@ export async function gerarImagemDaSerie(
   const alturaDosQueimados = linhasDeQueimados
     ? ALTURA_TITULO_QUEIMADOS + linhasDeQueimados * (ICONE_QUEIMADO + 6) + 10
     : 0;
+  // A MD3 por jogador (#97): o K/D/A somado de cada time e os selos da MD3 --
+  // as mesmas contas do bloco "A MD3 inteira" do Histórico.
+  const jogadores = estatisticasDaSerie(partidas);
+  const conquistas = conquistasEmOrdem(selosDaMd3(jogadores), jogadores);
+  const linhasPorTime = Math.max(
+    ...(['A', 'B'] as const).map((time) => jogadores.filter((j) => j.time === time).length)
+  );
+  const alturaNaSerie = jogadores.length
+    ? ALTURA_TITULO_NA_SERIE + ALTURA_CABECA_DO_TIME + linhasPorTime * ALTURA_LINHA_NA_SERIE + 8
+    : 0;
   const altura =
     ALTURA_CABECALHO +
     ALTURA_PLACAR +
     partidas.length * ALTURA_JOGO +
+    alturaNaSerie +
+    alturaDoBlocoDeSelos(conquistas.length) +
     alturaDosQueimados +
     ALTURA_RODAPE;
 
@@ -120,6 +120,15 @@ export async function gerarImagemDaSerie(
     desenharJogo(ctx, partida, elencoA, y, icones, indice);
     y += ALTURA_JOGO;
   });
+
+  if (jogadores.length > 0) {
+    desenharNaSerie(ctx, jogadores, y, icones);
+    y += alturaNaSerie;
+  }
+  if (conquistas.length > 0) {
+    desenharSelos(ctx, conquistas, y, 'DESTAQUES DA MD3');
+    y += alturaDoBlocoDeSelos(conquistas.length);
+  }
 
   if (serie.burnedChampions.length > 0) {
     desenharQueimados(ctx, serie, y, icones, porLinha);
@@ -248,6 +257,83 @@ function desenharJogo(
   const resultado = venceuA === null ? 'sem resultado' : venceuA ? '◀ time A' : 'time B ▶';
   const centro = (xDoTimeA + larguraDoTime + xDoTimeB) / 2;
   ctx.fillText(resultado, centro, meio);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
+/**
+ * K/D/A somado da MD3, um time por coluna. Quem não jogou todos os jogos sai
+ * mais apagado: os números dele são de menos partidas.
+ */
+function desenharNaSerie(
+  ctx: CanvasRenderingContext2D,
+  jogadores: JogadorNaSerie[],
+  topo: number,
+  icones: Map<string, HTMLImageElement | null>
+) {
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  ctx.font = fonte(12, 600);
+  ctx.fillStyle = COR.fraco;
+  ctx.fillText('NA SÉRIE · SOMA DOS JOGOS', MARGEM, topo + 22);
+
+  // Dano zerado em todo mundo é importação antiga sem a coluna: a coluna some,
+  // em vez de uma fileira de "0k" que parece dado.
+  const temDano = jogadores.some((jogador) => jogador.damage > 0);
+  const largura = (LARGURA - MARGEM * 2 - ESPACO_ENTRE_COLUNAS) / 2;
+  (['A', 'B'] as const).forEach((time, coluna) => {
+    const x = MARGEM + coluna * (largura + ESPACO_ENTRE_COLUNAS);
+    const fimDoKda = temDano ? x + largura - 58 : x + largura;
+    const cabeca = topo + ALTURA_TITULO_NA_SERIE;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.font = fonte(12, 700);
+    ctx.fillStyle = COR.texto;
+    ctx.fillText(`TIME ${time}`, x, cabeca + ALTURA_CABECA_DO_TIME / 2);
+    ctx.textAlign = 'right';
+    ctx.font = fonte(11);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText(
+      temDano ? 'K/D/A · DANO' : 'K/D/A',
+      x + largura,
+      cabeca + ALTURA_CABECA_DO_TIME / 2
+    );
+
+    jogadores
+      .filter((jogador) => jogador.time === time)
+      .forEach((jogador, i) => {
+        const meio =
+          cabeca + ALTURA_CABECA_DO_TIME + i * ALTURA_LINHA_NA_SERIE + ALTURA_LINHA_NA_SERIE / 2;
+
+        // Os campeões da MD3, na ordem dos jogos, no vão entre o nome e o
+        // K/D/A: é o que o grupo usa para lembrar quem jogou de quê.
+        const fimDosIcones = fimDoKda - 72;
+        const inicioDosIcones = fimDosIcones - jogador.campeoes.length * (ICONE_NA_SERIE + 4) + 4;
+        jogador.campeoes.forEach((campeao, k) => {
+          desenharIcone(
+            ctx,
+            icones.get(campeao),
+            inicioDosIcones + k * (ICONE_NA_SERIE + 4),
+            meio - ICONE_NA_SERIE / 2,
+            ICONE_NA_SERIE
+          );
+        });
+
+        ctx.textAlign = 'left';
+        ctx.font = fonte(14, 600);
+        ctx.fillStyle = jogador.completo ? COR.texto : COR.fraco;
+        ctx.fillText(cortar(ctx, jogador.player.name, inicioDosIcones - x - 12), x, meio);
+        ctx.textAlign = 'right';
+        ctx.font = fonte(14, 700);
+        ctx.fillStyle = COR.texto;
+        ctx.fillText(`${jogador.kills}/${jogador.deaths}/${jogador.assists}`, fimDoKda, meio);
+        if (!temDano) return;
+        ctx.font = fonte(12);
+        ctx.fillStyle = COR.fraco;
+        const dano = jogador.damage > 0 ? `${Math.round(jogador.damage / 1000)}k` : '--';
+        ctx.fillText(dano, x + largura, meio);
+      });
+  });
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 }
