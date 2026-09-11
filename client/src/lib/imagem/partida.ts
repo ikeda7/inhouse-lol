@@ -99,9 +99,7 @@ export async function gerarImagemDaPartida(
   // Os mesmos selos do Histórico (lib/selos.ts): a imagem nunca discorda da tela.
   const selos = selosDaPartida(partida.stats);
   const conquistas = conquistasEmOrdem(selos, partida.stats);
-  const alturaDosSelos = conquistas.length
-    ? ALTURA_TITULO_SELOS + Math.ceil(conquistas.length / 2) * (ALTURA_SELO + ESPACO_SELO)
-    : 0;
+  const alturaDosSelos = alturaDoBlocoDeSelos(conquistas.length);
   const altura =
     ALTURA_CABECALHO +
     ALTURA_COLUNAS +
@@ -141,7 +139,7 @@ export async function gerarImagemDaPartida(
   }
   if (conquistas.length > 0) {
     const ladoDe = new Map(partida.stats.map((stat) => [stat.playerId, stat.teamSide] as const));
-    desenharSelos(ctx, conquistas, y, ladoDe);
+    desenharSelos(ctx, conquistas, y, 'DESTAQUES DO JOGO', ladoDe);
   }
 
   desenharRodape(ctx, altura, ORIGEM[partida.source]);
@@ -278,23 +276,31 @@ function desenharJogador(
   ctx.textAlign = 'left';
 }
 
+/** Altura do bloco de destaques (título e cartões em duas colunas); zero sem selo. */
+export function alturaDoBlocoDeSelos(quantos: number): number {
+  return quantos ? ALTURA_TITULO_SELOS + Math.ceil(quantos / 2) * (ALTURA_SELO + ESPACO_SELO) : 0;
+}
+
 /**
- * "Destaques do jogo": um cartão por selo, em duas colunas.
+ * Destaques: um cartão por selo, em duas colunas -- do jogo aqui, da MD3 na
+ * imagem da série.
  *
  * É a parte que vira conversa no zap ("o Kaio morreu 11 vezes"), então o
  * nome do selo vem colorido e o dono vem em branco, grande o bastante para
- * ler na miniatura.
+ * ler na miniatura. `ladoDe` pinta a faixa do lado; na MD3 não há um lado só
+ * (os times trocam), então lá o cartão vai sem faixa.
  */
-function desenharSelos(
+export function desenharSelos(
   ctx: CanvasRenderingContext2D,
   conquistas: Conquista[],
   topo: number,
-  ladoDe: ReadonlyMap<string, TeamSide>
+  titulo: string,
+  ladoDe?: ReadonlyMap<string, TeamSide>
 ) {
   ctx.textBaseline = 'alphabetic';
   ctx.font = fonte(12, 600);
   ctx.fillStyle = COR.fraco;
-  ctx.fillText('DESTAQUES DO JOGO', MARGEM, topo + 22);
+  ctx.fillText(titulo, MARGEM, topo + 22);
 
   const metade = (LARGURA - MARGEM * 2 - ESPACO_SELO) / 2;
   conquistas.forEach((conquista, i) => {
@@ -308,7 +314,7 @@ function desenharSelos(
     caixa(ctx, x, y, largura, ALTURA_SELO, 10);
     ctx.fill();
     // Faixa do lado do dono do selo, como nos blocos de time acima.
-    const lado = ladoDe.get(conquista.playerId);
+    const lado = ladoDe?.get(conquista.playerId);
     if (lado) {
       ctx.fillStyle = COR_DO_LADO[lado];
       caixa(ctx, x, y, 4, ALTURA_SELO, 2);
