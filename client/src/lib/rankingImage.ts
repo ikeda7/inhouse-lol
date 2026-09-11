@@ -1,5 +1,29 @@
 import { hexDeCorDoNome, iniciaisDoNome } from './avatar';
 import type { LeaderboardEntry } from '../types';
+import {
+  caixa,
+  carregarIcone,
+  COR,
+  cortar,
+  criarCanvas,
+  desenharMarca,
+  desenharRodape,
+  fonte,
+  LARGURA,
+  MARGEM,
+  paraPng,
+  type ResolverIcone,
+} from './imagem/canvas';
+
+// A entrega (copiar, baixar, enviar) é a mesma para toda imagem e mora em
+// lib/imagem/canvas.ts; fica reexportada aqui para quem já importava daqui.
+export {
+  baixarImagem,
+  compartilharImagem,
+  copiarImagem,
+  ehTelaDeToque,
+  podeCopiarImagem,
+} from './imagem/canvas';
 
 /**
  * A tabela do ranking como imagem, para mandar no grupo (issue #7).
@@ -15,15 +39,10 @@ import type { LeaderboardEntry } from '../types';
  *    Aqui isso é o requisito: menos colunas que a tabela, número grande, e
  *    contraste alto. Copiar a tela daria uma tabela de 12 colunas ilegível.
  *
- * O app não carrega webfont -- usa a fonte do sistema -- então o canvas bate
- * com a tela sem precisar esperar `document.fonts.ready`.
+ * As peças comuns a toda imagem exportada (cores, fonte, ícone, marca, rodapé)
+ * ficam em lib/imagem/canvas.ts.
  */
 
-/** Desenha em 2x e reduz na exibição: sem isso, sai borrado em tela retina. */
-const ESCALA = 2;
-
-const LARGURA = 900;
-const MARGEM = 36;
 const ALTURA_LINHA = 62;
 const ALTURA_CABECALHO = 130;
 const ALTURA_RODAPE = 56;
@@ -33,57 +52,6 @@ const MAX_LINHAS = 15;
 
 /** Largura reservada à direita para V–D, WR, KDA e PTS. */
 const RESERVA_DAS_COLUNAS = 360;
-
-// Mesmos valores dos tokens em index.css. Repetidos porque canvas não lê CSS
-// custom property -- se um mudar lá, muda aqui.
-const COR = {
-  fundo: '#0d1420',
-  fundoAlterna: '#131c2b',
-  linha: '#22304a',
-  texto: '#e9eef7',
-  apagado: '#aab8cd',
-  fraco: '#7d8da8',
-  ouro: '#d4b26a',
-  vitoria: '#3ddc97',
-  derrota: '#ff6b6b',
-  prata: '#cbd5e1',
-  bronze: '#cd7f32',
-};
-
-const FONTE = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif';
-
-const fonte = (tamanho: number, peso: 400 | 600 | 700 = 400) => `${peso} ${tamanho}px ${FONTE}`;
-
-/**
- * Carrega um ícone para o canvas.
- *
- * `crossOrigin` é obrigatório: sem ele o navegador desenha a imagem mas marca o
- * canvas como "sujo", e `toBlob` passa a lançar em vez de exportar. O Data
- * Dragon responde `access-control-allow-origin: *`, então isso funciona.
- *
- * Falha vira null em vez de erro: um ícone que não carregou não pode impedir a
- * imagem inteira de sair.
- */
-function carregarIcone(url: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = url;
-  });
-}
-
-/** Encurta com reticências até caber na largura dada. */
-function cortar(ctx: CanvasRenderingContext2D, texto: string, largura: number): string {
-  if (ctx.measureText(texto).width <= largura) return texto;
-
-  let corte = texto;
-  while (corte.length > 1 && ctx.measureText(`${corte}…`).width > largura) {
-    corte = corte.slice(0, -1);
-  }
-  return `${corte.trimEnd()}…`;
-}
 
 function medalha(posicao: number): string {
   return medalhaOuNada(posicao) ?? COR.fraco;
@@ -103,27 +71,9 @@ function medalhaOuNada(posicao: number): string | null {
   return null;
 }
 
-/** Retângulo com cantos arredondados -- `roundRect` não existe em Safari antigo. */
-function caixa(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  largura: number,
-  altura: number,
-  raio: number
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + raio, y);
-  ctx.arcTo(x + largura, y, x + largura, y + altura, raio);
-  ctx.arcTo(x + largura, y + altura, x, y + altura, raio);
-  ctx.arcTo(x, y + altura, x, y, raio);
-  ctx.arcTo(x, y, x + largura, y, raio);
-  ctx.closePath();
-}
-
 export interface OpcoesDaImagem {
   /** Resolve o nome do campeão para a URL do ícone. Null = sem ícone. */
-  iconeDoCampeao: (championName: string) => string | null;
+  iconeDoCampeao: ResolverIcone;
   /** Rótulo do critério de ordenação, para a imagem dizer como foi ordenada. */
   ordenadoPor: string;
 }
@@ -134,13 +84,6 @@ export async function gerarImagemDoRanking(
 ): Promise<Blob> {
   const linhas = entries.slice(0, MAX_LINHAS);
   const altura = ALTURA_CABECALHO + linhas.length * ALTURA_LINHA + ALTURA_RODAPE;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = LARGURA * ESCALA;
-  canvas.height = altura * ESCALA;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Este navegador não suporta canvas 2D.');
-  ctx.scale(ESCALA, ESCALA);
 
   // Os ícones vêm todos de uma vez: em série, 45 requisições sequenciais
   // deixariam o botão travado por segundos.
@@ -163,8 +106,7 @@ export async function gerarImagemDoRanking(
       }),
   ]);
 
-  ctx.fillStyle = COR.fundo;
-  ctx.fillRect(0, 0, LARGURA, altura);
+  const { canvas, ctx } = criarCanvas(altura);
 
   desenharCabecalho(ctx, opcoes.ordenadoPor);
 
@@ -172,38 +114,24 @@ export async function gerarImagemDoRanking(
     desenharLinha(ctx, entry, index, icones, fotos);
   });
 
-  desenharRodape(ctx, altura, entries.length);
+  desenharRodape(ctx, altura, '+3 por mapa vencido · +1 por MD3');
+  if (entries.length > MAX_LINHAS) {
+    ctx.font = fonte(13);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = COR.fraco;
+    ctx.fillText(`e mais ${entries.length - MAX_LINHAS} jogador(es)`, LARGURA / 2, altura - 22);
+    ctx.textAlign = 'left';
+  }
 
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('Não consegui gerar a imagem.'))),
-      'image/png'
-    );
-  });
+  return paraPng(canvas);
 }
 
 function desenharCabecalho(ctx: CanvasRenderingContext2D, ordenadoPor: string) {
-  ctx.textBaseline = 'alphabetic';
-
-  ctx.font = fonte(34, 700);
-  ctx.fillStyle = COR.texto;
-  ctx.fillText('InHouse', MARGEM, 58);
-  const larguraInhouse = ctx.measureText('InHouse ').width;
-  ctx.fillStyle = COR.ouro;
-  ctx.fillText('LoL', MARGEM + larguraInhouse, 58);
-
-  ctx.font = fonte(15);
-  ctx.fillStyle = COR.apagado;
-  ctx.fillText(`Classificação geral · por ${ordenadoPor.toLowerCase()}`, MARGEM, 84);
-
-  ctx.textAlign = 'right';
-  ctx.fillStyle = COR.fraco;
-  ctx.fillText(
-    new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }),
-    LARGURA - MARGEM,
-    84
+  desenharMarca(
+    ctx,
+    `Classificação geral · por ${ordenadoPor.toLowerCase()}`,
+    new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
   );
-  ctx.textAlign = 'left';
 
   // Cabeçalho de coluna. Só o essencial: no telefone, coluna a mais é ruído.
   ctx.font = fonte(12, 600);
@@ -371,93 +299,4 @@ function desenharLinha(
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-}
-
-function desenharRodape(ctx: CanvasRenderingContext2D, altura: number, total: number) {
-  const y = altura - 22;
-
-  ctx.font = fonte(13);
-  ctx.fillStyle = COR.fraco;
-  ctx.fillText('+3 por mapa vencido · +1 por MD3', MARGEM, y);
-
-  ctx.textAlign = 'right';
-  // Quem receber a imagem no zap precisa saber onde ver o resto.
-  ctx.fillStyle = COR.ouro;
-  ctx.fillText('inhouse-lol.vercel.app', LARGURA - MARGEM, y);
-  ctx.textAlign = 'left';
-
-  if (total > MAX_LINHAS) {
-    ctx.textAlign = 'center';
-    ctx.fillStyle = COR.fraco;
-    ctx.fillText(`e mais ${total - MAX_LINHAS} jogador(es)`, LARGURA / 2, y);
-    ctx.textAlign = 'left';
-  }
-}
-
-// ---------------------------------------------------------------------------
-// ENTREGA DA IMAGEM
-//
-// A primeira versão usava `navigator.share` sempre que ele existisse. Erro: o
-// Chrome e o Edge no WINDOWS também expõem `share`, e lá ele abre a folha de
-// compartilhamento do sistema -- que lista Discord, Outlook, Teams... e não tem
-// "salvar" nem "copiar". Ou seja, no desktop o caminho que parecia mais
-// conveniente era justamente o que impedia usar a imagem.
-//
-// A correção não é detectar melhor o aparelho, é parar de adivinhar: cada ação
-// tem botão próprio, e o compartilhar só aparece onde ele de fato é o melhor
-// caminho -- na tela de toque, onde abre direto a lista de conversas.
-// ---------------------------------------------------------------------------
-
-/** Aparelho de toque: é onde a folha de compartilhamento vale a pena. */
-export function ehTelaDeToque(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true;
-}
-
-export function podeCopiarImagem(): boolean {
-  return typeof window !== 'undefined' && 'ClipboardItem' in window && !!navigator.clipboard?.write;
-}
-
-/**
- * Copia para a área de transferência -- o caminho mais curto no desktop: cola
- * direto no WhatsApp Web, no Discord ou onde for.
- *
- * Recebe a FUNÇÃO que gera, não o blob pronto: o navegador só aceita escrever
- * na área de transferência durante o gesto do usuário, e gerar a imagem antes
- * (com download de ícone no meio) já estoura esse prazo. Passando a promessa
- * para o `ClipboardItem`, quem espera é o próprio navegador.
- */
-export async function copiarImagem(gerarBlob: () => Promise<Blob>): Promise<void> {
-  if (!podeCopiarImagem()) {
-    throw new Error('Este navegador não permite copiar imagem. Use "Baixar".');
-  }
-
-  await navigator.clipboard.write([new ClipboardItem({ 'image/png': gerarBlob() })]);
-}
-
-export function baixarImagem(blob: Blob, nomeDoArquivo: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = nomeDoArquivo;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  // Revogar na hora corta o download em alguns navegadores; o quadro seguinte
-  // já é depois de o clique ter sido processado.
-  setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-/** Abre a folha de compartilhamento. Só faz sentido em tela de toque. */
-export async function compartilharImagem(blob: Blob, nomeDoArquivo: string): Promise<void> {
-  const arquivo = new File([blob], nomeDoArquivo, { type: 'image/png' });
-  if (!navigator.canShare?.({ files: [arquivo] })) {
-    throw new Error('Este aparelho não permite compartilhar arquivo.');
-  }
-
-  try {
-    await navigator.share({ files: [arquivo], title: 'Classificação · InHouse LoL' });
-  } catch (erro) {
-    // Fechar a folha de compartilhamento lança AbortError. Não é falha.
-    if (!(erro instanceof Error) || erro.name !== 'AbortError') throw erro;
-  }
 }

@@ -343,8 +343,11 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
 - Design tokens are layered (`canvas → surface → raised → overlay`); gold is an
   accent only, never body text; blue/red are reserved for team identity.
   Token values live in `client/src/index.css` **and** are duplicated as
-  constants in `client/src/lib/rankingImage.ts` (canvas rendering can't read
-  CSS custom properties) — keep both in sync when changing colors.
+  constants in `client/src/lib/imagem/canvas.ts` (canvas rendering can't read
+  CSS custom properties) — keep both in sync when changing colors. That module
+  is the shared base of every exported image (ranking, match, series,
+  highlights: brand, footer, icons, copy/download/share); `ExportarImagem` is
+  the button set for all of them.
   Text-contrast tokens must stay WCAG AA against the lightest surface they
   render on; measure, don't eyeball (see the `ink-muted`/`ink-faint` incident
   in ARCHITECTURE.md).
