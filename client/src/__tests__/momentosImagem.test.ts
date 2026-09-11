@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { momentosDaUltimaNoite, porJogo, porLado } from '../lib/imagem/momentos';
+import {
+  momentosDaNoite,
+  momentosDaUltimaNoite,
+  noitesComMomentos,
+  porJogo,
+  porLado,
+} from '../lib/imagem/momentos';
 import type { MomentEntry } from '../types';
 
 /**
@@ -42,6 +48,30 @@ describe('momentosDaUltimaNoite', () => {
 
   it('sem momento nenhum, devolve vazio em vez de quebrar', () => {
     expect(momentosDaUltimaNoite([])).toEqual([]);
+  });
+});
+
+describe('noitesComMomentos', () => {
+  it('lista TODAS as noites, da mais recente para a mais antiga, com os jogos de cada uma', () => {
+    // O seletor dos Destaques só oferecia a última noite; as outras datas
+    // ficavam sem aba nenhuma.
+    const lista = [
+      momento('quinta', 2, 'CARRY'),
+      momento('quinta', 1, 'SPREE'),
+      momento('segunda', 2, 'FARM'),
+      momento('segunda', 1, 'PENTA'),
+      momento('segunda', 2, 'VISAO'),
+    ];
+
+    expect(noitesComMomentos(lista)).toEqual([
+      { seriesId: 'quinta', nome: 'quinta', jogos: [1, 2] },
+      { seriesId: 'segunda', nome: 'segunda', jogos: [1, 2] },
+    ]);
+  });
+
+  it('pega os momentos de uma noite antiga, não só da última', () => {
+    const lista = [momento('quinta', 1, 'CARRY'), momento('segunda', 1, 'PENTA')];
+    expect(momentosDaNoite(lista, 'segunda').map((m) => m.tipo)).toEqual(['PENTA']);
   });
 });
 
