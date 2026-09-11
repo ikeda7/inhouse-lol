@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Award,
+  ChevronLeft,
+  ChevronRight,
   Coins,
   Crosshair,
   Eye,
@@ -26,7 +28,21 @@ import { useChampions } from '../hooks/useChampions';
 import { ExportarImagem } from '../components/ExportarImagem';
 import { resolvedorDeIcone } from '../lib/imagem/canvas';
 import { gerarImagemDosRecordes } from '../lib/imagem/destaques';
-import { gerarImagemDosMomentos, momentosDaUltimaNoite } from '../lib/imagem/momentos';
+import {
+  gerarImagemDosMomentos,
+  momentosDaNoite,
+  momentosDaUltimaNoite,
+  noitesComMomentos,
+} from '../lib/imagem/momentos';
+
+/** Moldura dos grupos de botões do seletor dos Momentos. */
+const GRUPO_DO_SELETOR =
+  'flex flex-wrap items-center gap-0.5 rounded-md border border-line/60 bg-raised p-0.5';
+
+const botaoDoSeletor = (ativo: boolean) =>
+  `flex items-center rounded px-2 py-1 text-[11px] font-semibold transition disabled:opacity-40 ${
+    ativo ? 'bg-gold/15 text-gold' : 'text-ink-muted hover:text-ink'
+  }`;
 import { ROLE_LABEL, type MomentEntry, type MomentType, type RecordEntry } from '../types';
 
 /**
@@ -61,8 +77,13 @@ const CATEGORIA: Record<string, { label: string; icon: LucideIcon; tom?: 'zoeira
 export function HighlightsPage() {
   const { data, loading, error, reload } = useAsync(() => statsApi.highlights());
   const { manifest } = useChampions();
-  /** O que os Momentos mostram (e a imagem leva): tudo, a última noite ou um jogo dela. */
-  const [escopo, setEscopo] = useState<'todas' | 'noite' | number>('todas');
+  /**
+   * O que os Momentos mostram (e a imagem leva): todas as noites, ou UMA noite
+   * -- qualquer uma, pelo índice (0 = a mais recente) -- e talvez um jogo dela.
+   */
+  const [modo, setModo] = useState<'todas' | 'noite'>('todas');
+  const [indiceDaNoite, setIndiceDaNoite] = useState(0);
+  const [jogoEscolhido, setJogoEscolhido] = useState<number | null>(null);
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -74,22 +95,30 @@ export function HighlightsPage() {
     );
   }
 
-  // O seletor do card manda na TELA e na IMAGEM ao mesmo tempo -- antes ele só
-  // mudava a imagem, e trocar de "Jogo 1" para "Jogo 2" parecia não fazer nada.
-  //   Tudo         -> a tela mostra todas as noites; a imagem, a última noite
-  //   Última noite -> as duas mostram a última noite, por jogo
-  //   Jogo N       -> as duas mostram só aquele jogo da última noite
-  const ultimaNoite = momentosDaUltimaNoite(data.momentos);
-  const jogosDaNoite = [...new Set(ultimaNoite.map((m) => m.matchNumber))].sort((a, b) => a - b);
-  const escopos: ('todas' | 'noite' | number)[] = ['todas', 'noite', ...jogosDaNoite];
-  const jogoEscolhido = typeof escopo === 'number' ? escopo : null;
-  const momentosDaImagem =
-    jogoEscolhido === null
-      ? ultimaNoite
-      : ultimaNoite.filter((m) => m.matchNumber === jogoEscolhido);
-  const momentosNaTela = escopo === 'todas' ? data.momentos : momentosDaImagem;
-  const rotuloDoEscopo = (opcao: 'todas' | 'noite' | number) =>
-    opcao === 'todas' ? 'Tudo' : opcao === 'noite' ? 'Última noite' : `Jogo ${opcao}`;
+  // O seletor manda na TELA e na IMAGEM, em QUALQUER noite. Antes só a noite
+  // mais recente tinha abas, e as outras datas não tinham como filtrar.
+  //   Todas            -> a tela mostra todas as noites; a imagem, a mais recente
+  //   Por noite ‹ › N  -> as duas mostram a noite escolhida, por jogo
+  //   + Jogo N         -> as duas mostram só aquele jogo dela
+  const noites = noitesComMomentos(data.momentos);
+  const noite =
+    modo === 'noite' ? (noites[Math.min(indiceDaNoite, noites.length - 1)] ?? null) : null;
+  const jogo =
+    noite && jogoEscolhido !== null && noite.jogos.includes(jogoEscolhido) ? jogoEscolhido : null;
+  const daNoite = noite ? momentosDaNoite(data.momentos, noite.seriesId) : null;
+  const momentosNaTela = !daNoite
+    ? data.momentos
+    : jogo === null
+      ? daNoite
+      : daNoite.filter((m) => m.matchNumber === jogo);
+  // Imagem de várias noites não caberia num balão de conversa: em "Todas", a
+  // imagem é a da noite mais recente -- e a legenda diz isso.
+  const noiteDaImagem = noite ?? noites[0] ?? null;
+  const momentosDaImagem = noite ? momentosNaTela : momentosDaUltimaNoite(data.momentos);
+  const irParaNoite = (indice: number) => {
+    setIndiceDaNoite(indice);
+    setJogoEscolhido(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -139,46 +168,82 @@ export function HighlightsPage() {
         padding={false}
         title={<CardTitle icon={Flame}>Momentos</CardTitle>}
         action={
-          ultimaNoite.length > 0 && (
+          noiteDaImagem && (
             <div className="flex flex-wrap items-center justify-end gap-2">
-              <div
-                role="group"
-                aria-label="Quais momentos mostrar"
-                className="flex flex-wrap items-center gap-0.5 rounded-md border border-line/60 bg-raised p-0.5"
-              >
-                {escopos.map((opcao) => (
+              <div role="group" aria-label="Noite dos momentos" className={GRUPO_DO_SELETOR}>
+                {(['todas', 'noite'] as const).map((opcao) => (
                   <button
-                    key={String(opcao)}
+                    key={opcao}
                     type="button"
-                    onClick={() => setEscopo(opcao)}
-                    aria-pressed={escopo === opcao}
-                    className={`rounded px-2 py-1 text-[11px] font-semibold transition ${
-                      escopo === opcao ? 'bg-gold/15 text-gold' : 'text-ink-muted hover:text-ink'
-                    }`}
+                    onClick={() => {
+                      setModo(opcao);
+                      setJogoEscolhido(null);
+                    }}
+                    aria-pressed={modo === opcao}
+                    className={botaoDoSeletor(modo === opcao)}
                   >
-                    {rotuloDoEscopo(opcao)}
+                    {opcao === 'todas' ? 'Todas' : 'Por noite'}
                   </button>
                 ))}
               </div>
-              {/* Diz o que a imagem leva: com "Tudo" a tela mostra todas as
-                  noites, mas a imagem é só da última -- imagem de várias noites
-                  não caberia num balão de conversa. */}
+              {/* Setas em vez de menu: funciona com 3 noites ou com 50, e não
+                  tem lista suspensa para o card cortar. */}
+              {noite && (
+                <div role="group" aria-label="Escolher a noite" className={GRUPO_DO_SELETOR}>
+                  <button
+                    type="button"
+                    aria-label="Noite anterior"
+                    disabled={indiceDaNoite >= noites.length - 1}
+                    onClick={() => irParaNoite(indiceDaNoite + 1)}
+                    className={botaoDoSeletor(false)}
+                  >
+                    <ChevronLeft size={13} />
+                  </button>
+                  <span aria-live="polite" className="px-1.5 text-[11px] font-semibold text-ink">
+                    {noite.nome}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Próxima noite"
+                    disabled={indiceDaNoite <= 0}
+                    onClick={() => irParaNoite(indiceDaNoite - 1)}
+                    className={botaoDoSeletor(false)}
+                  >
+                    <ChevronRight size={13} />
+                  </button>
+                </div>
+              )}
+              {noite && (
+                <div role="group" aria-label="Quais momentos mostrar" className={GRUPO_DO_SELETOR}>
+                  {[null, ...noite.jogos].map((opcao) => (
+                    <button
+                      key={String(opcao)}
+                      type="button"
+                      onClick={() => setJogoEscolhido(opcao)}
+                      aria-pressed={jogo === opcao}
+                      className={botaoDoSeletor(jogo === opcao)}
+                    >
+                      {opcao === null ? 'Noite toda' : `Jogo ${opcao}`}
+                    </button>
+                  ))}
+                </div>
+              )}
               <span className="text-[11px] text-ink-faint">
-                Imagem: {ultimaNoite[0].seriesName ?? 'última noite'}
-                {jogoEscolhido !== null ? ` · Jogo ${jogoEscolhido}` : ''}
+                Imagem: {noiteDaImagem.nome}
+                {jogo !== null ? ` · Jogo ${jogo}` : ''}
               </span>
               <ExportarImagem
                 gerar={() =>
                   gerarImagemDosMomentos(momentosDaImagem, {
                     iconeDoCampeao: resolvedorDeIcone(manifest),
                     momento: textoDoMomento,
-                    jogo: jogoEscolhido ?? undefined,
+                    jogo: jogo ?? undefined,
                   })
                 }
-                nomeDoArquivo={`inhouse-lol-momentos-${ultimaNoite[0].playedAt.slice(0, 10)}${
-                  jogoEscolhido !== null ? `-jogo-${jogoEscolhido}` : ''
+                nomeDoArquivo={`inhouse-lol-momentos-${(momentosDaImagem[0]?.playedAt ?? '').slice(0, 10)}${
+                  jogo !== null ? `-jogo-${jogo}` : ''
                 }.png`}
-                titulo={`Momentos · ${ultimaNoite[0].seriesName ?? 'InHouse LoL'}`}
+                titulo={`Momentos · ${noiteDaImagem.nome}`}
                 vazio={momentosDaImagem.length === 0}
               />
             </div>
@@ -218,8 +283,9 @@ function CartaoDeRecorde({ recorde }: { recorde: RecordEntry }) {
     <Link
       to={`/jogadores/${recorde.playerId}`}
       // A faixa esquerda é o lado em que o recorde foi feito: os times trocam
-      // de lado na MD3, então a cor é a daquele jogo.
-      className={`group flex items-center gap-3 rounded-lg border border-l-[3px] border-line/40 bg-raised/40 p-3 transition hover:bg-raised ${
+      // de lado na MD3, então a cor é a daquele jogo. `min-w-0`: sem ele o item
+      // da grade cresce até caber o nome inteiro e o `truncate` nunca corta.
+      className={`group flex min-w-0 items-center gap-3 rounded-lg border border-l-[3px] border-line/40 bg-raised/40 p-3 transition hover:bg-raised ${
         recorde.teamSide === 'BLUE' ? 'border-l-blue' : 'border-l-red'
       }`}
     >
@@ -403,7 +469,7 @@ function CartaoDeMomento({ momento, largo = false }: { momento: MomentEntry; lar
   return (
     <Link
       to={`/jogadores/${momento.playerId}`}
-      className={`group flex items-center gap-3 rounded-lg border border-l-[3px] p-3 transition hover:bg-raised ${
+      className={`group flex min-w-0 items-center gap-3 rounded-lg border border-l-[3px] p-3 transition hover:bg-raised ${
         largo ? 'sm:col-span-2 xl:col-span-1' : ''
       } ${meta.destaque ? 'border-gold/30 bg-gold/[0.04]' : 'border-line/40 bg-raised/40'} ${
         // Faixa do lado em que o jogador estava naquele jogo.

@@ -286,7 +286,7 @@ function LinhaTabela({ entry, posicao }: { entry: LeaderboardEntry; posicao: num
 function SeloKdaPlayer() {
   return (
     <span
-      className="ml-1.5 rounded bg-overlay px-1.5 py-px text-[10px] font-bold text-ink-faint"
+      className="ml-1.5 shrink-0 rounded bg-overlay px-1.5 py-px text-[10px] font-bold text-ink-faint"
       title="KDA player: KDA acima da média do grupo, mas dano e participação em abates abaixo. É brincadeira."
     >
       KDA player
@@ -340,8 +340,10 @@ function LinhaCelular({ entry, posicao }: { entry: LeaderboardEntry; posicao: nu
         />
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-medium text-ink">
-            {entry.name}
+          {/* Só o nome corta: com os troféus dentro do mesmo `truncate`, um
+              nome comprido escondia justamente eles. */}
+          <p className="flex items-center text-[15px] font-medium text-ink">
+            <span className="truncate">{entry.name}</span>
             <Trofeus quantidade={entry.seriesWon} recente={entry.wonLastSeries} />
             {entry.isKdaPlayer && <SeloKdaPlayer />}
           </p>

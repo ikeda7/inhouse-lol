@@ -80,7 +80,41 @@ const COR_DO_TIPO: Record<MomentType, string> = {
 /** Os momentos da noite mais recente. A lista chega do mais novo para o mais velho. */
 export function momentosDaUltimaNoite(momentos: readonly MomentEntry[]): MomentEntry[] {
   const noite = momentos[0]?.seriesId;
-  return noite ? momentos.filter((momento) => momento.seriesId === noite) : [];
+  return noite ? momentosDaNoite(momentos, noite) : [];
+}
+
+/** Os momentos de uma noite qualquer (uma série). */
+export function momentosDaNoite(momentos: readonly MomentEntry[], seriesId: string): MomentEntry[] {
+  return momentos.filter((momento) => momento.seriesId === seriesId);
+}
+
+export interface NoiteComMomentos {
+  seriesId: string;
+  nome: string;
+  /** Jogos da noite que tiveram momento, em ordem. */
+  jogos: number[];
+}
+
+/**
+ * Todas as noites que têm momento, da mais recente para a mais antiga, com
+ * os jogos de cada uma. É o que o seletor dos Destaques lista: qualquer noite,
+ * não só a última.
+ */
+export function noitesComMomentos(momentos: readonly MomentEntry[]): NoiteComMomentos[] {
+  const noites = new Map<string, NoiteComMomentos>();
+  for (const momento of momentos) {
+    const noite = noites.get(momento.seriesId) ?? {
+      seriesId: momento.seriesId,
+      nome: momento.seriesName ?? new Date(momento.playedAt).toLocaleDateString('pt-BR'),
+      jogos: [],
+    };
+    if (!noite.jogos.includes(momento.matchNumber)) noite.jogos.push(momento.matchNumber);
+    noites.set(momento.seriesId, noite);
+  }
+  return [...noites.values()].map((noite) => ({
+    ...noite,
+    jogos: [...noite.jogos].sort((a, b) => a - b),
+  }));
 }
 
 /** Agrupa por jogo, na ordem em que foram jogados; dentro do jogo, mantém a ordem que veio. */
