@@ -148,9 +148,11 @@ export async function pegarLado(
   const token = randomUUID();
   // Repete a condicao "ainda sem dono" na escrita: dois clicando junto no mesmo
   // lado terminariam com dois segredos validos se so a leitura decidisse.
+  // A versao sobe junto: a consulta dos outros manda a versao que ja tem, e sem
+  // isso recebia "nao mudou" -- ninguem via o lado ocupado ate a proxima escolha.
   const alterados = await prisma.draftRoom.updateMany({
     where: { code: atual.code, [campo]: null },
-    data: { [campo]: token },
+    data: { [campo]: token, version: { increment: 1 } },
   });
 
   if (alterados.count === 0) {
@@ -171,9 +173,11 @@ export async function liberarLado(code: string, side: TeamSide): Promise<SalaDeD
   const sala = await buscarSala(code);
   if (!sala) throw new DraftError('Sala não encontrada ou expirada.', 'ROOM_NOT_FOUND');
 
+  // Versao sobe pelo mesmo motivo de pegarLado: quem esta olhando precisa ver
+  // o lado livre na proxima consulta.
   await prisma.draftRoom.update({
     where: { code: sala.code },
-    data: { [side === 'BLUE' ? 'blueToken' : 'redToken']: null },
+    data: { [side === 'BLUE' ? 'blueToken' : 'redToken']: null, version: { increment: 1 } },
   });
 
   return (await buscarSala(sala.code))!;
@@ -206,7 +210,7 @@ export async function escolherNaSala(
 
   if (sala.version !== versaoVista) {
     throw new DraftError(
-      'Alguém escolheu antes de você. A tela já foi atualizada.',
+      'A sala mudou antes da sua escolha (outra escolha ou um capitão entrando). A tela já foi atualizada.',
       'ROOM_VERSION_CONFLICT'
     );
   }
@@ -223,7 +227,7 @@ export async function escolherNaSala(
 
   if (alterados.count === 0) {
     throw new DraftError(
-      'Alguém escolheu antes de você. A tela já foi atualizada.',
+      'A sala mudou antes da sua escolha (outra escolha ou um capitão entrando). A tela já foi atualizada.',
       'ROOM_VERSION_CONFLICT'
     );
   }
