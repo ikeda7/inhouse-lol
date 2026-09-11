@@ -209,6 +209,10 @@ export const seriesApi = {
 
   create: (input: { name?: string; fearless?: boolean }) => post<SeriesSummary>('/series', input),
 
+  /** A MD3 em andamento, ou uma nova com esse nome (#77). */
+  garantir: (input: { name?: string; fearless?: boolean }) =>
+    post<{ serie: SeriesSummary; criada: boolean }>('/series/garantir', input),
+
   /** Registro manual -- o fallback quando a Riot API nao ajuda. */
   recordMatch: (
     seriesId: string,

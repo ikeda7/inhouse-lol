@@ -502,13 +502,45 @@ export async function getLastGameLosers(seriesId: string): Promise<string[]> {
   return lastMatch.stats.filter((stat) => !stat.win).map((stat) => stat.playerId);
 }
 
+function serieEmAndamento() {
+  return prisma.series.findFirst({ where: { status: 'ONGOING' }, orderBy: { date: 'desc' } });
+}
+
+/**
+ * Abre uma MD3 -- mas nunca uma segunda.
+ *
+ * Com duas em andamento, o import do agente cai na mais recente e os jogos
+ * se espalham entre as duas sem ninguém perceber. Quem quer "abrir ou usar a
+ * que já existe" chama `garantirSerieDaNoite`.
+ */
 export async function createSeries(input: { name?: string; fearless?: boolean }) {
+  const aberta = await serieEmAndamento();
+  if (aberta) {
+    throw new SeriesError(
+      `Já tem uma MD3 em andamento${aberta.name ? ` (${aberta.name})` : ''}. Encerre ela antes de abrir outra.`,
+      'SERIES_ONGOING'
+    );
+  }
   return prisma.series.create({
     data: {
       name: input.name?.trim() || null,
       fearless: input.fearless ?? true,
     },
   });
+}
+
+/**
+ * A MD3 da noite: a que está em andamento, ou uma nova.
+ *
+ * É o que "Usar esses times" chama (issue #77): fechar os times já deixa a
+ * série pronta para o agente do LoL mandar os jogos, sem depender de alguém
+ * lembrar de abrir a MD3 antes -- esquecer isso fazia o import recusar tudo
+ * com NO_ONGOING_SERIES.
+ */
+export async function garantirSerieDaNoite(input: { name?: string; fearless?: boolean }) {
+  const aberta = await serieEmAndamento();
+  if (aberta) return { serie: aberta, criada: false };
+  return { serie: await createSeries(input), criada: true };
 }
 
 /** Encerra a serie na mao (ex.: a galera foi dormir no 1-1). */
