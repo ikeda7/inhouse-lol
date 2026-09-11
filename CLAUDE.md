@@ -89,8 +89,9 @@ The screen check measures still screens; it cannot see a control that
 renders fine and does nothing. That shipped twice in the Momentos selector
 (tabs that did not filter, then tabs only for the latest night). `fluxos.mjs`
 clicks: every night and every game in the Destaques selector must filter the
-list and the image caption; Histórico opens series → game → player and the
-series/game images download as real PNGs; the ranking image downloads and
+list and the image caption; Histórico opens series → game → player, the
+"A MD3 inteira" block lists exactly one row per person who played the series
+(both teams), and the series/game images download as real PNGs; the ranking image downloads and
 each sort tab requests its own `sortBy` and leaves the table in that order
 (the request is the proof when the data gives the same order in all four,
 as the CI database does); each
@@ -431,6 +432,15 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
   (least damage) skips the support, and a column that is all zeros (old
   imports) awards nothing. They are computed on the fly from `MatchPlayerStat`;
   nothing is stored.
+- The whole-MD3 view per player (#97) is `client/src/lib/serieStats.ts`: the
+  games summed per player, team by **roster** through `lib/timeDaSerie.ts`
+  (`elencoDoTimeA`/`ladoDoTimeA`, the same rule as the score — never
+  `teamSide`). MD3 badges reuse the match rules with scope `md3`
+  (`selosDaSerie`: "o maior da MD3", no first blood), and only players who
+  played every game compete, so a one-game substitute doesn't lose "most
+  damage" for playing less. Histórico's "A MD3 inteira" block and the series
+  image use the same functions. A metric that is zero (old import without
+  the column) is hidden, not shown as "0 dano/min".
   Text-contrast tokens must stay WCAG AA against the lightest surface they
   render on; measure, don't eyeball (see the `ink-muted`/`ink-faint` incident
   in ARCHITECTURE.md).
