@@ -86,7 +86,17 @@ locks), open a Fearless MD3, record games, a Fearless violation, a side swap
 scored by roster, the auto-finish at 2 wins, discarding an empty series, and
 the LCU import path the companion uses (dry run, idempotent resend,
 `refreshStats`, unknown participant, no ongoing MD3). It also asserts the
-public player list carries no `email`/`passwordHash`.
+public player list carries no `email`/`passwordHash`, that an imported match
+keeps the LoL `gameCreation` as `playedAt` (and `refreshStats` corrects it),
+that a finished series can be renamed, and that `POST /series/garantir` opens
+the night's MD3, reuses it on the second call, and that a second ongoing MD3
+is refused.
+
+The draft steps only field "veterans": players a previous run created
+(`Conta …`, `Novato …`) or the screen check's `--preparar` added (`Reserva …`)
+are skipped, because accumulated MID-only accounts used to make the roster
+infeasible from the 5th run on the same DB (#89). Opening the MD3 also
+finishes any series a previous run left ongoing.
 
 It **writes** data, so it refuses any non-local `--base`. Run it against a
 throwaway DB (`DATABASE_URL=file:./ensaio.db` + `db push` + `db:seed`, server on
@@ -247,6 +257,16 @@ handler for Vercel's serverless runtime. Don't merge these — calling
   these on purpose.
 - Player rows are deactivated, never deleted (deletion cascades and corrupts
   the leaderboard).
+- **At most one ongoing MD3.** `POST /series` refuses a second one
+  (`SERIES_ONGOING`, 409): with two open, LCU imports landed in the newest and
+  games scattered between them. `POST /series/garantir` returns the ongoing
+  series or opens one — the "Usar esses times na série" button (Sorteio,
+  captains draft, live room) calls it, named by `client/src/lib/nomeDaNoite.ts`
+  ("Quinta 10/09"; before 6am it is still the previous night). Rename with
+  `PATCH /series/:id`.
+- `Match.playedAt` is the LoL `gameCreation`, not the import time. Before #86
+  every import stored `now()`; `--refresh-all` rewrites it on matches still in
+  the client's history.
 - Positions are often missing/duplicated in raw custom-game data; when the
   LCU/replay data doesn't resolve a full role assignment, remaining roles are
   filled from each player's declared pool and the response sets
@@ -345,9 +365,15 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
   Token values live in `client/src/index.css` **and** are duplicated as
   constants in `client/src/lib/imagem/canvas.ts` (canvas rendering can't read
   CSS custom properties) — keep both in sync when changing colors. That module
-  is the shared base of every exported image (ranking, match, series,
-  highlights: brand, footer, icons, copy/download/share); `ExportarImagem` is
-  the button set for all of them.
+  is the shared base of every exported image (ranking, match, series, records,
+  the night's moments — whole night or one game: brand, footer, icons,
+  copy/download/share); `ExportarImagem` is the button set for all of them.
+  Blue/red side is shown everywhere a team appears: highlights carry the
+  player's `teamSide` for that match (teams swap sides within an MD3), and
+  cards/rows get a side-colored bar or dot. Texts in images (record labels,
+  moment titles/phrases) come from the page by parameter (`CATEGORIA`,
+  `textoDoMomento` in `HighlightsPage.tsx`), never duplicated in the image
+  modules.
 - Match badges ("selos": most damage, most deaths, fewest deaths, …) live in
   `client/src/lib/selos.ts` and feed **both** the Histórico rows and the match
   image, so the screen and the shared PNG never disagree. Rules worth keeping:
