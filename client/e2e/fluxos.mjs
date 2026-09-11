@@ -30,6 +30,9 @@
  *  10. Jogadores (só com --preparar): cadastrar com roles na ordem do clique,
  *      editar Riot ID e roles, desativar -- e conferir cada passo na API e no
  *      Sorteio.
+ *  11. Conta (só com --preparar): reivindicar um jogador pela tela, trocar a
+ *      senha sem derrubar a própria sessão, sair; a senha velha não entra mais
+ *      e a nova entra.
  *
  * Uso (servidor servindo API e front no mesmo endereço):
  *
@@ -620,6 +623,75 @@ async function fluxoDoCadastro(pagina) {
   );
 }
 
+/**
+ * Conta pela tela: reivindicar um jogador do elenco, trocar a senha, sair e
+ * entrar de novo. É a porta de entrada de todo mundo no app, e trocar a senha
+ * derruba as sessões abertas -- então a senha velha tem que parar de entrar na
+ * hora, sem derrubar quem acabou de trocar.
+ */
+async function fluxoDaConta(pagina) {
+  if (!PREPARAR) return 'grava dados; rode com --preparar';
+  const sufixo = Date.now().toString(36);
+  const nome = `Fluxo conta ${sufixo}`;
+  const email = `fluxo-${sufixo}@ensaio.local`;
+  const senha = 'senha-do-fluxo-1';
+  const nova = 'senha-do-fluxo-2';
+  // Um jogador só para isto: reivindicar um veterano mexeria no "sem conta"
+  // que o fluxo dos filtros confere.
+  await api('POST', '/players', { name: nome, roles: ['MID'], riotId: null });
+  const enviarFormulario = () => pagina.locator('form button[type="submit"]').click();
+
+  await pagina.goto(`${BASE}/criar-conta`, { waitUntil: 'networkidle' });
+  await pagina.getByRole('combobox', { name: 'Escolha o seu jogador no elenco' }).click();
+  // Prefixo e não nome exato: a opção leva o Riot ID (ou "sem Riot ID") à
+  // direita, e isso entra no nome acessível.
+  await pagina.getByRole('option', { name: new RegExp(`^${literal(nome)}`) }).click();
+  await pagina.getByLabel('E-mail').fill(email);
+  await pagina.getByLabel('Senha', { exact: true }).fill(senha);
+  await pagina.getByLabel('Repita a senha').fill(senha);
+  await enviarFormulario();
+  await pagina.waitForURL(/\/conta$/, { timeout: 20000 });
+  await pagina.getByText(email).waitFor({ timeout: 20000 });
+  exigir(
+    (await pagina.getByTitle(`Conta de ${nome}`).count()) === 1,
+    'entrou, mas o cabeçalho não mostra de quem é a conta'
+  );
+
+  // Trocar a senha. A resposta diz se gravou; o recarregar diz se a sessão de
+  // quem trocou sobreviveu.
+  await pagina.getByLabel('Senha atual').fill(senha);
+  await pagina.getByLabel('Nova senha').fill(nova);
+  await pagina.getByLabel('Repita a nova').fill(nova);
+  const [troca] = await Promise.all([
+    pagina.waitForResponse((r) => r.url().includes('/api/') && r.request().method() !== 'GET'),
+    pagina.getByRole('button', { name: /Trocar senha/ }).click(),
+  ]);
+  exigir(troca.ok(), `trocar a senha respondeu ${troca.status()}`);
+  await pagina.reload({ waitUntil: 'networkidle' });
+  exigir(
+    /\/conta$/.test(pagina.url()) && (await pagina.getByText(email).count()) === 1,
+    'trocar a senha derrubou a sessão de quem trocou'
+  );
+
+  await pagina.getByRole('button', { name: /Sair/ }).click();
+  await pagina.getByRole('link', { name: 'Entrar' }).waitFor({ timeout: 20000 });
+
+  // A senha velha não entra mais; a nova entra.
+  await pagina.goto(`${BASE}/entrar`, { waitUntil: 'networkidle' });
+  await pagina.getByLabel('E-mail').fill(email);
+  await pagina.getByLabel('Senha').fill(senha);
+  await enviarFormulario();
+  await pagina.getByRole('alert').waitFor({ timeout: 20000 });
+  await pagina.getByLabel('Senha').fill(nova);
+  await enviarFormulario();
+  await pagina.getByTitle(`Conta de ${nome}`).waitFor({ timeout: 20000 });
+
+  // Sai no fim: a sessão ficaria no navegador dos fluxos seguintes.
+  await pagina.goto(`${BASE}/conta`, { waitUntil: 'networkidle' });
+  await pagina.getByRole('button', { name: /Sair/ }).click();
+  await pagina.getByRole('link', { name: 'Entrar' }).waitFor({ timeout: 20000 });
+}
+
 async function fluxoDoSorteio(pagina) {
   if (!PREPARAR) return 'grava dados; rode com --preparar';
   await fecharMd3Aberta();
@@ -809,15 +881,25 @@ async function main() {
     ],
     ['Sala ao vivo: dois capitães, a vez trava o pote, escolhas sincronizam', fluxoDaSalaAoVivo],
     ['Jogadores: cadastrar, editar Riot ID e roles, desativar', fluxoDoCadastro],
+    ['Conta: criar pela tela, trocar a senha, sair e entrar com a nova', fluxoDaConta],
   ];
-  for (const [nome, fn] of passos) {
+  for (const [indice, [nome, fn]] of passos.entries()) {
     const pagina = await contexto.newPage();
     const errosDaPagina = [];
     pagina.on('pageerror', (erro) => errosDaPagina.push(erro.message));
     await fluxo(nome, async () => {
-      const resultado = await fn(pagina);
-      exigir(errosDaPagina.length === 0, `erro de JavaScript na página: ${errosDaPagina[0]}`);
-      return resultado;
+      try {
+        const resultado = await fn(pagina);
+        exigir(errosDaPagina.length === 0, `erro de JavaScript na página: ${errosDaPagina[0]}`);
+        return resultado;
+      } catch (erro) {
+        // "locator.click: Timeout" sozinho não diz qual clique nem em que
+        // tela. A foto e o caminho dizem -- e no CI a foto vai no artefato.
+        const foto = join(SAIDA, `falha-${indice + 1}.png`);
+        await pagina.screenshot({ path: foto, fullPage: true }).catch(() => {});
+        const tela = new URL(pagina.url()).pathname;
+        throw new Error(`${String(erro.message).split('\n')[0]} [tela ${tela}, foto ${foto}]`);
+      }
     });
     await pagina.close();
   }
