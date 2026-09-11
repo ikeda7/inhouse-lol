@@ -348,6 +348,13 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
   is the shared base of every exported image (ranking, match, series,
   highlights: brand, footer, icons, copy/download/share); `ExportarImagem` is
   the button set for all of them.
+- Match badges ("selos": most damage, most deaths, fewest deaths, …) live in
+  `client/src/lib/selos.ts` and feed **both** the Histórico rows and the match
+  image, so the screen and the shared PNG never disagree. Rules worth keeping:
+  a single winner per badge (a tie at the top awards nobody), "Pacifista"
+  (least damage) skips the support, and a column that is all zeros (old
+  imports) awards nothing. They are computed on the fly from `MatchPlayerStat`;
+  nothing is stored.
   Text-contrast tokens must stay WCAG AA against the lightest surface they
   render on; measure, don't eyeball (see the `ink-muted`/`ink-faint` incident
   in ARCHITECTURE.md).
