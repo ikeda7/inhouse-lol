@@ -402,7 +402,15 @@ console.log('\nSorteio');
 await passo('sorteia 10 com o novato dentro, 20 vezes seguidas', async () => {
   precisa('jogadores', 'novato');
   // 9 veteranos + o novato: o caso real de quem chega em cima da hora.
-  ctx.elenco = [...ctx.jogadores.slice(0, 9).map((p) => p.id), ctx.novato.id];
+  //
+  // Veterano é o cadastro de verdade, nunca o que um ensaio anterior deixou no
+  // banco. A lista vem em ordem alfabética, e as contas "Conta <rodada>" (só
+  // MID) caíam logo no começo: com duas delas no elenco, a composição ficava
+  // impossível e o sorteio, o draft e a sala falhavam a partir da 5ª rodada
+  // no mesmo banco (#89). "Reserva" é o que o --preparar da verificação de
+  // telas cria.
+  const veteranos = ctx.jogadores.filter((p) => !/^(Conta|Novato|Reserva) /.test(p.name));
+  ctx.elenco = [...veteranos.slice(0, 9).map((p) => p.id), ctx.novato.id];
   for (let seed = 1; seed <= 20; seed++) {
     const times = dados(
       await api('POST', '/draft/auto-balance', { playerIds: ctx.elenco, seed }),
