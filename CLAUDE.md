@@ -102,7 +102,11 @@ calculators, so these run read-only against production too); the
 na série" opens the MD3 and lands on Série, and the Série manual form
 registers game 1 row by row — the player and champion menus on the last row
 must open unclipped and without scrolling the table — scores it, refuses a
-Fearless-burned champion in game 2, and "Encerrar" closes the MD3.
+Fearless-burned champion in game 2, and "Encerrar" closes the MD3; and the
+live draft room runs with two captains in separate browser contexts (one at
+phone width): each claims a side and the other sees it taken, the captain
+not on the clock cannot click the pool, every pick leaves the pool on the
+other captain's screen through polling, and both screens close 5x5.
 `--preparar` writes (a second night with moments, two MD3s it finishes
 afterwards) and refuses a non-local
 `--base`. A JavaScript error on the page fails the flow. **When you add an
@@ -324,7 +328,10 @@ denormalized state from the `Match`/`MatchPlayerStat` rows when it drifts.
 Deliberately polling, not SSE/WebSocket — prod runs on a serverless function
 where long-lived connections get cut by the platform's duration limit. Clients
 poll every ~2s, sending the last-seen `version`; the server replies `{
-unchanged: true }` when nothing changed. A room's `version` column is also
+unchanged: true }` when nothing changed. Claiming or releasing a side bumps
+`version` as well: before, only picks did, so the other captain's poll kept
+answering "unchanged" and nobody saw a side taken until the next pick (found
+by the two-browser flow). A room's `version` column is also
 the concurrency guard: a captain's pick includes the version it was read at,
 and the write repeats that check in an `updateMany` so two simultaneous picks
 can't silently overwrite each other. Player accounts exist now, but the room

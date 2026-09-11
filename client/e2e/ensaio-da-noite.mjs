@@ -522,6 +522,29 @@ await passo('sala ao vivo: o capitão pega o lado e ninguém rouba', async () =>
     'SIDE_ALREADY_CLAIMED',
     'segundo capitão no azul'
   );
+
+  // Quem está olhando consulta com a versão que já tem. Pegar e liberar um
+  // lado precisam mudar a versão, senão a consulta responde "não mudou" e
+  // ninguém vê o lado ocupado (ou livre) até a próxima escolha.
+  const visto = dados(
+    await api('GET', `/draft/rooms/${sala.code}?since=${sala.version}`),
+    'consulta depois de pegar o azul'
+  );
+  exigir(
+    !visto.unchanged && visto.claimed?.BLUE === true,
+    'quem consultava com a versão de antes não viu o azul ocupado'
+  );
+  dados(await api('POST', `/draft/rooms/${sala.code}/claim`, { side: 'RED' }), 'pegar o vermelho');
+  const antesDeLiberar = dados(await api('GET', `/draft/rooms/${sala.code}`), 'ler sala');
+  dados(await api('POST', `/draft/rooms/${sala.code}/release`, { side: 'RED' }), 'liberar');
+  const liberado = dados(
+    await api('GET', `/draft/rooms/${sala.code}?since=${antesDeLiberar.version}`),
+    'consulta depois de liberar'
+  );
+  exigir(
+    !liberado.unchanged && liberado.claimed?.RED === false,
+    'quem consultava com a versão de antes não viu o vermelho livre'
+  );
   ctx.sala = sala.code;
   ctx.tokenAzul = pego.token;
 });
