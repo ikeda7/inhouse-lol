@@ -25,6 +25,7 @@ import { useChampions } from '../hooks/useChampions';
 import { ExportarImagem } from '../components/ExportarImagem';
 import { resolvedorDeIcone } from '../lib/imagem/canvas';
 import { gerarImagemDosDestaques } from '../lib/imagem/destaques';
+import { gerarImagemDosMomentos, momentosDaUltimaNoite } from '../lib/imagem/momentos';
 import { ROLE_LABEL, type MomentEntry, type MomentType, type RecordEntry } from '../types';
 
 /**
@@ -70,6 +71,9 @@ export function HighlightsPage() {
     );
   }
 
+  // A noite mais recente, para a imagem "momentos da última noite, por jogo".
+  const ultimaNoite = momentosDaUltimaNoite(data.momentos);
+
   return (
     <div className="space-y-6">
       <Card
@@ -90,11 +94,7 @@ export function HighlightsPage() {
                     const meta = CATEGORIA[chave];
                     return meta ? { label: meta.label, zoeira: meta.tom === 'zoeira' } : null;
                   },
-                  momento: (m) => ({
-                    titulo: MOMENTO[m.tipo].titulo(m.valor),
-                    frase: MOMENTO[m.tipo].frase(m),
-                    destaque: MOMENTO[m.tipo].destaque ?? false,
-                  }),
+                  momento: textoDoMomento,
                 })
               }
               nomeDoArquivo={`inhouse-lol-destaques-${new Date().toISOString().slice(0, 10)}.png`}
@@ -119,7 +119,29 @@ export function HighlightsPage() {
         )}
       </Card>
 
-      <Card padding={false} title={<CardTitle icon={Flame}>Momentos</CardTitle>}>
+      <Card
+        padding={false}
+        title={<CardTitle icon={Flame}>Momentos</CardTitle>}
+        action={
+          ultimaNoite.length > 0 && (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <span className="text-[11px] text-ink-faint">
+                {ultimaNoite[0].seriesName ?? 'Última noite'}, por jogo
+              </span>
+              <ExportarImagem
+                gerar={() =>
+                  gerarImagemDosMomentos(ultimaNoite, {
+                    iconeDoCampeao: resolvedorDeIcone(manifest),
+                    momento: textoDoMomento,
+                  })
+                }
+                nomeDoArquivo={`inhouse-lol-momentos-${ultimaNoite[0].playedAt.slice(0, 10)}.png`}
+                titulo={`Momentos · ${ultimaNoite[0].seriesName ?? 'InHouse LoL'}`}
+              />
+            </div>
+          )
+        }
+      >
         {data.momentos.length === 0 ? (
           <div className="p-4">
             <EmptyState label="Nenhum momento registrado ainda." />
@@ -254,6 +276,19 @@ const MOMENTO: Record<
     classe: 'bg-overlay text-ink-faint',
   },
 };
+
+/**
+ * O texto de um momento como a tela escreve -- e é o mesmo que as imagens
+ * escrevem, para as duas nunca dizerem coisas diferentes.
+ */
+function textoDoMomento(momento: MomentEntry) {
+  const meta = MOMENTO[momento.tipo];
+  return {
+    titulo: meta.titulo(momento.valor),
+    frase: meta.frase(momento),
+    destaque: meta.destaque ?? false,
+  };
+}
 
 /**
  * Linha do tempo agrupada por noite.

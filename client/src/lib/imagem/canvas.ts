@@ -42,6 +42,12 @@ export const COR = {
 
 const FONTE = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif';
 
+/** A cor com transparência -- para etiquetas tingidas ("#d4b26a" + 0.16). */
+export function comAlfa(hex: string, alfa: number): string {
+  const valor = parseInt(hex.slice(1), 16);
+  return `rgba(${(valor >> 16) & 255}, ${(valor >> 8) & 255}, ${valor & 255}, ${alfa})`;
+}
+
 export const fonte = (tamanho: number, peso: 400 | 600 | 700 = 400) =>
   `${peso} ${tamanho}px ${FONTE}`;
 
@@ -204,7 +210,16 @@ export function desenharMarca(ctx: CanvasRenderingContext2D, assunto: string, di
 
 /** Nota à esquerda e o endereço à direita -- quem recebe no zap precisa saber onde ver o resto. */
 export function desenharRodape(ctx: CanvasRenderingContext2D, altura: number, nota: string) {
-  const y = altura - 22;
+  // Um fio separa o rodapé do conteúdo: sem ele o endereço parecia mais uma
+  // linha da tabela.
+  ctx.strokeStyle = COR.linha;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(MARGEM, altura - 44);
+  ctx.lineTo(LARGURA - MARGEM, altura - 44);
+  ctx.stroke();
+
+  const y = altura - 20;
   ctx.textBaseline = 'alphabetic';
   ctx.font = fonte(13);
   ctx.fillStyle = COR.fraco;
