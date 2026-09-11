@@ -90,7 +90,12 @@ renders fine and does nothing. That shipped twice in the Momentos selector
 (tabs that did not filter, then tabs only for the latest night). `fluxos.mjs`
 clicks: every night and every game in the Destaques selector must filter the
 list and the image caption; Histórico opens series → game → player and the
-series/game images download as real PNGs; the ranking image downloads; the
+series/game images download as real PNGs; the ranking image downloads and
+each sort tab leaves the table in the order the API returns for it; each
+Jogadores filter shows exactly as many rows as the API says are missing;
+Sorteio's "tenta outro" brings a new seed, and captains mode with two
+hand-picked captains drafts to 5x5 (draw and draft are stateless
+calculators, so these run read-only against production too); the
 "?" reaches the help page; and (with `--preparar`) Sorteio → "Usar esses times
 na série" opens the MD3 and lands on Série. `--preparar` writes (a second
 night with moments, an MD3 it finishes afterwards) and refuses a non-local

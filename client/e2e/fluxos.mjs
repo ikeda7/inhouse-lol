@@ -11,9 +11,14 @@
  *   1. Destaques: o seletor chega em TODAS as noites, e cada noite e cada jogo
  *      filtram a tela de verdade; a imagem daquele recorte baixa.
  *   2. Histórico: abre série, jogo e jogador; as imagens da série e do jogo baixam.
- *   3. Ranking: a imagem baixa.
- *   4. Ajuda: o "?" do cabeçalho leva para "Como funciona".
- *   5. Sorteio → Série (só com --preparar): marcar 10, sortear, "Usar esses
+ *   3. Ranking: a imagem baixa, e cada ordenação deixa a tabela na ordem que a
+ *      API dá para ela.
+ *   4. Jogadores: cada filtro mostra exatamente quantos a API diz que faltam.
+ *   5. Sorteio: "tenta outro" traz outro sorteio; no modo capitães, os dois
+ *      escolhidos na mão ficam com azul e vermelho e o draft fecha 5x5. Nada
+ *      disso grava -- sorteio e draft são calculadoras (lib/escritas.ts).
+ *   6. Ajuda: o "?" do cabeçalho leva para "Como funciona".
+ *   7. Sorteio → Série (só com --preparar): marcar 10, sortear, "Usar esses
  *      times na série" abre a MD3 e leva para a Série.
  *
  * Uso (servidor servindo API e front no mesmo endereço):
@@ -149,6 +154,25 @@ function exigir(condicao, mensagem) {
   if (!condicao) throw new Error(mensagem);
 }
 
+/**
+ * Espera a tela chegar num estado. A lista recarrega depois do clique, e ler
+ * na hora pegaria a tela de antes. `condicao` devolve true ou o que viu.
+ */
+async function esperarAte(condicao, mensagem, ms = 15000) {
+  const limite = Date.now() + ms;
+  let visto = '';
+  while (Date.now() < limite) {
+    const resultado = await condicao();
+    if (resultado === true) return;
+    visto = resultado;
+    await new Promise((resolver) => setTimeout(resolver, 250));
+  }
+  throw new Error(visto ? `${mensagem} (viu: ${visto})` : mensagem);
+}
+
+/** Nome de jogador dentro de uma RegExp, sem que um "." ou "(" vire operador. */
+const literal = (texto) => texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /** Clica e espera o download; confere que saiu uma imagem de verdade (não um arquivo vazio). */
 async function baixar(pagina, botao, nome) {
   const [download] = await Promise.all([
@@ -277,21 +301,171 @@ async function fluxoDaAjuda(pagina) {
   await pagina.getByRole('heading', { name: 'Como funciona' }).waitFor({ timeout: 10000 });
 }
 
+const ORDENACOES = [
+  ['wins', 'Vitórias'],
+  ['winRate', 'Winrate'],
+  ['avgKda', 'KDA'],
+  ['points', 'Pontos'],
+];
+
+async function fluxoDaOrdenacao(pagina) {
+  const ordens = [];
+  for (const [chave] of ORDENACOES) {
+    const ranking = await api('GET', `/stats/leaderboard?sortBy=${chave}&minGames=0`);
+    ordens.push(ranking.map((entrada) => entrada.name));
+  }
+  if (ordens[0].length < 3) return 'menos de três no ranking';
+  // Com as quatro ordens iguais, uma aba que não faz nada passaria.
+  exigir(
+    new Set(ordens.map((ordem) => ordem.join('|'))).size > 1,
+    'as quatro ordens da API são iguais: não dá para ver a tabela reordenar'
+  );
+
+  await pagina.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  const grupo = pagina.getByRole('group', { name: 'Ordenar por' });
+  const nomesNaTabela = pagina.locator('table tbody tr td:nth-child(2) a');
+  for (const [indice, [, rotulo]] of ORDENACOES.entries()) {
+    const botao = grupo.getByRole('button', { name: rotulo, exact: true });
+    await botao.click();
+    exigir((await botao.getAttribute('aria-pressed')) === 'true', `"${rotulo}" não ficou marcado`);
+    const esperado = ordens[indice].join(' > ');
+    await esperarAte(async () => {
+      const visto = (await nomesNaTabela.allInnerTexts()).map((t) => t.trim()).join(' > ');
+      return visto === esperado || visto.slice(0, 60);
+    }, `ordenado por ${rotulo}, a tabela não ficou na ordem da API`);
+  }
+}
+
+async function fluxoDosFiltros(pagina) {
+  const jogadores = await api('GET', '/players?includeInactive=true');
+  const filtros = [
+    ['Todos', jogadores.length],
+    ['Sem conta', jogadores.filter((p) => p.active && !p.hasAccount).length],
+    ['Sem Riot ID', jogadores.filter((p) => p.active && !p.riotId).length],
+  ];
+  exigir(
+    filtros.some(([, quantos]) => quantos !== jogadores.length),
+    'todo filtro daria a lista inteira: não dá para ver o filtro agir'
+  );
+
+  await pagina.goto(`${BASE}/jogadores`, { waitUntil: 'networkidle' });
+  const grupo = pagina.getByRole('group', { name: 'Filtrar jogadores' });
+  await grupo.waitFor({ timeout: 20000 });
+  const linhas = pagina
+    .locator('section', { has: grupo })
+    .locator('ul')
+    .first()
+    .locator(':scope > li');
+
+  // Termina voltando para "Todos": desmarcar também tem que funcionar.
+  for (const [rotulo, esperado] of [...filtros, filtros[0]]) {
+    const botao = grupo.getByRole('button', { name: new RegExp(`^${rotulo} \\d+$`, 'i') });
+    await botao.click();
+    exigir((await botao.getAttribute('aria-pressed')) === 'true', `"${rotulo}" não ficou marcado`);
+    const noBotao = Number(/(\d+)$/.exec((await botao.innerText()).trim())?.[1]);
+    exigir(noBotao === esperado, `"${rotulo}" diz ${noBotao}, a API tem ${esperado}`);
+    await esperarAte(async () => {
+      const quantas = await linhas.count();
+      return quantas === esperado || `${quantas} linhas`;
+    }, `"${rotulo}": a lista não ficou com ${esperado}`);
+  }
+}
+
+/**
+ * Marca os dez primeiros veteranos; devolve os nomes, na ordem. O nome sai do
+ * `span.truncate` da linha: a primeira linha do texto pode ser a inicial do
+ * avatar, e aí o filtro de sobras não reconheceria ninguém.
+ */
+async function marcarVeteranos(pagina) {
+  const linhas = pagina.locator('li > label');
+  await linhas.first().waitFor({ timeout: 20000 });
+  const nomes = [];
+  for (let i = 0; i < (await linhas.count()) && nomes.length < 10; i++) {
+    const nome = (await linhas.nth(i).locator('span.truncate').first().innerText()).trim();
+    if (SOBRA.test(nome)) continue;
+    await linhas.nth(i).click();
+    nomes.push(nome);
+  }
+  exigir(nomes.length === 10, `só achei ${nomes.length} veteranos para marcar`);
+  return nomes;
+}
+
+async function fluxoDoSorteioDeNovo(pagina) {
+  await pagina.goto(`${BASE}/sorteio`, { waitUntil: 'networkidle' });
+  await marcarVeteranos(pagina);
+  // O aviso de cobertura é a tela dizendo que o sorteio vai recusar -- e com
+  // razão. Não é o defeito que este fluxo procura.
+  if ((await pagina.getByText(/O sorteio vai recusar/).count()) > 0) {
+    return 'os dez primeiros não cobrem todas as roles';
+  }
+
+  await pagina.getByRole('button', { name: /Sortear times/ }).click();
+  const legenda = pagina.getByText(/seed \d+/);
+  await legenda.waitFor({ timeout: 20000 });
+  const seed = async () => /seed (\d+)/.exec(await legenda.innerText())?.[1];
+  const primeira = await seed();
+  await pagina.getByRole('button', { name: /tenta outro/ }).click();
+  await esperarAte(async () => {
+    const agora = await seed();
+    return agora !== primeira || `seed ${agora}`;
+  }, '"Não gostei, tenta outro" não trouxe outro sorteio');
+}
+
+async function fluxoDosCapitaes(pagina) {
+  await pagina.goto(`${BASE}/sorteio`, { waitUntil: 'networkidle' });
+  const nomes = await marcarVeteranos(pagina);
+
+  await pagina
+    .getByRole('group', { name: 'Modo' })
+    .getByRole('button', { name: /Modo capitães/ })
+    .click();
+  await pagina.getByRole('button', { name: 'Escolher', exact: true }).click();
+
+  // O primeiro clicado tira o azul, o segundo o vermelho.
+  for (const [nome, lado] of [
+    [nomes[0], 'azul'],
+    [nomes[1], 'vermelho'],
+  ]) {
+    await pagina.getByRole('button', { name: nome, exact: true }).click();
+    const marcado = pagina.getByRole('button', {
+      name: new RegExp(`^${literal(nome)}\\s*· ${lado}$`),
+    });
+    exigir((await marcado.count()) === 1, `${nome} não virou capitão do ${lado}`);
+    exigir(
+      (await marcado.getAttribute('aria-pressed')) === 'true',
+      `${nome} (${lado}) sem aria-pressed`
+    );
+  }
+
+  await pagina.getByRole('button', { name: /Começar o draft/ }).click();
+  // O pote: um botão por jogador, com o nome num <p> próprio.
+  for (const nome of nomes.slice(2)) {
+    const botao = pagina.locator('button', {
+      has: pagina.locator('p', { hasText: new RegExp(`^${literal(nome)}$`) }),
+    });
+    await botao.waitFor({ timeout: 20000 });
+    await esperarAte(
+      async () => (await botao.isEnabled()) || 'desabilitado',
+      `${nome} não liberou no pote`
+    );
+    await botao.click();
+    await botao.waitFor({ state: 'detached', timeout: 20000 });
+  }
+
+  await pagina.getByText('Draft fechado').waitFor({ timeout: 20000 });
+  const cheios = await pagina.getByText('5/5', { exact: true }).count();
+  exigir(cheios === 2, `draft fechado com ${cheios} de 2 times em 5/5`);
+  await pagina
+    .getByRole('button', { name: /Usar esses times na série/ })
+    .waitFor({ timeout: 20000 });
+}
+
 async function fluxoDoSorteio(pagina) {
   if (!PREPARAR) return 'grava dados; rode com --preparar';
   await fecharMd3Aberta();
 
   await pagina.goto(`${BASE}/sorteio`, { waitUntil: 'networkidle' });
-  const linhas = pagina.locator('li > label');
-  await linhas.first().waitFor({ timeout: 20000 });
-  let marcados = 0;
-  for (let i = 0; i < (await linhas.count()) && marcados < 10; i++) {
-    const nome = (await linhas.nth(i).innerText()).split('\n')[0].trim();
-    if (SOBRA.test(nome)) continue;
-    await linhas.nth(i).click();
-    marcados++;
-  }
-  exigir(marcados === 10, `só achei ${marcados} veteranos para marcar`);
+  await marcarVeteranos(pagina);
 
   await pagina.getByRole('button', { name: /Sortear times/ }).click();
   const usar = pagina.getByRole('button', { name: /Usar esses times na série/ });
@@ -337,6 +511,10 @@ async function main() {
     ['Destaques: o seletor chega em todas as noites e filtra a tela', fluxoDosMomentos],
     ['Histórico: abre série, jogo e jogador; as imagens baixam', fluxoDoHistorico],
     ['Ranking: a imagem baixa', fluxoDoRanking],
+    ['Ranking: cada ordenação deixa a tabela na ordem da API', fluxoDaOrdenacao],
+    ['Jogadores: cada filtro mostra quantos a API diz que faltam', fluxoDosFiltros],
+    ['Sorteio: "tenta outro" traz outro sorteio', fluxoDoSorteioDeNovo],
+    ['Sorteio: capitães escolhidos na mão, draft fecha 5x5', fluxoDosCapitaes],
     ['Ajuda: o "?" leva para "Como funciona"', fluxoDaAjuda],
     ['Sorteio: usar os times abre a MD3 e leva para a Série', fluxoDoSorteio],
   ];
