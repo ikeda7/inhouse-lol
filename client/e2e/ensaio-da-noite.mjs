@@ -402,7 +402,15 @@ console.log('\nSorteio');
 await passo('sorteia 10 com o novato dentro, 20 vezes seguidas', async () => {
   precisa('jogadores', 'novato');
   // 9 veteranos + o novato: o caso real de quem chega em cima da hora.
-  ctx.elenco = [...ctx.jogadores.slice(0, 9).map((p) => p.id), ctx.novato.id];
+  //
+  // Veterano é o cadastro de verdade, nunca o que um ensaio anterior deixou no
+  // banco. A lista vem em ordem alfabética, e as contas "Conta <rodada>" (só
+  // MID) caíam logo no começo: com duas delas no elenco, a composição ficava
+  // impossível e o sorteio, o draft e a sala falhavam a partir da 5ª rodada
+  // no mesmo banco (#89). "Reserva" é o que o --preparar da verificação de
+  // telas cria.
+  const veteranos = ctx.jogadores.filter((p) => !/^(Conta|Novato|Reserva) /.test(p.name));
+  ctx.elenco = [...veteranos.slice(0, 9).map((p) => p.id), ctx.novato.id];
   for (let seed = 1; seed <= 20; seed++) {
     const times = dados(
       await api('POST', '/draft/auto-balance', { playerIds: ctx.elenco, seed }),
@@ -568,6 +576,11 @@ await passo('sala ao vivo: respeita a vez, a versão e fecha os times', async ()
 console.log('\nMD3');
 
 await passo('abre a MD3 com Fearless e ela vira a "em andamento"', async () => {
+  // Banco reaproveitado: uma MD3 que um ensaio anterior deixou aberta travaria
+  // esta -- o servidor não abre uma segunda em andamento (SERIES_ONGOING).
+  for (const sobra of dados(await api('GET', '/series?limit=100'), 'listar')) {
+    if (sobra.status === 'ONGOING') dados(await api('POST', `/series/${sobra.id}/finish`), 'sobra');
+  }
   const serie = dados(
     await api('POST', '/series', { name: `Ensaio ${rodada}`, fearless: true }),
     'abrir'
@@ -651,6 +664,34 @@ await passo('MD3 aberta sem querer é descartável; com jogo, não', async () =>
   const vazia = dados(await api('POST', '/series', { name: `Sem querer ${rodada}` }), 'abrir');
   dados(await api('DELETE', `/series/${vazia.id}`), 'descartar a vazia');
   recusa(await api('DELETE', `/series/${ctx.serie}`), 'SERIES_NOT_EMPTY', 'descartar a jogada');
+});
+
+await passo('"usar os times" garante a MD3: abre se não há, reusa se há, nunca duas', async () => {
+  precisa('serie');
+  // O botão do Sorteio chama isto (#77): fechar os times já deixa a MD3 pronta
+  // para o agente mandar os jogos.
+  const primeira = dados(
+    await api('POST', '/series/garantir', { name: `Garantida ${rodada}`, fearless: true }),
+    'garantir'
+  );
+  exigir(primeira.criada === true, 'sem MD3 em andamento, deveria ter aberto uma');
+  exigir(primeira.serie.status === 'ONGOING', `abriu ${primeira.serie.status}`);
+
+  const segunda = dados(
+    await api('POST', '/series/garantir', { name: `Outra ${rodada}`, fearless: true }),
+    'garantir de novo'
+  );
+  exigir(
+    segunda.criada === false && segunda.serie.id === primeira.serie.id,
+    'abriu outra MD3 em vez de usar a que estava em andamento'
+  );
+  recusa(
+    await api('POST', '/series', { name: `Duplicada ${rodada}` }),
+    'SERIES_ONGOING',
+    'abrir uma segunda MD3'
+  );
+
+  dados(await api('DELETE', `/series/${primeira.serie.id}`), 'descartar a garantida');
 });
 
 await passo('série encerrada pode ser renomeada; nome vazio, não', async () => {

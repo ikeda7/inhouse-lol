@@ -88,10 +88,12 @@ export function AjudaPage() {
               </Item>
             </ul>
           </Passo>
-          <Passo n={2} titulo="Abram a MD3">
-            <Aba to="/serie">Série</Aba> → <strong className="text-ink">Abrir nova MD3</strong>,
-            antes do primeiro jogo. Sem MD3 aberta nenhum jogo entra: é isso que impede um custom
-            qualquer de cair no ranking.
+          <Passo n={2} titulo="A MD3 abre sozinha">
+            Ao clicar em <strong className="text-ink">Usar esses times na série</strong>, a MD3 da
+            noite é aberta (ou, se já existir uma em andamento, é usada). Sem MD3 aberta nenhum jogo
+            entra: é isso que impede um custom qualquer de cair no ranking. Dá para abrir na mão
+            também, em <Aba to="/serie">Série</Aba> →{' '}
+            <strong className="text-ink">Abrir nova MD3</strong>.
           </Passo>
           <Passo n={3} titulo="Joguem">
             Alguém que está jogando deixa o agente rodando no PC (veja{' '}

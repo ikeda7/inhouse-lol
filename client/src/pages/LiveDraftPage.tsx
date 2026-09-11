@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Check, Copy, Radio, WifiOff } from 'lucide-react';
+import { Check, Copy, Radio, WifiOff } from 'lucide-react';
 import { useDraftRoom } from '../hooks/useDraftRoom';
-import { Button, Card, EmptyState, ErrorState, LoadingState } from '../components/ui';
+import { Card, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { CaptainsDraft } from '../components/CaptainsDraft';
 import { TeamCard } from '../components/TeamCard';
+import { UsarTimesNaSerie } from '../components/UsarTimesNaSerie';
 import { fromCaptains, saveActiveDraft } from '../lib/activeDraft';
 import type { TeamSide } from '../types';
 
@@ -92,7 +93,6 @@ export function LiveDraftPage() {
     liberarLado,
   } = useDraftRoom(code);
   const [copiado, setCopiado] = useState(false);
-  const [confirmado, setConfirmado] = useState(false);
 
   if (carregando) return <LoadingState label="Entrando na sala..." />;
   if (erro && !sala) return <ErrorState error={erro} />;
@@ -107,13 +107,6 @@ export function LiveDraftPage() {
     await navigator.clipboard.writeText(window.location.href);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
-  };
-
-  const usarTimes = () => {
-    if (!sala.teams) return;
-    saveActiveDraft(fromCaptains(sala.teams));
-    setConfirmado(true);
-    navigate('/serie');
   };
 
   return (
@@ -182,12 +175,11 @@ export function LiveDraftPage() {
             <TeamCard team={sala.teams.redTeam} />
           </div>
 
-          <div className="flex justify-center">
-            <Button onClick={usarTimes}>
-              {confirmado ? <Check size={16} /> : <ArrowRight size={16} />}
-              Usar esses times na série
-            </Button>
-          </div>
+          <UsarTimesNaSerie
+            salvar={() => {
+              if (sala.teams) saveActiveDraft(fromCaptains(sala.teams));
+            }}
+          />
 
           <p className="text-center text-xs text-ink-faint">
             Os capitães escolheram os times; as roles foram distribuídas dentro de cada um pelo pool
