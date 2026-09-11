@@ -23,6 +23,7 @@ import {
   paraPng,
   type ResolverIcone,
 } from './canvas';
+import { conquistasEmOrdem, selosDaPartida, type Conquista, type SeloConquistado } from '../selos';
 
 /**
  * Uma partida como imagem, para mandar no grupo logo depois do jogo.
@@ -48,6 +49,9 @@ const ALTURA_BANS = 74;
 const ALTURA_RODAPE = 50;
 const ICONE = 38;
 const ICONE_DO_BAN = 32;
+const ALTURA_TITULO_SELOS = 34;
+const ALTURA_SELO = 56;
+const ESPACO_SELO = 10;
 
 // Colunas numéricas, alinhadas à direita: o x é onde a coluna TERMINA.
 const COL_KDA = LARGURA - MARGEM - 300;
@@ -91,6 +95,12 @@ export async function gerarImagemDaPartida(
   }));
 
   const temBans = partida.bans.length > 0;
+  // Os mesmos selos do Histórico (lib/selos.ts): a imagem nunca discorda da tela.
+  const selos = selosDaPartida(partida.stats);
+  const conquistas = conquistasEmOrdem(selos, partida.stats);
+  const alturaDosSelos = conquistas.length
+    ? ALTURA_TITULO_SELOS + Math.ceil(conquistas.length / 2) * (ALTURA_SELO + ESPACO_SELO)
+    : 0;
   const altura =
     ALTURA_CABECALHO +
     ALTURA_COLUNAS +
@@ -99,6 +109,7 @@ export async function gerarImagemDaPartida(
       0
     ) +
     (temBans ? ALTURA_BANS : 0) +
+    alturaDosSelos +
     ALTURA_RODAPE;
 
   const icones = await carregarIcones(
@@ -121,9 +132,13 @@ export async function gerarImagemDaPartida(
 
   let y = ALTURA_CABECALHO + ALTURA_COLUNAS;
   for (const time of times) {
-    y = desenharTime(ctx, time, partida.winner, y, icones) + ESPACO_ENTRE_TIMES;
+    y = desenharTime(ctx, time, partida.winner, y, icones, selos) + ESPACO_ENTRE_TIMES;
   }
-  if (temBans) desenharBans(ctx, times, y, icones);
+  if (temBans) {
+    desenharBans(ctx, times, y, icones);
+    y += ALTURA_BANS;
+  }
+  if (conquistas.length > 0) desenharSelos(ctx, conquistas, y);
 
   desenharRodape(ctx, altura, ORIGEM[partida.source]);
   return paraPng(canvas);
@@ -158,7 +173,8 @@ function desenharTime(
   time: Time,
   vencedor: TeamSide | null,
   topo: number,
-  icones: Map<string, HTMLImageElement | null>
+  icones: Map<string, HTMLImageElement | null>,
+  selos: ReadonlyMap<string, SeloConquistado[]>
 ): number {
   const venceu = time.jogadores[0]?.win ?? vencedor === time.lado;
   const alturaDoBloco = ALTURA_TIME + time.jogadores.length * ALTURA_LINHA;
@@ -190,7 +206,13 @@ function desenharTime(
   }
 
   time.jogadores.forEach((jogador, i) =>
-    desenharJogador(ctx, jogador, topo + ALTURA_TIME + i * ALTURA_LINHA, icones)
+    desenharJogador(
+      ctx,
+      jogador,
+      topo + ALTURA_TIME + i * ALTURA_LINHA,
+      icones,
+      selos.get(jogador.playerId) ?? []
+    )
   );
 
   ctx.textBaseline = 'alphabetic';
@@ -201,7 +223,8 @@ function desenharJogador(
   ctx: CanvasRenderingContext2D,
   jogador: MatchStat,
   topo: number,
-  icones: Map<string, HTMLImageElement | null>
+  icones: Map<string, HTMLImageElement | null>,
+  selos: SeloConquistado[]
 ) {
   const meio = topo + ALTURA_LINHA / 2;
   desenharIcone(ctx, icones.get(jogador.championName), MARGEM + 4, meio - ICONE / 2, ICONE);
@@ -210,9 +233,21 @@ function desenharJogador(
   // O nome para antes da coluna de K/D/A, que é a mais larga ("12/10/24").
   const larguraDoNome = COL_KDA - 90 - xDoNome;
   ctx.textBaseline = 'middle';
+
+  // Os emojis dos selos vêm logo depois do nome; o nome encolhe para caber.
+  const emojis = selos.map((conquista) => conquista.selo.emoji).join(' ');
+  ctx.font = fonte(16);
+  const larguraDosEmojis = emojis ? ctx.measureText(emojis).width + 8 : 0;
+
   ctx.font = fonte(18, 600);
   ctx.fillStyle = COR.texto;
-  ctx.fillText(cortar(ctx, jogador.player.name, larguraDoNome), xDoNome, meio - 9);
+  const nome = cortar(ctx, jogador.player.name, larguraDoNome - larguraDosEmojis);
+  ctx.fillText(nome, xDoNome, meio - 9);
+  if (emojis) {
+    const depoisDoNome = xDoNome + ctx.measureText(nome).width + 8;
+    ctx.font = fonte(16);
+    ctx.fillText(emojis, depoisDoNome, meio - 9);
+  }
   ctx.font = fonte(12);
   ctx.fillStyle = COR.fraco;
   const role = ROLE_LABEL[jogador.rolePlayed] ?? jogador.rolePlayed;
@@ -228,6 +263,58 @@ function desenharJogador(
   ctx.fillText(milhar(jogador.goldEarned), COL_OURO, meio);
   ctx.fillText(String(jogador.cs), COL_CS, meio);
   ctx.textAlign = 'left';
+}
+
+/**
+ * "Destaques do jogo": um cartão por selo, em duas colunas.
+ *
+ * É a parte que vira conversa no zap ("o Kaio morreu 11 vezes"), então o
+ * nome do selo vem colorido e o dono vem em branco, grande o bastante para
+ * ler na miniatura.
+ */
+function desenharSelos(ctx: CanvasRenderingContext2D, conquistas: Conquista[], topo: number) {
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = fonte(12, 600);
+  ctx.fillStyle = COR.fraco;
+  ctx.fillText('DESTAQUES DO JOGO', MARGEM, topo + 22);
+
+  const largura = (LARGURA - MARGEM * 2 - ESPACO_SELO) / 2;
+  conquistas.forEach((conquista, i) => {
+    const x = MARGEM + (i % 2) * (largura + ESPACO_SELO);
+    const y = topo + ALTURA_TITULO_SELOS + Math.floor(i / 2) * (ALTURA_SELO + ESPACO_SELO);
+    ctx.fillStyle = COR.fundoAlterna;
+    caixa(ctx, x, y, largura, ALTURA_SELO, 10);
+    ctx.fill();
+
+    const meio = y + ALTURA_SELO / 2;
+    ctx.textBaseline = 'middle';
+    ctx.font = fonte(22);
+    ctx.fillText(conquista.selo.emoji, x + 14, meio);
+
+    const xDoTexto = x + 52;
+    const larguraDoTexto = x + largura - 14 - xDoTexto;
+    const rotulo = conquista.selo.nome.toUpperCase();
+    ctx.font = fonte(12, 700);
+    // Zoeira sai do ouro, como nos Destaques: morrer muito não é troféu.
+    ctx.fillStyle = conquista.selo.zoeira ? COR.derrota : COR.ouro;
+    ctx.fillText(rotulo, xDoTexto, meio - 10);
+    const larguraDoRotulo = ctx.measureText(`${rotulo}  `).width;
+    ctx.font = fonte(15, 600);
+    ctx.fillStyle = COR.texto;
+    ctx.fillText(
+      cortar(ctx, conquista.nome, larguraDoTexto - larguraDoRotulo),
+      xDoTexto + larguraDoRotulo,
+      meio - 10
+    );
+    ctx.font = fonte(12);
+    ctx.fillStyle = COR.apagado;
+    ctx.fillText(
+      cortar(ctx, conquista.selo.descrever(conquista.valor), larguraDoTexto),
+      xDoTexto,
+      meio + 11
+    );
+  });
+  ctx.textBaseline = 'alphabetic';
 }
 
 function desenharBans(
