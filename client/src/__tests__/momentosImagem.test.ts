@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { momentosDaUltimaNoite, porJogo } from '../lib/imagem/momentos';
+import { momentosDaUltimaNoite, porJogo, porLado } from '../lib/imagem/momentos';
 import type { MomentEntry } from '../types';
 
 /**
@@ -14,6 +14,7 @@ function momento(seriesId: string, matchNumber: number, tipo: MomentEntry['tipo'
     championName: 'Ahri',
     ddragonId: null,
     rolePlayed: 'MID',
+    teamSide: 'BLUE',
     matchId: `m-${seriesId}-${matchNumber}`,
     matchNumber,
     seriesId,
@@ -58,5 +59,18 @@ describe('porJogo', () => {
     expect(grupos.map((g) => g.jogo)).toEqual([1, 2]);
     expect(grupos[0].momentos.map((m) => m.tipo)).toEqual(['SPREE', 'FARM']);
     expect(grupos[1].momentos.map((m) => m.tipo)).toEqual(['CARRY', 'VISAO']);
+  });
+});
+
+describe('porLado', () => {
+  it('azul primeiro, cada lado com o resultado dele, e lado vazio fica de fora', () => {
+    const vermelho = { ...momento('quinta', 1, 'CARRY'), teamSide: 'RED' as const, win: false };
+    const azul = { ...momento('quinta', 1, 'SPREE'), teamSide: 'BLUE' as const, win: true };
+
+    expect(porLado([vermelho, azul]).map((g) => [g.lado, g.venceu, g.momentos.length])).toEqual([
+      ['BLUE', true, 1],
+      ['RED', false, 1],
+    ]);
+    expect(porLado([azul]).map((g) => g.lado)).toEqual(['BLUE']);
   });
 });

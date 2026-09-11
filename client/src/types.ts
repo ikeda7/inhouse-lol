@@ -315,6 +315,8 @@ export interface HighlightContext {
   championName: string;
   ddragonId: string | null;
   rolePlayed: Role;
+  /** Lado do jogador NAQUELA partida (os times trocam de lado na MD3). */
+  teamSide: TeamSide;
   matchId: string;
   matchNumber: number;
   seriesId: string;

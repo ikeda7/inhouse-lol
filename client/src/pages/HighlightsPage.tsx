@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Award,
@@ -24,7 +25,7 @@ import { harmonizarNoite } from '../lib/momentos';
 import { useChampions } from '../hooks/useChampions';
 import { ExportarImagem } from '../components/ExportarImagem';
 import { resolvedorDeIcone } from '../lib/imagem/canvas';
-import { gerarImagemDosDestaques } from '../lib/imagem/destaques';
+import { gerarImagemDosRecordes } from '../lib/imagem/destaques';
 import { gerarImagemDosMomentos, momentosDaUltimaNoite } from '../lib/imagem/momentos';
 import { ROLE_LABEL, type MomentEntry, type MomentType, type RecordEntry } from '../types';
 
@@ -60,6 +61,8 @@ const CATEGORIA: Record<string, { label: string; icon: LucideIcon; tom?: 'zoeira
 export function HighlightsPage() {
   const { data, loading, error, reload } = useAsync(() => statsApi.highlights());
   const { manifest } = useChampions();
+  /** O que a imagem dos Momentos leva: a noite inteira, por jogo, ou um jogo só. */
+  const [escopo, setEscopo] = useState<'noite' | number>('noite');
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -71,8 +74,13 @@ export function HighlightsPage() {
     );
   }
 
-  // A noite mais recente, para a imagem "momentos da última noite, por jogo".
+  // A noite mais recente, para a imagem dos Momentos: a noite inteira (por
+  // jogo) ou um jogo só, conforme o seletor do card.
   const ultimaNoite = momentosDaUltimaNoite(data.momentos);
+  const jogosDaNoite = [...new Set(ultimaNoite.map((m) => m.matchNumber))].sort((a, b) => a - b);
+  const escopos: ('noite' | number)[] = ['noite', ...jogosDaNoite];
+  const momentosDoEscopo =
+    escopo === 'noite' ? ultimaNoite : ultimaNoite.filter((m) => m.matchNumber === escopo);
 
   return (
     <div className="space-y-6">
@@ -88,17 +96,16 @@ export function HighlightsPage() {
                 frase): se a tela mudar, a imagem muda junto. */}
             <ExportarImagem
               gerar={() =>
-                gerarImagemDosDestaques(data, {
+                gerarImagemDosRecordes(data, {
                   iconeDoCampeao: resolvedorDeIcone(manifest),
                   categoria: (chave) => {
                     const meta = CATEGORIA[chave];
                     return meta ? { label: meta.label, zoeira: meta.tom === 'zoeira' } : null;
                   },
-                  momento: textoDoMomento,
                 })
               }
-              nomeDoArquivo={`inhouse-lol-destaques-${new Date().toISOString().slice(0, 10)}.png`}
-              titulo="Destaques · InHouse LoL"
+              nomeDoArquivo={`inhouse-lol-recordes-${new Date().toISOString().slice(0, 10)}.png`}
+              titulo="Recordes · InHouse LoL"
               vazio={data.recordes.length === 0}
             />
           </div>
@@ -126,17 +133,42 @@ export function HighlightsPage() {
           ultimaNoite.length > 0 && (
             <div className="flex flex-wrap items-center justify-end gap-2">
               <span className="text-[11px] text-ink-faint">
-                {ultimaNoite[0].seriesName ?? 'Última noite'}, por jogo
+                {ultimaNoite[0].seriesName ?? 'Última noite'}
               </span>
+              {/* O que a imagem leva: a noite inteira, separada por jogo, ou um
+                  jogo só -- para mandar no grupo logo depois de cada partida. */}
+              <div
+                role="group"
+                aria-label="O que a imagem dos momentos leva"
+                className="flex items-center gap-0.5 rounded-md border border-line/60 bg-raised p-0.5"
+              >
+                {escopos.map((opcao) => (
+                  <button
+                    key={String(opcao)}
+                    type="button"
+                    onClick={() => setEscopo(opcao)}
+                    aria-pressed={escopo === opcao}
+                    className={`rounded px-2 py-1 text-[11px] font-semibold transition ${
+                      escopo === opcao ? 'bg-gold/15 text-gold' : 'text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    {opcao === 'noite' ? 'Noite' : `Jogo ${opcao}`}
+                  </button>
+                ))}
+              </div>
               <ExportarImagem
                 gerar={() =>
-                  gerarImagemDosMomentos(ultimaNoite, {
+                  gerarImagemDosMomentos(momentosDoEscopo, {
                     iconeDoCampeao: resolvedorDeIcone(manifest),
                     momento: textoDoMomento,
+                    jogo: escopo === 'noite' ? undefined : escopo,
                   })
                 }
-                nomeDoArquivo={`inhouse-lol-momentos-${ultimaNoite[0].playedAt.slice(0, 10)}.png`}
+                nomeDoArquivo={`inhouse-lol-momentos-${ultimaNoite[0].playedAt.slice(0, 10)}${
+                  escopo === 'noite' ? '' : `-jogo-${escopo}`
+                }.png`}
                 titulo={`Momentos · ${ultimaNoite[0].seriesName ?? 'InHouse LoL'}`}
+                vazio={momentosDoEscopo.length === 0}
               />
             </div>
           )
@@ -174,8 +206,13 @@ function CartaoDeRecorde({ recorde }: { recorde: RecordEntry }) {
   return (
     <Link
       to={`/jogadores/${recorde.playerId}`}
-      className="group flex items-center gap-3 rounded-lg border border-line/40 bg-raised/40 p-3 transition hover:border-line hover:bg-raised"
+      // A faixa esquerda é o lado em que o recorde foi feito: os times trocam
+      // de lado na MD3, então a cor é a daquele jogo.
+      className={`group flex items-center gap-3 rounded-lg border border-l-[3px] border-line/40 bg-raised/40 p-3 transition hover:bg-raised ${
+        recorde.teamSide === 'BLUE' ? 'border-l-blue' : 'border-l-red'
+      }`}
     >
+      <span className="sr-only">{recorde.teamSide === 'BLUE' ? 'Time azul' : 'Time vermelho'}</span>
       <ChampionIcon championName={recorde.championName} size={44} />
 
       <div className="min-w-0 flex-1">
@@ -355,14 +392,14 @@ function CartaoDeMomento({ momento, largo = false }: { momento: MomentEntry; lar
   return (
     <Link
       to={`/jogadores/${momento.playerId}`}
-      className={`group flex items-center gap-3 rounded-lg border p-3 transition hover:bg-raised ${
+      className={`group flex items-center gap-3 rounded-lg border border-l-[3px] p-3 transition hover:bg-raised ${
         largo ? 'sm:col-span-2 xl:col-span-1' : ''
-      } ${
-        meta.destaque
-          ? 'border-gold/30 bg-gold/[0.04]'
-          : 'border-line/40 bg-raised/40 hover:border-line'
+      } ${meta.destaque ? 'border-gold/30 bg-gold/[0.04]' : 'border-line/40 bg-raised/40'} ${
+        // Faixa do lado em que o jogador estava naquele jogo.
+        momento.teamSide === 'BLUE' ? 'border-l-blue' : 'border-l-red'
       }`}
     >
+      <span className="sr-only">{momento.teamSide === 'BLUE' ? 'Time azul' : 'Time vermelho'}</span>
       <ChampionIcon championName={momento.championName} size={46} />
 
       <div className="min-w-0 flex-1">
