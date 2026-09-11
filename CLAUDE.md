@@ -54,9 +54,11 @@ build output. Don't remove that scoping.
 ### Screen check (CI job "Telas no navegador")
 
 `client/e2e/verificar-telas.mjs` opens eight screens at 390/768/1024/1440px in
-Chromium and fails on two things that typecheck, tests and build all pass:
-horizontal scroll, and text below WCAG AA **after** compositing opacity and
-backgrounds. That class of bug has shipped here repeatedly — text painted in
+Chromium and fails on what typecheck, tests and build all pass: horizontal
+scroll, text below WCAG AA **after** compositing opacity and backgrounds, a
+screen that loaded an error (`role="alert"`, API 5xx), and content clipped by
+a card that cuts overflow — the page does not scroll, but the K/D/A is cut in
+half (#84). That class of bug has shipped here repeatedly — text painted in
 the background color, `opacity-40` on a whole row, a nav that overflowed every
 tablet. No screenshot baseline on purpose: both checks are baseline-free.
 
@@ -73,6 +75,24 @@ tablet. No screenshot baseline on purpose: both checks are baseline-free.
 
 The job is **not** a required check yet. Promote it in branch protection once
 it has proven stable across a few PRs.
+
+### Interaction flows (same CI job, after the screen check)
+
+```bash
+node client/e2e/fluxos.mjs --base http://localhost:3334 --preparar
+```
+
+The screen check measures still screens; it cannot see a control that
+renders fine and does nothing. That shipped twice in the Momentos selector
+(tabs that did not filter, then tabs only for the latest night). `fluxos.mjs`
+clicks: every night and every game in the Destaques selector must filter the
+list and the image caption; Histórico opens series → game → player and the
+series/game images download as real PNGs; the ranking image downloads; the
+"?" reaches the help page; and (with `--preparar`) Sorteio → "Usar esses times
+na série" opens the MD3 and lands on Série. `--preparar` writes (a second
+night with moments, an MD3 it finishes afterwards) and refuses a non-local
+`--base`. A JavaScript error on the page fails the flow. **When you add an
+interactive control, add its flow here.**
 
 ### Game-night rehearsal (same CI job, before the screen check)
 

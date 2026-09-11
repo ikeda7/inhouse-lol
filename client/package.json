@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "verificar:telas": "node e2e/verificar-telas.mjs"
+    "verificar:telas": "node e2e/verificar-telas.mjs",
+    "verificar:fluxos": "node e2e/fluxos.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.474.0",

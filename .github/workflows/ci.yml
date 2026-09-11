@@ -172,6 +172,14 @@ jobs:
       - name: Verificar as telas
         run: node client/e2e/verificar-telas.mjs --base http://localhost:3333 --preparar --saida e2e-saida
 
+      # Clica nas coisas: seletor de noite e jogo dos Momentos, Histórico
+      # abrindo série/jogo/jogador, downloads das imagens, o "?" e o
+      # Sorteio -> Série. Pega o que as telas paradas não pegam -- um seletor
+      # que desenha certo e não filtra nada passou por todas as outras
+      # checagens. Vem depois das telas: usa o cenário que o --preparar montou.
+      - name: Fluxos no navegador
+        run: node client/e2e/fluxos.mjs --base http://localhost:3333 --preparar --saida e2e-saida
+
       # Os screenshots de todas as combinações, para ver o que o script viu.
       - name: Guardar screenshots
         if: failure()

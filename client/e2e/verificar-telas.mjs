@@ -20,6 +20,12 @@
  *      uma tela de erro passava nas duas de cima -- aconteceu: um build
  *      apontando a API para a porta errada deu "28/28" com todas as telas
  *      dizendo "Não consegui falar com o servidor".
+ *   4. CONTEÚDO CORTADO: nada visível passando da borda de um card que corta
+ *      (overflow hidden). A página não rola, mas o K/D/A some pela metade --
+ *      foi o Histórico a 390px (#84), que passou pelas outras três.
+ *
+ * O que nenhuma destas pega é interação: um seletor que desenha certo e não
+ * filtra nada. Isso é com o fluxos.mjs.
  *
  * Comparação de screenshot com baseline ficou de fora de propósito: exige
  * imagem versionada e sofre com ruído de renderização entre máquinas. As duas
@@ -344,13 +350,40 @@ function medirNaPagina() {
     vazamento = { largura: document.documentElement.scrollWidth, limite, culpado: pior };
   }
 
+  // Conteúdo cortado pela borda de um card: a página não rola (a checagem de
+  // cima passa), mas o K/D/A some pela metade -- foi assim no Histórico a
+  // 390px (#84). Procura elemento visível que passe da borda do primeiro
+  // ancestral que corta (overflow hidden/clip), a não ser que antes dele haja
+  // um contêiner que rola de propósito. Um só culpado basta: o pior.
+  let cortado = null;
+  for (const el of document.body.querySelectorAll('*')) {
+    if (isento(el) || !visivel(el)) continue;
+    const direita = el.getBoundingClientRect().right;
+    for (let no = el.parentElement; no && no !== document.body; no = no.parentElement) {
+      const overflow = getComputedStyle(no).overflowX;
+      if (overflow === 'auto' || overflow === 'scroll') break;
+      if (overflow === 'hidden' || overflow === 'clip') {
+        const excesso = direita - no.getBoundingClientRect().right;
+        if (excesso > 2 && (!cortado || excesso > cortado.excesso)) {
+          cortado = {
+            excesso: Math.round(excesso),
+            tag: el.tagName.toLowerCase(),
+            texto: el.textContent.trim().replace(/\s+/g, ' ').slice(0, 40),
+            classe: String(el.className).slice(0, 60),
+          };
+        }
+        break;
+      }
+    }
+  }
+
   // Tela que carregou mostrando erro: contraste e rolagem passam nela, e o
   // "ok" seria mentira.
   const alertas = [...document.querySelectorAll('[role="alert"]')]
     .filter(visivel)
     .map((el) => el.textContent.trim().replace(/\s+/g, ' ').slice(0, 80));
 
-  return { reprovados, vazamento, alertas };
+  return { reprovados, vazamento, cortado, alertas };
 }
 
 // ---------------------------------------------------------------------------
@@ -403,14 +436,14 @@ async function main() {
         // medir no meio dela daria contraste de um frame que ninguém vê parado.
         await pagina.waitForTimeout(600);
 
-        const { reprovados, vazamento, alertas } = await pagina.evaluate(medirNaPagina);
+        const { reprovados, vazamento, cortado, alertas } = await pagina.evaluate(medirNaPagina);
         await pagina.screenshot({
           path: join(SAIDA, `${tela.nome}-${largura}.png`),
           fullPage: true,
         });
 
         const carregou = alertas.length === 0 && apiSemResposta.length === 0;
-        if (reprovados.length === 0 && !vazamento && carregou) {
+        if (reprovados.length === 0 && !vazamento && !cortado && carregou) {
           console.log(`  ok    ${rotulo}`);
         } else {
           falhas++;
@@ -424,6 +457,12 @@ async function main() {
             console.log(
               `        rolagem lateral: ${vazamento.largura}px numa janela de ${vazamento.limite}px` +
                 (c ? ` -- <${c.tag}> .${c.classe}` : '')
+            );
+          }
+          if (cortado) {
+            console.log(
+              `        cortado pelo card: <${cortado.tag}> "${cortado.texto}" passa ` +
+                `${cortado.excesso}px da borda  .${cortado.classe}`
             );
           }
           for (const r of reprovados.slice(0, 8)) {
