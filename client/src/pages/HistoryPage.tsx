@@ -10,6 +10,7 @@ import { useAction, useAsync } from '../hooks/useAsync';
 import { Card, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon, ordenarPorLane } from '../components/ChampionIcon';
 import { Highlights } from '../components/Highlights';
+import { conquistasEmOrdem, selosDaPartida, type SeloConquistado } from '../lib/selos';
 import { MatchBans, MatchObjectives } from '../components/MatchObjectives';
 import { calcularMaximos, MatchPlayerDetail } from '../components/MatchPlayerDetail';
 import {
@@ -209,6 +210,8 @@ function MatchCard({ match, nomeDaSerie }: { match: Match; nomeDaSerie: string |
   // o time de baixo para fora da tela e a comparação, que é o ponto, se perde.
   const [aberto, setAberto] = useState<string | null>(null);
   const { manifest } = useChampions();
+  // Selo compara os dez da partida, então sai daqui, onde os dez estão.
+  const selos = selosDaPartida(match.stats);
   const maximos = calcularMaximos(match.stats);
   const statAberto = match.stats.find((stat) => stat.id === aberto) ?? null;
 
@@ -264,11 +267,14 @@ function MatchCard({ match, nomeDaSerie }: { match: Match; nomeDaSerie: string |
             key={side}
             side={side}
             match={match}
+            selos={selos}
             aberto={aberto}
             onToggle={(id) => setAberto(aberto === id ? null : id)}
           />
         ))}
       </div>
+
+      <SelosDoJogo match={match} selos={selos} />
 
       {/* O detalhe do jogador vive AQUI, fora das colunas: em largura cheia ele
           usa as quatro faixas de estatística sem espremer as barras, e abrir um
@@ -303,14 +309,47 @@ function MatchCard({ match, nomeDaSerie }: { match: Match; nomeDaSerie: string |
   );
 }
 
+/**
+ * A faixa "selos do jogo": quem levou cada selo, com o número.
+ *
+ * No celular não existe hover, então o emoji sozinho na linha do jogador seria
+ * um enigma. Aqui ele ganha nome e dono, e vira a legenda da partida.
+ */
+function SelosDoJogo({ match, selos }: { match: Match; selos: Map<string, SeloConquistado[]> }) {
+  const conquistas = conquistasEmOrdem(selos, match.stats);
+  if (conquistas.length === 0) return null;
+
+  return (
+    <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Selos do jogo">
+      {conquistas.map(({ selo, valor, nome }) => (
+        <li
+          key={selo.id}
+          title={selo.descrever(valor)}
+          className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] ${
+            selo.zoeira ? 'border-loss/30 bg-loss/10' : 'border-line/60 bg-raised/60'
+          }`}
+        >
+          <span aria-hidden="true">{selo.emoji}</span>
+          <span className={`font-semibold ${selo.zoeira ? 'text-loss' : 'text-ink'}`}>
+            {selo.nome}
+          </span>
+          <span className="text-ink-muted">{nome}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function TeamColumn({
   side,
   match,
+  selos,
   aberto,
   onToggle,
 }: {
   side: TeamSide;
   match: Match;
+  selos: Map<string, SeloConquistado[]>;
   aberto: string | null;
   onToggle: (id: string) => void;
 }) {
@@ -345,6 +384,7 @@ function TeamColumn({
           <li key={stat.id}>
             <PlayerRow
               stat={stat}
+              selos={selos.get(stat.playerId) ?? []}
               expandido={aberto === stat.id}
               onToggle={() => onToggle(stat.id)}
             />
@@ -355,12 +395,29 @@ function TeamColumn({
   );
 }
 
+/** Os selos da partida na linha: só o emoji. Nome e número vão no título e na faixa de baixo. */
+function SelosDoJogador({ selos }: { selos: SeloConquistado[] }) {
+  if (selos.length === 0) return null;
+  return (
+    <span className="flex shrink-0 items-center gap-0.5 text-[13px] leading-none">
+      {selos.map(({ selo, valor }) => (
+        <span key={selo.id} title={`${selo.nome}: ${selo.descrever(valor)}`}>
+          <span className="sr-only">{`${selo.nome}: ${selo.descrever(valor)}`}</span>
+          <span aria-hidden="true">{selo.emoji}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function PlayerRow({
   stat,
+  selos,
   expandido,
   onToggle,
 }: {
   stat: MatchStat;
+  selos: SeloConquistado[];
   expandido: boolean;
   onToggle: () => void;
 }) {
@@ -377,6 +434,7 @@ function PlayerRow({
         {ROLE_LABEL[stat.rolePlayed]}
       </span>
       <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{stat.player.name}</span>
+      <SelosDoJogador selos={selos} />
       <Highlights stat={stat} />
       <span className="tabular shrink-0 text-[15px] font-semibold text-ink-muted">
         {stat.kills}/{stat.deaths}/{stat.assists}

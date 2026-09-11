@@ -164,6 +164,19 @@ export function criarCanvas(altura: number): {
   ctx.scale(ESCALA, ESCALA);
   ctx.fillStyle = COR.fundo;
   ctx.fillRect(0, 0, LARGURA, altura);
+
+  // Brilho dourado atrás da marca e um filete de ouro na borda de cima: é o
+  // que faz a imagem ser reconhecida como "do InHouse" no meio da conversa,
+  // antes de alguém ler qualquer coisa. Fraco o bastante para não mexer no
+  // contraste do texto por cima.
+  const brilho = ctx.createRadialGradient(140, 0, 0, 140, 0, 620);
+  brilho.addColorStop(0, 'rgba(212, 178, 106, 0.16)');
+  brilho.addColorStop(1, 'rgba(212, 178, 106, 0)');
+  ctx.fillStyle = brilho;
+  ctx.fillRect(0, 0, LARGURA, altura);
+  ctx.fillStyle = COR.ouro;
+  ctx.fillRect(0, 0, LARGURA, 4);
+
   return { canvas, ctx };
 }
 
