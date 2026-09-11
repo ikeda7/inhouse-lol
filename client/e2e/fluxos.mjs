@@ -250,9 +250,11 @@ async function fluxoDoHistorico(pagina) {
   await baixar(pagina, baixares.nth(0), 'serie.png');
   await baixar(pagina, baixares.nth(1), 'jogo.png');
 
-  // O nível do jogador: abre e mostra o detalhe.
+  // O nível do jogador: abre e mostra o detalhe. O seletor NÃO filtra por
+  // aria-expanded="false": depois do clique ele passaria a apontar para o
+  // próximo jogador (ainda fechado), e o teste leria o estado da linha errada.
   const jogador = pagina
-    .locator('li:has(> div > button[aria-expanded="true"]) li > button[aria-expanded="false"]')
+    .locator('li:has(> div > button[aria-expanded="true"]) li > button[aria-expanded]')
     .first();
   await jogador.click();
   exigir(
