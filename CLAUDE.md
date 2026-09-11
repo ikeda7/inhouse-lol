@@ -111,6 +111,11 @@ Jogadores registers a player with roles in click order, edits Riot ID and
 roles, and deactivates them, checking the API after each step and that the
 Sorteio no longer lists them. Icon-only buttons carry an `aria-label` with
 the player's name ("Editar Fulano"), which is also what the flow clicks.
+The account flow claims a player on screen, changes the password without
+dropping its own session, logs out, and checks that the old password is
+refused and the new one works. A failing flow saves `falha-N.png` in the
+output folder and prints the screen path next to the error, because
+"locator.click: Timeout" alone says neither which click nor where.
 `--preparar` writes (a second night with moments, two MD3s it finishes
 afterwards) and refuses a non-local
 `--base`. A JavaScript error on the page fails the flow. **When you add an
