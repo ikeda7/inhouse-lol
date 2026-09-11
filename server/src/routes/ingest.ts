@@ -363,6 +363,7 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
             bans: await nomearBans(imported.bans),
             gameVersion: imported.gameVersion,
             surrendered: imported.surrendered,
+            playedAt: imported.playedAt,
           }
         );
         res.json({
@@ -456,6 +457,7 @@ async function ingestGame(game: LcuGame, options: IngestOptions, res: Response):
     source: options.source,
     gameVersion: imported.gameVersion,
     surrendered: imported.surrendered,
+    playedAt: imported.playedAt,
     players: matched,
     teams: imported.teams,
     bans: await nomearBans(imported.bans),

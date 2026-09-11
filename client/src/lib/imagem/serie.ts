@@ -96,7 +96,11 @@ export async function gerarImagemDaSerie(
 
   const { canvas, ctx } = criarCanvas(altura);
 
-  const data = new Date(serie.date).toLocaleDateString('pt-BR', {
+  // A data do primeiro JOGO, não a da série: `serie.date` é quando a MD3 foi
+  // aberta no site, e uma noite registrada no dia seguinte sairia com a data
+  // errada ao lado do nome ("Domingo 07/09" · "08 de setembro").
+  const quando = partidas[0]?.playedAt ?? serie.date;
+  const data = new Date(quando).toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
