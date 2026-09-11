@@ -24,6 +24,9 @@
  *      linha -- os menus da última linha abrem inteiros, sem rolar a tabela --,
  *      confere placar e API, o Fearless recusa no jogo 2 um campeão do jogo 1,
  *      e "Encerrar" fecha a MD3.
+ *   9. Sala ao vivo (só com --preparar): dois capitães em navegadores
+ *      diferentes pegam um lado cada; quem não está na vez não clica no pote;
+ *      cada escolha aparece na tela do outro pela consulta; as duas fecham 5x5.
  *
  * Uso (servidor servindo API e front no mesmo endereço):
  *
@@ -467,6 +470,88 @@ async function fluxoDosCapitaes(pagina) {
     .waitFor({ timeout: 20000 });
 }
 
+/**
+ * A sala ao vivo com os dois capitães em navegadores diferentes -- como na
+ * noite, cada um no seu celular. Cada um pega um lado e o outro vê o lado
+ * ocupado; quem não está na vez não consegue clicar no pote; cada escolha
+ * aparece na tela do outro pela consulta de 2s; e as duas telas fecham 5x5.
+ */
+async function fluxoDaSalaAoVivo(pagina) {
+  if (!PREPARAR) return 'grava dados (a sala é uma linha no banco); rode com --preparar';
+
+  await pagina.goto(`${BASE}/sorteio`, { waitUntil: 'networkidle' });
+  const nomes = await marcarVeteranos(pagina);
+  await pagina
+    .getByRole('group', { name: 'Modo' })
+    .getByRole('button', { name: /Modo capitães/ })
+    .click();
+  await pagina.getByRole('button', { name: 'Escolher', exact: true }).click();
+  await pagina.getByRole('button', { name: nomes[0], exact: true }).click();
+  await pagina.getByRole('button', { name: nomes[1], exact: true }).click();
+  await pagina.getByRole('button', { name: /Draft ao vivo/ }).click();
+  await pagina.waitForURL(/\/draft\/[A-Za-z0-9]+$/, { timeout: 20000 });
+  const codigo = pagina.url().split('/').pop();
+
+  // O outro capitão: outro navegador, no celular, sem o segredo deste.
+  const outroNavegador = await pagina
+    .context()
+    .browser()
+    .newContext({ viewport: { width: 390, height: 900 } });
+  try {
+    const outra = await outroNavegador.newPage();
+    const errosDoOutro = [];
+    outra.on('pageerror', (erro) => errosDoOutro.push(erro.message));
+    await outra.goto(pagina.url(), { waitUntil: 'networkidle' });
+
+    // O azul vem primeiro na tela. Cada um pega um lado e espera o outro ver.
+    await pagina.getByRole('button', { name: 'Sou o capitão' }).first().click();
+    await pagina.getByText('Você é o capitão').waitFor({ timeout: 15000 });
+    await outra.getByText('Capitão definido').waitFor({ timeout: 15000 });
+    await outra.getByRole('button', { name: 'Sou o capitão' }).click();
+    await outra.getByText('Você é o capitão').waitFor({ timeout: 15000 });
+    await pagina.getByText('Capitão definido').waitFor({ timeout: 15000 });
+
+    const capitao = { BLUE: pagina, RED: outra };
+    const pote = (tela) =>
+      tela
+        .locator('div.rounded-lg', { hasText: /^No pote/ })
+        .last()
+        .getByRole('button');
+
+    // 1-2-2-2-1: oito escolhas depois dos capitães.
+    for (let escolha = 1; escolha <= 8; escolha++) {
+      const { state } = await api('GET', `/draft/rooms/${codigo}`);
+      const daVez = capitao[state.onTheClock];
+      const esperando = daVez === pagina ? outra : pagina;
+
+      await esperarAte(
+        async () => (await pote(daVez).first().isEnabled()) || 'pote travado',
+        `escolha ${escolha}: o capitão da vez não consegue escolher`
+      );
+      await esperarAte(
+        async () => (await pote(esperando).first().isDisabled()) || 'pote livre',
+        `escolha ${escolha}: quem não está na vez consegue clicar no pote`
+      );
+
+      const nome = (await pote(daVez).first().locator('p').first().innerText()).trim();
+      await pote(daVez).first().click();
+      await esperarAte(async () => {
+        const restantes = (await pote(esperando).locator('p').allInnerTexts()).map((t) => t.trim());
+        return !restantes.includes(nome) || `${nome} ainda no pote`;
+      }, `escolha ${escolha}: ${nome} não saiu do pote na tela do outro capitão`);
+    }
+
+    for (const tela of [pagina, outra]) {
+      await tela.getByText('Draft fechado').waitFor({ timeout: 15000 });
+      const cheios = await tela.getByText('5/5', { exact: true }).count();
+      exigir(cheios === 2, `a sala fechou com ${cheios} de 2 times em 5/5 numa das telas`);
+    }
+    exigir(errosDoOutro.length === 0, `erro de JavaScript no outro capitão: ${errosDoOutro[0]}`);
+  } finally {
+    await outroNavegador.close();
+  }
+}
+
 async function fluxoDoSorteio(pagina) {
   if (!PREPARAR) return 'grava dados; rode com --preparar';
   await fecharMd3Aberta();
@@ -654,6 +739,7 @@ async function main() {
       'Série: registrar o jogo pelo formulário, Fearless no jogo 2, encerrar',
       fluxoDoRegistroManual,
     ],
+    ['Sala ao vivo: dois capitães, a vez trava o pote, escolhas sincronizam', fluxoDaSalaAoVivo],
   ];
   for (const [nome, fn] of passos) {
     const pagina = await contexto.newPage();
