@@ -14,6 +14,13 @@ import {
   paraPng,
   type ResolverIcone,
 } from './canvas';
+import {
+  ALTURA_CARTAO_MOMENTO,
+  desenharCartaoDeMomento,
+  ESPACO_ENTRE_MOMENTOS,
+  momentosDaUltimaNoite,
+  type TextoDoMomento,
+} from './momentos';
 
 /**
  * Os destaques como imagem: os recordes em grade e os momentos da última
@@ -22,24 +29,24 @@ import {
  * Os textos (rótulo de cada recorde, "LEGENDARY", a frase do momento) vêm da
  * própria tela por parâmetro, e não são repetidos aqui: se a tela mudar a
  * frase, a imagem muda junto, e as duas nunca dizem coisas diferentes.
+ *
+ * O cartão de momento é o mesmo da imagem só de momentos (momentos.ts).
  */
 
 export interface OpcoesDosDestaques {
   iconeDoCampeao: ResolverIcone;
   /** Rótulo do recorde; null = categoria que a tela não mostra. */
   categoria: (chave: string) => { label: string; zoeira: boolean } | null;
-  momento: (momento: MomentEntry) => { titulo: string; frase: string; destaque: boolean };
+  momento: (momento: MomentEntry) => TextoDoMomento;
 }
 
 const ALTURA_CABECALHO = 112;
 const ALTURA_TITULO = 34;
 const ALTURA_RECORDE = 70;
 const ESPACO = 12;
-const ALTURA_MOMENTO = 56;
-const ALTURA_RODAPE = 50;
+const ALTURA_RODAPE = 56;
 const ICONE_DO_RECORDE = 42;
-const ICONE_DO_MOMENTO = 38;
-/** Momentos da noite na imagem. Mais que isso vira rolagem, e imagem não rola. */
+/** Momentos da noite nesta imagem. A noite inteira tem imagem própria (momentos.ts). */
 const MAX_MOMENTOS = 6;
 
 export async function gerarImagemDosDestaques(
@@ -49,15 +56,14 @@ export async function gerarImagemDosDestaques(
   const recordes = destaques.recordes.filter((r) => opcoes.categoria(r.categoria) !== null);
   const linhasDeRecordes = Math.ceil(recordes.length / 2);
 
-  // Só a noite mais recente: os momentos chegam do mais novo para o mais velho.
-  const noite = destaques.momentos[0]?.seriesId;
-  const momentos = destaques.momentos.filter((m) => m.seriesId === noite).slice(0, MAX_MOMENTOS);
+  const momentos = momentosDaUltimaNoite(destaques.momentos).slice(0, MAX_MOMENTOS);
+  const passoDoMomento = ALTURA_CARTAO_MOMENTO + ESPACO_ENTRE_MOMENTOS;
 
   const altura =
     ALTURA_CABECALHO +
     ALTURA_TITULO +
     linhasDeRecordes * (ALTURA_RECORDE + ESPACO) +
-    (momentos.length ? ALTURA_TITULO + momentos.length * ALTURA_MOMENTO + ESPACO : 0) +
+    (momentos.length ? ALTURA_TITULO + momentos.length * passoDoMomento + ESPACO : 0) +
     ALTURA_RODAPE;
 
   const icones = await carregarIcones(
@@ -90,7 +96,15 @@ export async function gerarImagemDosDestaques(
     desenharTitulo(ctx, `MOMENTOS · ${quando.toUpperCase()}`, y);
     y += ALTURA_TITULO;
     momentos.forEach((momento, i) => {
-      desenharMomento(ctx, momento, y + i * ALTURA_MOMENTO, icones, opcoes);
+      desenharCartaoDeMomento(ctx, {
+        momento,
+        texto: opcoes.momento(momento),
+        icone: icones.get(momento.championName),
+        x: MARGEM,
+        topo: y + i * passoDoMomento,
+        largura: LARGURA - MARGEM * 2,
+        mostrarJogo: true,
+      });
     });
   }
 
@@ -118,7 +132,7 @@ function desenharRecorde(
   if (!meta) return;
 
   ctx.fillStyle = COR.fundoAlterna;
-  caixa(ctx, x, topo, largura, ALTURA_RECORDE, 10);
+  caixa(ctx, x, topo, largura, ALTURA_RECORDE, 12);
   ctx.fill();
 
   const meio = topo + ALTURA_RECORDE / 2;
@@ -148,53 +162,5 @@ function desenharRecorde(
   ctx.font = fonte(17, 600);
   ctx.fillStyle = COR.texto;
   ctx.fillText(cortar(ctx, recorde.playerName, larguraDoTexto), xDoTexto, meio + 10);
-  ctx.textBaseline = 'alphabetic';
-}
-
-function desenharMomento(
-  ctx: CanvasRenderingContext2D,
-  momento: MomentEntry,
-  topo: number,
-  icones: Map<string, HTMLImageElement | null>,
-  opcoes: OpcoesDosDestaques
-) {
-  const { titulo, frase, destaque } = opcoes.momento(momento);
-  const meio = topo + ALTURA_MOMENTO / 2;
-
-  desenharIcone(
-    ctx,
-    icones.get(momento.championName),
-    MARGEM,
-    meio - ICONE_DO_MOMENTO / 2,
-    ICONE_DO_MOMENTO
-  );
-
-  const xDoTexto = MARGEM + ICONE_DO_MOMENTO + 12;
-  const larguraDoTexto = LARGURA - MARGEM - 130 - xDoTexto;
-  ctx.textBaseline = 'middle';
-  ctx.font = fonte(14, 700);
-  // Só quadra e penta brilham em ouro -- se tudo brilha, nada brilha.
-  ctx.fillStyle = destaque ? COR.ouro : COR.aviso;
-  ctx.fillText(titulo, xDoTexto, meio - 10);
-  const larguraDoTitulo = ctx.measureText(`${titulo}  `).width;
-  ctx.font = fonte(16, 600);
-  ctx.fillStyle = COR.texto;
-  ctx.fillText(
-    cortar(ctx, momento.playerName, larguraDoTexto - larguraDoTitulo),
-    xDoTexto + larguraDoTitulo,
-    meio - 10
-  );
-  ctx.font = fonte(13);
-  ctx.fillStyle = COR.apagado;
-  ctx.fillText(cortar(ctx, frase, larguraDoTexto), xDoTexto, meio + 11);
-
-  ctx.textAlign = 'right';
-  ctx.font = fonte(15, 600);
-  ctx.fillStyle = COR.apagado;
-  ctx.fillText(`${momento.kills}/${momento.deaths}/${momento.assists}`, LARGURA - MARGEM, meio - 9);
-  ctx.font = fonte(12);
-  ctx.fillStyle = COR.fraco;
-  ctx.fillText(`Jogo ${momento.matchNumber}`, LARGURA - MARGEM, meio + 11);
-  ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 }
