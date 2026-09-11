@@ -495,13 +495,25 @@ function PlayerToggle({
           disabled ? `Já tem ${REQUIRED_PLAYERS} marcados -- desmarque alguém antes` : undefined
         }
       >
-        <input
-          type="checkbox"
-          checked={checked}
-          disabled={disabled}
-          onChange={onToggle}
-          className="h-4 w-4 shrink-0 accent-[#d4b26a]"
-        />
+        {/* Checkbox desenhado, não o nativo: o `accent-color` só pinta o
+            miolo, e a caixa branca do sistema destoava do tema escuro. O
+            input continua sendo o input de verdade (teclado, leitor de tela,
+            clique no label); só a aparência é nossa. */}
+        <span className="relative flex h-5 w-5 shrink-0 items-center justify-center">
+          <input
+            type="checkbox"
+            checked={checked}
+            disabled={disabled}
+            onChange={onToggle}
+            className="peer absolute inset-0 m-0 h-full w-full cursor-[inherit] appearance-none rounded border border-ink-faint/70 bg-canvas transition checked:border-gold checked:bg-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:border-line"
+          />
+          <Check
+            size={14}
+            strokeWidth={3}
+            aria-hidden="true"
+            className="pointer-events-none relative text-canvas opacity-0 transition peer-checked:opacity-100"
+          />
+        </span>
         <Avatar photoUrl={player.photoUrl} name={player.name} size="sm" />
         <div className="min-w-0 flex-1">
           <p
