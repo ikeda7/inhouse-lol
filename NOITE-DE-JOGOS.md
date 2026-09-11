@@ -113,7 +113,7 @@ bug: é o que impede um custom aleatório de entrar no histórico do grupo.
 | | |
 |---|---|
 | **Sorteio automático** | o algoritmo equilibra por rating e por pool de role |
-| **Modo capitães** | draft 1-2-2-2-1, feito nesta tela |
+| **Modo capitães** | draft 1-2-2-2-1, feito nesta tela. Os capitães saem por maior winrate, quem perdeu o último, aleatório, ou **Escolher**: você clica em quem tira o time (o primeiro fica com o azul) |
 | **Draft ao vivo (com link)** | mesma coisa, mas com link para os dez acompanharem em tempo real |
 
 Antes de clicar, olhe o painel **Cobertura de roles**. Se alguma estiver em
@@ -150,7 +150,7 @@ ranking para quem venceu.
 |---|---|
 | `NO_ONGOING_SERIES` | Abra a MD3 no site. O agente não cria série sozinho. |
 | Alguém entrou como "jogador provisório" | Faltou Riot ID. Preencha em Jogadores e rode `--refresh-all`. |
-| Esqueceu de ligar o `--watch` | `--last` manda a última partida; `--games 3` manda as três. |
+| Esqueceu de ligar o `--watch` | `--last` manda a última partida. Para várias: `--list` mostra os IDs, e `--games <id>,<id>` manda, na ordem em que foram jogadas. |
 | Fechou o LoL antes de mandar | O histórico do cliente guarda ~100 partidas. Abra o LoL de novo e rode `--last`. |
 | Desinstalou / o histórico sumiu | Se tiver o `.rofl` salvo: `--replays` lista, `--replay <arquivo>` manda. |
 | Nada disso | Registro manual em Série → **Registrar jogo N**. É caminho de primeira classe, não gambiarra. |
@@ -211,8 +211,8 @@ node companion/inhouse-companion.mjs --watch --api https://inhouse-lol.vercel.ap
 # mandar a última partida na mão
 node companion/inhouse-companion.mjs --last --api https://inhouse-lol.vercel.app/api
 
-# mandar as N últimas
-node companion/inhouse-companion.mjs --games 3 --api https://inhouse-lol.vercel.app/api
+# mandar várias: pegue os IDs no --list e passe na ordem em que foram jogadas
+node companion/inhouse-companion.mjs --games <id>,<id> --api https://inhouse-lol.vercel.app/api
 
 # ver o que faria, sem gravar
 node companion/inhouse-companion.mjs --last --dry-run --api https://inhouse-lol.vercel.app/api

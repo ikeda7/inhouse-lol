@@ -37,6 +37,8 @@ export function DraftPage() {
   // os 10 se vai sortear ou draftar. Aba separada duplicaria essa lista.
   const [modoCapitaes, setModoCapitaes] = useState(false);
   const [criterio, setCriterio] = useState<CaptainSelectionMode>('TOP_WINRATE');
+  /** Modo "Escolher": o primeiro marcado tira o azul, o segundo o vermelho. */
+  const [capitaes, setCapitaes] = useState<string[]>([]);
   const [draft, setDraft] = useState<CaptainsDraftState | null>(null);
 
   const draw = useAction(draftApi.autoBalance);
@@ -67,6 +69,22 @@ export function DraftPage() {
 
   const canDraw = selected.size === REQUIRED_PLAYERS;
 
+  // Quem foi desmarcado da lista deixa de ser capitão sem ninguém precisar
+  // lembrar de desfazer a escolha.
+  const capitaesMarcados = capitaes.filter((id) => selected.has(id));
+  const capitaesEscolhidos =
+    criterio === 'MANUAL' && capitaesMarcados.length === 2
+      ? (capitaesMarcados as [string, string])
+      : undefined;
+  const capitaesProntos = criterio !== 'MANUAL' || capitaesEscolhidos !== undefined;
+
+  const alternarCapitao = (playerId: string) =>
+    setCapitaes((atual) => {
+      const validos = atual.filter((id) => selected.has(id));
+      if (validos.includes(playerId)) return validos.filter((id) => id !== playerId);
+      return validos.length < 2 ? [...validos, playerId] : validos;
+    });
+
   const handleDraw = async () => {
     const drawn = await draw.run([...selected], {});
     if (drawn) {
@@ -83,12 +101,12 @@ export function DraftPage() {
   };
 
   const handleIniciarCapitaes = async () => {
-    const inicial = await iniciar.run([...selected], criterio);
+    const inicial = await iniciar.run([...selected], criterio, undefined, capitaesEscolhidos);
     if (inicial) setDraft(inicial);
   };
 
   const handleAoVivo = async () => {
-    const sala = await abrirSala.run([...selected], criterio);
+    const sala = await abrirSala.run([...selected], criterio, undefined, capitaesEscolhidos);
     // Vai direto para a sala: o link que o grupo recebe e o desta pagina, e
     // quem abriu tem que estar nela para copiar o link.
     if (sala) navigate(`/draft/${sala.code}`);
@@ -235,6 +253,7 @@ export function DraftPage() {
                         ['TOP_WINRATE', 'Maior winrate'],
                         ['LAST_LOSERS', 'Quem perdeu o último'],
                         ['RANDOM', 'Aleatório'],
+                        ['MANUAL', 'Escolher'],
                       ] as [CaptainSelectionMode, string][]
                     ).map(([valor, rotulo]) => (
                       <button
@@ -253,10 +272,18 @@ export function DraftPage() {
                   </div>
                 </div>
 
+                {criterio === 'MANUAL' && (
+                  <EscolherCapitaes
+                    jogadores={sortedPlayers.filter((p) => selected.has(p.id))}
+                    capitaes={capitaesMarcados}
+                    onToggle={alternarCapitao}
+                  />
+                )}
+
                 <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={handleIniciarCapitaes}
-                    disabled={!canDraw}
+                    disabled={!canDraw || !capitaesProntos}
                     loading={iniciar.loading}
                   >
                     <Swords size={16} />
@@ -269,7 +296,7 @@ export function DraftPage() {
                   <Button
                     variant="ghost"
                     onClick={handleAoVivo}
-                    disabled={!canDraw}
+                    disabled={!canDraw || !capitaesProntos}
                     loading={abrirSala.loading}
                   >
                     <Radio size={16} />
@@ -498,5 +525,61 @@ function PlayerToggle({
         </div>
       </label>
     </li>
+  );
+}
+
+/**
+ * Capitães escolhidos na mão, entre os 10 marcados.
+ *
+ * O primeiro clicado tira o azul e o segundo o vermelho; clicar de novo
+ * desfaz. As cores são as dos times, porque é isso que cada um vai tirar.
+ */
+function EscolherCapitaes({
+  jogadores,
+  capitaes,
+  onToggle,
+}: {
+  jogadores: Player[];
+  capitaes: string[];
+  onToggle: (playerId: string) => void;
+}) {
+  if (jogadores.length < REQUIRED_PLAYERS) {
+    return (
+      <p className="text-xs text-ink-muted">
+        Marque os {REQUIRED_PLAYERS} primeiro; os capitães saem de quem vai jogar.
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      <p className="mb-1.5 text-xs text-ink-muted">
+        Clique em dois: o primeiro tira o time azul, o segundo o vermelho.
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {jogadores.map((jogador) => {
+          const posicao = capitaes.indexOf(jogador.id);
+          const lado = posicao === 0 ? 'azul' : posicao === 1 ? 'vermelho' : null;
+          return (
+            <button
+              key={jogador.id}
+              type="button"
+              onClick={() => onToggle(jogador.id)}
+              aria-pressed={lado !== null}
+              className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                lado === 'azul'
+                  ? 'border-blue/60 bg-blue/15 text-ink'
+                  : lado === 'vermelho'
+                    ? 'border-red/60 bg-red/15 text-ink'
+                    : 'border-line/60 bg-raised/40 text-ink-muted hover:border-line'
+              }`}
+            >
+              {jogador.name}
+              {lado && <span className="ml-1 text-[10px] uppercase text-ink-muted">· {lado}</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

@@ -396,7 +396,7 @@ export interface CaptainsDraftState {
   teams?: { blueTeam: BalancedTeam; redTeam: BalancedTeam } | null;
 }
 
-export type CaptainSelectionMode = 'TOP_WINRATE' | 'LAST_LOSERS' | 'RANDOM';
+export type CaptainSelectionMode = 'TOP_WINRATE' | 'LAST_LOSERS' | 'RANDOM' | 'MANUAL';
 
 /** Sala de draft ao vivo (issue #6). */
 export interface DraftRoom {
