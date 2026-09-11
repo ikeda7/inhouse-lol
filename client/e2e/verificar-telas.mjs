@@ -202,6 +202,7 @@ const TODAS_AS_TELAS = [
   { nome: 'serie', rota: '/serie' },
   { nome: 'jogadores', rota: '/jogadores' },
   { nome: 'perfil', rota: '/jogadores', antes: abrirPrimeiroPerfil },
+  { nome: 'ajuda', rota: '/ajuda' },
 ];
 
 // Nome errado no --telas precisa FALHAR. Sem isto, "--telas sorteo" rodaria
