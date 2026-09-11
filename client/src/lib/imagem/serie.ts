@@ -219,7 +219,11 @@ function desenharJogo(
   const larguraDoTime = 5 * ICONE_DO_JOGO + 4 * 4;
   const xDoTimeA = MARGEM + 96;
   const xDoTimeB = LARGURA - MARGEM - larguraDoTime;
-  const desenharCampeoes = (lista: MatchStat[], x0: number, venceu: boolean) => {
+  const desenharCampeoes = (lista: MatchStat[], x0: number, venceu: boolean, lado: TeamSide) => {
+    // O lado em que o time jogou NESTE jogo: na MD3 os times trocam de lado,
+    // então o time A pode ser azul no jogo 1 e vermelho no jogo 2.
+    ctx.fillStyle = lado === 'BLUE' ? COR.azul : COR.vermelho;
+    ctx.fillRect(x0 - 9, meio - ICONE_DO_JOGO / 2, 3, ICONE_DO_JOGO);
     lista.forEach((stat, i) => {
       desenharIcone(
         ctx,
@@ -235,8 +239,8 @@ function desenharJogo(
       ctx.fillRect(x0, meio + ICONE_DO_JOGO / 2 + 4, larguraDoTime, 3);
     }
   };
-  desenharCampeoes(campeoes(true), xDoTimeA, venceuA === true);
-  desenharCampeoes(campeoes(false), xDoTimeB, venceuA === false);
+  desenharCampeoes(campeoes(true), xDoTimeA, venceuA === true, ladoA);
+  desenharCampeoes(campeoes(false), xDoTimeB, venceuA === false, ladoA === 'BLUE' ? 'RED' : 'BLUE');
 
   ctx.textAlign = 'center';
   ctx.font = fonte(15, 700);

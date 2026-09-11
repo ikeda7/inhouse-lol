@@ -38,6 +38,7 @@ export interface LinhaCrua {
   visionScore: number;
   cs: number;
   win: boolean;
+  teamSide: string;
   championName: string;
   championId: number | null;
   rolePlayed: string;
@@ -66,6 +67,12 @@ export interface ContextoDoDestaque {
   championName: string;
   ddragonId: string | null;
   rolePlayed: string;
+  /**
+   * De que lado o jogador estava NAQUELE jogo. Os times trocam de lado na MD3,
+   * então "azul" só faz sentido por partida -- e é por partida que a tela e as
+   * imagens pintam o cartão.
+   */
+  teamSide: string;
   matchId: string;
   matchNumber: number;
   seriesId: string;
@@ -296,6 +303,7 @@ function contexto(linha: LinhaCrua, ddragonId: string | null): ContextoDoDestaqu
     championName: linha.championName,
     ddragonId,
     rolePlayed: linha.rolePlayed,
+    teamSide: linha.teamSide,
     matchId: linha.match.id,
     matchNumber: linha.match.matchNumber,
     seriesId: linha.match.seriesId,
