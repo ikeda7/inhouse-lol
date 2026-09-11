@@ -24,6 +24,7 @@ function linha(overrides: Partial<LinhaCrua> & { playerId: string }): LinhaCrua 
     visionScore: 10,
     cs: 100,
     win: true,
+    teamSide: 'BLUE',
     championName: 'Ahri',
     championId: 103,
     rolePlayed: 'MID',

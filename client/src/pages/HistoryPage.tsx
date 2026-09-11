@@ -321,21 +321,32 @@ function SelosDoJogo({ match, selos }: { match: Match; selos: Map<string, SeloCo
 
   return (
     <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Selos do jogo">
-      {conquistas.map(({ selo, valor, nome }) => (
-        <li
-          key={selo.id}
-          title={selo.descrever(valor)}
-          className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] ${
-            selo.zoeira ? 'border-loss/30 bg-loss/10' : 'border-line/60 bg-raised/60'
-          }`}
-        >
-          <span aria-hidden="true">{selo.emoji}</span>
-          <span className={`font-semibold ${selo.zoeira ? 'text-loss' : 'text-ink'}`}>
-            {selo.nome}
-          </span>
-          <span className="text-ink-muted">{nome}</span>
-        </li>
-      ))}
+      {conquistas.map(({ selo, valor, nome, playerId }) => {
+        // O ponto colorido diz de que time é o dono do selo -- azul ou vermelho
+        // NESTE jogo, como a coluna em que ele aparece.
+        const lado = match.stats.find((stat) => stat.playerId === playerId)?.teamSide;
+        const nomeDoLado = lado === 'BLUE' ? 'Time azul' : 'Time vermelho';
+        return (
+          <li
+            key={selo.id}
+            title={`${nomeDoLado} · ${selo.descrever(valor)}`}
+            className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] ${
+              selo.zoeira ? 'border-loss/30 bg-loss/10' : 'border-line/60 bg-raised/60'
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`h-2 w-2 shrink-0 rounded-full ${lado === 'BLUE' ? 'bg-blue' : 'bg-red'}`}
+            />
+            <span className="sr-only">{nomeDoLado}:</span>
+            <span aria-hidden="true">{selo.emoji}</span>
+            <span className={`font-semibold ${selo.zoeira ? 'text-loss' : 'text-ink'}`}>
+              {selo.nome}
+            </span>
+            <span className="text-ink-muted">{nome}</span>
+          </li>
+        );
+      })}
     </ul>
   );
 }

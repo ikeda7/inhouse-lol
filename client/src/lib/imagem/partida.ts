@@ -45,10 +45,11 @@ const ALTURA_COLUNAS = 30;
 const ALTURA_TIME = 44;
 const ALTURA_LINHA = 54;
 const ESPACO_ENTRE_TIMES = 14;
-const ALTURA_BANS = 74;
+const ALTURA_BANS = 100;
 const ALTURA_RODAPE = 50;
 const ICONE = 38;
-const ICONE_DO_BAN = 32;
+const ICONE_DO_BAN = 40;
+const ESPACO_DO_BAN = 10;
 const ALTURA_TITULO_SELOS = 34;
 const ALTURA_SELO = 56;
 const ESPACO_SELO = 10;
@@ -138,7 +139,10 @@ export async function gerarImagemDaPartida(
     desenharBans(ctx, times, y, icones);
     y += ALTURA_BANS;
   }
-  if (conquistas.length > 0) desenharSelos(ctx, conquistas, y);
+  if (conquistas.length > 0) {
+    const ladoDe = new Map(partida.stats.map((stat) => [stat.playerId, stat.teamSide] as const));
+    desenharSelos(ctx, conquistas, y, ladoDe);
+  }
 
   desenharRodape(ctx, altura, ORIGEM[partida.source]);
   return paraPng(canvas);
@@ -195,7 +199,16 @@ function desenharTime(
   ctx.fillText(NOME_DO_LADO[time.lado], MARGEM + 4, meio);
   const larguraDoNome = ctx.measureText(`${NOME_DO_LADO[time.lado]}   `).width;
   ctx.fillStyle = venceu ? COR.vitoria : COR.derrota;
-  ctx.fillText(venceu ? 'VITÓRIA' : 'DERROTA', MARGEM + 4 + larguraDoNome, meio);
+  const resultado = venceu ? 'VITÓRIA' : 'DERROTA';
+  ctx.fillText(resultado, MARGEM + 4 + larguraDoNome, meio);
+
+  // Total do time ao lado do resultado: o placar que o grupo compara primeiro.
+  const abates = time.jogadores.reduce((soma, j) => soma + j.kills, 0);
+  const ouro = time.jogadores.reduce((soma, j) => soma + j.goldEarned, 0);
+  const depoisDoResultado = MARGEM + 4 + larguraDoNome + ctx.measureText(`${resultado}   `).width;
+  ctx.font = fonte(13);
+  ctx.fillStyle = COR.apagado;
+  ctx.fillText(`${abates} abates · ${milhar(ouro)} de ouro`, depoisDoResultado, meio);
 
   if (time.objetivos) {
     ctx.textAlign = 'right';
@@ -272,19 +285,35 @@ function desenharJogador(
  * nome do selo vem colorido e o dono vem em branco, grande o bastante para
  * ler na miniatura.
  */
-function desenharSelos(ctx: CanvasRenderingContext2D, conquistas: Conquista[], topo: number) {
+function desenharSelos(
+  ctx: CanvasRenderingContext2D,
+  conquistas: Conquista[],
+  topo: number,
+  ladoDe: ReadonlyMap<string, TeamSide>
+) {
   ctx.textBaseline = 'alphabetic';
   ctx.font = fonte(12, 600);
   ctx.fillStyle = COR.fraco;
   ctx.fillText('DESTAQUES DO JOGO', MARGEM, topo + 22);
 
-  const largura = (LARGURA - MARGEM * 2 - ESPACO_SELO) / 2;
+  const metade = (LARGURA - MARGEM * 2 - ESPACO_SELO) / 2;
   conquistas.forEach((conquista, i) => {
-    const x = MARGEM + (i % 2) * (largura + ESPACO_SELO);
+    // Número ímpar de selos: o último ocupa a linha inteira, para a segunda
+    // coluna não terminar num buraco.
+    const sozinho = conquistas.length % 2 === 1 && i === conquistas.length - 1;
+    const largura = sozinho ? LARGURA - MARGEM * 2 : metade;
+    const x = MARGEM + (i % 2) * (metade + ESPACO_SELO);
     const y = topo + ALTURA_TITULO_SELOS + Math.floor(i / 2) * (ALTURA_SELO + ESPACO_SELO);
     ctx.fillStyle = COR.fundoAlterna;
     caixa(ctx, x, y, largura, ALTURA_SELO, 10);
     ctx.fill();
+    // Faixa do lado do dono do selo, como nos blocos de time acima.
+    const lado = ladoDe.get(conquista.playerId);
+    if (lado) {
+      ctx.fillStyle = COR_DO_LADO[lado];
+      caixa(ctx, x, y, 4, ALTURA_SELO, 2);
+      ctx.fill();
+    }
 
     const meio = y + ALTURA_SELO / 2;
     ctx.textBaseline = 'middle';
@@ -328,18 +357,31 @@ function desenharBans(
   ctx.fillStyle = COR.fraco;
   ctx.fillText('BANS', MARGEM, topo + 16);
 
-  const yDosIcones = topo + 28;
+  // Uma caixa por time, com a faixa do lado, e os ícones CENTRALIZADOS nela.
+  // Alinhados à esquerda, sobrava um buraco à direita de cada metade.
+  const topoDaCaixa = topo + 26;
+  const alturaDaCaixa = ICONE_DO_BAN + 20;
+  const larguraDaCaixa = (LARGURA - MARGEM * 2 - ESPACO_SELO) / 2;
   times.forEach((time, i) => {
-    // Metade da largura para cada time, com a cor do lado na frente.
-    const xInicial = i === 0 ? MARGEM : LARGURA / 2 + 10;
+    const x = MARGEM + i * (larguraDaCaixa + ESPACO_SELO);
+    ctx.fillStyle = COR.fundoAlterna;
+    caixa(ctx, x, topoDaCaixa, larguraDaCaixa, alturaDaCaixa, 10);
+    ctx.fill();
     ctx.fillStyle = COR_DO_LADO[time.lado];
-    ctx.fillRect(xInicial, yDosIcones, 3, ICONE_DO_BAN);
+    caixa(ctx, x, topoDaCaixa, 4, alturaDaCaixa, 2);
+    ctx.fill();
+
+    // Só os bans que existem: um time que baniu 3 mostra 3 centralizados, e
+    // não 3 ícones e 2 quadrados vazios.
+    const quantos = time.bans.length;
+    const larguraDaFileira = quantos * ICONE_DO_BAN + Math.max(0, quantos - 1) * ESPACO_DO_BAN;
+    const inicio = x + (larguraDaCaixa - larguraDaFileira) / 2;
     time.bans.forEach((ban, k) => {
       desenharIcone(
         ctx,
         ban.championName ? icones.get(ban.championName) : null,
-        xInicial + 10 + k * (ICONE_DO_BAN + 6),
-        yDosIcones,
+        inicio + k * (ICONE_DO_BAN + ESPACO_DO_BAN),
+        topoDaCaixa + 10,
         ICONE_DO_BAN
       );
     });
