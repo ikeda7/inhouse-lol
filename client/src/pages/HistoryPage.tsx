@@ -362,7 +362,12 @@ function TeamColumn({
       // medido pela verificação de telas no CI. O vencedor já se distingue
       // pela faixa verde, pelo anel e pelo selo VENCEU; o perdedor só não
       // ganha nada disso.
-      className={`rounded-lg p-2 transition ${
+      //
+      // `min-w-0`: item de grid tem largura mínima = o conteúdo. Sem isto, no
+      // celular o nome longo não encolhia (o `truncate` nunca disparava) e a
+      // linha empurrava o K/D/A para fora do card (#84) -- os emojis dos selos
+      // pioraram o que já vazava.
+      className={`min-w-0 rounded-lg p-2 transition ${
         match.winner === side ? 'bg-win/[0.06] ring-1 ring-win/25' : ''
       }`}
     >
