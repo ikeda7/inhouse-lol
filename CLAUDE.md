@@ -69,7 +69,10 @@ tablet. No screenshot baseline on purpose: both checks are baseline-free.
   `npm run build --workspace client`, then start the server (`app.ts` serves
   `client/dist`). No Vite, no proxy, no CORS — same as production.
 - `--preparar` **writes** fixture data (two extra players so the Sorteio has
-  blocked rows, and a series with two matches). Only against a throwaway DB,
+  blocked rows — reactivated if a previous run left them inactive —, a series
+  with two matches on an empty DB, and an **ongoing MD3 with one game**, so the
+  Série screen is measured the way it looks on game night instead of "no MD3
+  in progress"). Only against a throwaway DB,
   as the CI job does with `DATABASE_URL=file:./ci.db`. Never against `dev.db`.
 - `--telas sorteio,historico` runs a subset; an unknown name exits 2 instead
   of silently checking nothing.
@@ -438,8 +441,13 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
   `teamSide`). MD3 badges reuse the match rules with scope `md3`
   (`selosDaSerie`: "o maior da MD3", no first blood), and only players who
   played every game compete, so a one-game substitute doesn't lose "most
-  damage" for playing less. Histórico's "A MD3 inteira" block and the series
-  image use the same functions. A metric that is zero (old import without
+  damage" for playing less. `components/NaSerie.tsx` renders it in Histórico
+  ("A MD3 inteira") and live on the Série tab ("A MD3 até agora"), switching
+  to two team columns by its own width (`@container`), not the viewport's;
+  the series image uses the same functions. The Série score reads "Time A x
+  Time B" with each roster underneath and "Jogos da série" says which team
+  won by roster — `blueScore`/`redScore` are team A/B, and labelling them
+  "Azul x Vermelho" was wrong after the side swap. A metric that is zero (old import without
   the column) is hidden, not shown as "0 dano/min".
   Text-contrast tokens must stay WCAG AA against the lightest surface they
   render on; measure, don't eyeball (see the `ink-muted`/`ink-faint` incident

@@ -192,16 +192,12 @@ dependências):
 O backlog vive nas [issues](https://github.com/ikeda7/inhouse-lol/issues). O
 que está aberto, em ordem de retorno:
 
-### Precisa de decisão sua, não de código
+### Esperando o mundo, não código
 
-- **#12 — decidir a stack com o Ígor.** A urgência caiu: o argumento
-  "serverless não tem disco" foi resolvido com Turso, sem trocar stack. Sugestão
-  registrada na issue: separar em duas perguntas, porque têm respostas
-  diferentes — Prisma→Drizzle vale por si e não depende dele; React→Angular só
-  faz sentido se ele for efetivamente mexer no front.
-- **#21 — importar as 4 noites antigas.** São 5x5 válidas de 17/08 e 10/08, com
-  2 participantes de fora do grupo. Importar dobra a amostra e **muda a
-  classificação de todo mundo**. A issue tem o comando pronto.
+- **#72 — Prisma major.** O alerta alto do `npm audit` só sai com a `8.1.0`
+  estável, que ainda não existe (em 11/09 a mais nova é `8.0.0-rc.13`). Só a CLI
+  lê o código afetado. No mesmo issue: os 2 moderados do `qs` só somem com o
+  Express 5, e nenhuma requisição chega nesse `qs` (`query parser: simple`).
 
 ### Feito e no ar — falta você conferir na prática
 
@@ -232,16 +228,14 @@ Se algo estiver errado, o que fazer depende de onde:
 
 1. **Reimportar depois de cada noite virou hábito manual.** Vale um comando só
    (`--watch` já existe, mas ninguém lembra de deixar rodando).
-2. **A aba Série é a menos trabalhada.** É tela de ação, não de leitura, mas
-   ainda assim tem espaço vazio no desktop.
-3. **Teste de componente cobre 7 componentes de ~20.** `Avatar` e as telas de
-   conta entraram; os que faltam com regra de verdade continuam sendo
-   `MatchPlayerDetail` (as barras de comparação), `CaptainsDraft` (de quem é a
-   vez) e `Select` (teclado).
-4. **A suíte tem um teste no limite do tempo.** O `autoBalance` de 200 sorteios
-   roda em ~5,4s contra um limite de 5s em máquina Windows — já falhou uma vez
-   e passou nas outras. É vermelho aleatório esperando acontecer no CI; ou sobe
-   o `testTimeout`, ou reduz o número de seeds.
+2. **Teste de componente das barras e da vez.** `Select` (teclado e portal)
+   entrou em 11/09; os que faltam com regra de verdade são
+   `MatchPlayerDetail` (as barras de comparação) e `CaptainsDraft` (de quem é
+   a vez). A vez da sala ao vivo já é coberta pelo fluxo de dois navegadores.
+
+Feito em 11/09 e fora desta lista: a aba Série em duas colunas com "A MD3 até
+agora" e o placar por elenco; o `autoBalance` de 200 sorteios roda em ~1s e
+ganhou timeout próprio; stats da MD3 inteira (#97).
 
 ---
 

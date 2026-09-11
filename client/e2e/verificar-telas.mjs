@@ -40,8 +40,10 @@
  *   node client/e2e/verificar-telas.mjs --base http://localhost:3333 --preparar
  *
  *   --preparar   cria o que as telas precisam para ter conteúdo (jogadores
- *                extras e uma série com duas partidas). Só use em banco
- *                descartável: grava dados.
+ *                extras, uma série com duas partidas num banco vazio, e uma
+ *                MD3 em andamento com um jogo, para a aba Série ser medida
+ *                como numa noite de jogo). Só use em banco descartável:
+ *                grava dados.
  *   --saida DIR  onde guardar os screenshots (padrão: e2e-saida)
  *
  * Sai com 1 se achar problema, 2 se não conseguir nem montar o cenário.
@@ -136,26 +138,40 @@ function montarPartida(azul, vermelho, campeoes, indice) {
 async function prepararCenario() {
   // Dois além dos dez: com exatamente dez, marcar todos no Sorteio não deixa
   // ninguém bloqueado -- e o bloqueado era justamente o estado que reprovava.
-  const existentes = await api('GET', '/players');
+  // Com os inativos: `/players` sozinho só lista ativo, e um Reserva
+  // desativado passava por inexistente -- o cadastro batia no nome único (409).
+  const existentes = await api('GET', '/players?includeInactive=true');
   for (const [nome, roles] of [
     ['Reserva Um', ['FILL']],
     ['Reserva Dois', ['MID', 'ADC']],
   ]) {
-    if (!existentes.some((p) => p.name === nome)) {
+    const achado = existentes.find((p) => p.name === nome);
+    if (!achado) {
       await api('POST', '/players', { name: nome, roles, riotId: null });
+    } else if (!achado.active) {
+      // Inativo não aparece no Sorteio, e o bloqueado era o estado que interessa.
+      await api('PATCH', `/players/${achado.id}`, { active: true });
     }
-  }
-
-  const series = await api('GET', '/series?limit=5');
-  if (series.some((s) => s.matches.length > 0)) {
-    console.log('  já existe série com partida -- cenário mantido como está');
-    return;
   }
 
   const ativos = (await api('GET', '/players')).filter((p) => p.active);
   if (ativos.length < 10) {
     throw new Error(`preciso de 10 jogadores ativos e há ${ativos.length}. Rode o seed.`);
   }
+
+  const series = await api('GET', '/series?limit=5');
+  if (series.some((s) => s.matches.length > 0)) {
+    console.log('  já existe série com partida -- histórico mantido como está');
+  } else {
+    await criarSerieComDuasPartidas(ativos);
+  }
+
+  // Depois da série de duas partidas, não antes: ela sai de `/series/current`,
+  // e os campeões dela repetiriam na MD3 aberta, que o Fearless recusa.
+  await garantirMd3AoVivo(ativos);
+}
+
+async function criarSerieComDuasPartidas(ativos) {
   const azul = ativos.slice(0, 5);
   const vermelho = ativos.slice(5, 10);
 
@@ -171,6 +187,34 @@ async function prepararCenario() {
     );
   }
   console.log(`  série "${serie.name ?? serie.id}" com ${PARTIDAS.length} partidas`);
+}
+
+/**
+ * Uma MD3 em andamento com um jogo: o estado da aba Série numa noite de jogo.
+ * Sem isto a Série era medida vazia ("Nenhuma MD3 em andamento") e o layout
+ * de verdade -- placar, a MD3 até agora, jogos -- nunca passava pela checagem.
+ * Um jogo só: com 1-0 a MD3 continua aberta.
+ */
+async function garantirMd3AoVivo(ativos) {
+  const atual = await api('GET', '/series/current');
+  if (atual && atual.matches.length > 0) {
+    console.log(`  MD3 "${atual.name ?? atual.id}" já em andamento com jogo`);
+    return;
+  }
+  const serie =
+    atual ??
+    (
+      await api('POST', '/series/garantir', {
+        name: 'Verificação de telas · ao vivo',
+        fearless: true,
+      })
+    ).serie;
+  await api(
+    'POST',
+    `/series/${serie.id}/matches`,
+    montarPartida(ativos.slice(0, 5), ativos.slice(5, 10), PARTIDAS[0], 0)
+  );
+  console.log(`  MD3 "${serie.name ?? serie.id}" em andamento com 1 jogo`);
 }
 
 // ---------------------------------------------------------------------------
