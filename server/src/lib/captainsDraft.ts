@@ -66,7 +66,7 @@ export interface CaptainCandidate extends DraftablePlayer {
   gamesPlayed?: number;
 }
 
-export type CaptainSelectionMode = 'TOP_WINRATE' | 'LAST_LOSERS' | 'RANDOM';
+export type CaptainSelectionMode = 'TOP_WINRATE' | 'LAST_LOSERS' | 'RANDOM' | 'MANUAL';
 
 export interface SelectCaptainsInput {
   roster: CaptainCandidate[];
@@ -79,6 +79,8 @@ export interface SelectCaptainsInput {
   /** Minimo de jogos para entrar no criterio de winrate. Evita 1-0 = 100%. */
   minGamesForWinrate?: number;
   seed?: number;
+  /** Para o modo MANUAL: [capitão azul, capitão vermelho], escolhidos pelo grupo. */
+  captainIds?: [string, string];
 }
 
 function pickTwoRandom<T>(items: T[], seed: number): [T, T] {
@@ -103,6 +105,9 @@ function pickTwoRandom<T>(items: T[], seed: number): [T, T] {
  * pelo rating interno).
  * LAST_LOSERS: sorteia 2 entre quem perdeu o ultimo mapa.
  * RANDOM: sorteio puro.
+ * MANUAL: o grupo decide quem tira o time -- o primeiro de `captainIds` é o
+ *   azul, o segundo o vermelho. Existe porque "quem quer tirar o time" é
+ *   decisão de gente, e nenhum critério automático acerta isso.
  */
 export function selectCaptains(input: SelectCaptainsInput): Record<TeamSide, CaptainCandidate> {
   const { roster, mode, lastGameLosers = [], minGamesForWinrate = 3 } = input;
@@ -113,6 +118,19 @@ export function selectCaptains(input: SelectCaptainsInput): Record<TeamSide, Cap
       `O draft de capitaes precisa de ${REQUIRED_PLAYERS} jogadores. Recebi ${roster.length}.`,
       'INVALID_ROSTER_SIZE'
     );
+  }
+
+  if (mode === 'MANUAL') {
+    const [idAzul, idVermelho] = input.captainIds ?? [];
+    const azul = roster.find((p) => p.id === idAzul);
+    const vermelho = roster.find((p) => p.id === idVermelho);
+    if (!azul || !vermelho || azul.id === vermelho.id) {
+      throw new DraftError(
+        'Escolha dois capitães diferentes entre os 10 marcados.',
+        'INVALID_CAPTAINS'
+      );
+    }
+    return { BLUE: azul, RED: vermelho };
   }
 
   if (mode === 'LAST_LOSERS') {

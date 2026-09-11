@@ -129,19 +129,25 @@ export const draftApi = {
   autoBalance: (playerIds: string[], options: { seed?: number; ignoreRating?: boolean } = {}) =>
     post<AutoBalanceResult>('/draft/auto-balance', { playerIds, ...options }),
 
+  /** `captainIds` só vale no modo MANUAL: [capitão azul, capitão vermelho]. */
   startCaptains: (
     playerIds: string[],
     mode: CaptainSelectionMode = 'TOP_WINRATE',
-    seriesId?: string
-  ) => post<CaptainsDraftState>('/draft/captains/start', { playerIds, mode, seriesId }),
+    seriesId?: string,
+    captainIds?: [string, string]
+  ) => post<CaptainsDraftState>('/draft/captains/start', { playerIds, mode, seriesId, captainIds }),
 
   pick: (state: CaptainsDraftState, playerId: string) =>
     post<CaptainsDraftState>('/draft/captains/pick', { state, playerId }),
 
   // --- draft ao vivo (issue #6) ---
 
-  criarSala: (playerIds: string[], mode: CaptainSelectionMode = 'TOP_WINRATE', seriesId?: string) =>
-    post<DraftRoom>('/draft/rooms', { playerIds, mode, seriesId }),
+  criarSala: (
+    playerIds: string[],
+    mode: CaptainSelectionMode = 'TOP_WINRATE',
+    seriesId?: string,
+    captainIds?: [string, string]
+  ) => post<DraftRoom>('/draft/rooms', { playerIds, mode, seriesId, captainIds }),
 
   /**
    * Consulta a sala. Mandando `since`, o servidor responde so "nao mudou" --

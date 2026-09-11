@@ -72,10 +72,12 @@ draftRouter.post(
 
 const captainsSchema = z.object({
   playerIds: rosterSchema,
-  mode: z.enum(['TOP_WINRATE', 'LAST_LOSERS', 'RANDOM']).default('TOP_WINRATE'),
+  mode: z.enum(['TOP_WINRATE', 'LAST_LOSERS', 'RANDOM', 'MANUAL']).default('TOP_WINRATE'),
   /** Necessario no modo LAST_LOSERS: de qual MD3 pegar quem perdeu o ultimo mapa. */
   seriesId: z.string().optional(),
   seed: z.number().int().optional(),
+  /** Necessario no modo MANUAL: [capitao azul, capitao vermelho]. */
+  captainIds: z.tuple([z.string().min(1), z.string().min(1)]).optional(),
 });
 
 /**
@@ -85,7 +87,7 @@ const captainsSchema = z.object({
 draftRouter.post(
   '/captains/start',
   asyncHandler(async (req, res) => {
-    const { playerIds, mode, seriesId, seed } = captainsSchema.parse(req.body);
+    const { playerIds, mode, seriesId, seed, captainIds } = captainsSchema.parse(req.body);
     const roster = await loadRoster(playerIds);
     const winRates = await getWinRates();
 
@@ -101,7 +103,13 @@ draftRouter.post(
     const lastGameLosers =
       mode === 'LAST_LOSERS' && seriesId ? await getLastGameLosers(seriesId) : [];
 
-    const captains = selectCaptains({ roster: candidates, mode, lastGameLosers, seed });
+    const captains = selectCaptains({
+      roster: candidates,
+      mode,
+      lastGameLosers,
+      seed,
+      captainIds,
+    });
     const state = startCaptainsDraft(candidates, captains);
 
     res.json({
@@ -191,7 +199,7 @@ draftRouter.get(
 draftRouter.post(
   '/rooms',
   asyncHandler(async (req, res) => {
-    const { playerIds, mode, seriesId, seed } = captainsSchema.parse(req.body);
+    const { playerIds, mode, seriesId, seed, captainIds } = captainsSchema.parse(req.body);
     const roster = await loadRoster(playerIds);
     const winRates = await getWinRates();
 
@@ -207,7 +215,13 @@ draftRouter.post(
     const lastGameLosers =
       mode === 'LAST_LOSERS' && seriesId ? await getLastGameLosers(seriesId) : [];
 
-    const captains = selectCaptains({ roster: candidates, mode, lastGameLosers, seed });
+    const captains = selectCaptains({
+      roster: candidates,
+      mode,
+      lastGameLosers,
+      seed,
+      captainIds,
+    });
     const sala = await criarSala(startCaptainsDraft(candidates, captains));
 
     res.status(201).json({
