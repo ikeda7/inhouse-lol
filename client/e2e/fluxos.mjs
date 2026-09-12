@@ -14,9 +14,10 @@
  *   3. Ranking: a imagem baixa, e cada ordenação deixa a tabela na ordem que a
  *      API dá para ela.
  *   4. Jogadores: cada filtro mostra exatamente quantos a API diz que faltam.
- *   5. Sorteio: "tenta outro" traz outro sorteio; no modo capitães, os dois
- *      escolhidos na mão ficam com azul e vermelho e o draft fecha 5x5. Nada
- *      disso grava -- sorteio e draft são calculadoras (lib/escritas.ts).
+ *   5. Sorteio: "tenta outro" traz outros times, nunca uma divisão já vista;
+ *      no modo capitães, os dois escolhidos na mão ficam com azul e vermelho e
+ *      o draft fecha 5x5. Nada disso grava -- sorteio e draft são calculadoras
+ *      (lib/escritas.ts).
  *   6. Ajuda: o "?" do cabeçalho leva para "Como funciona".
  *   7. Sorteio → Série (só com --preparar): marcar 10, sortear, "Usar esses
  *      times na série" abre a MD3 e leva para a Série.
@@ -435,13 +436,43 @@ async function fluxoDoSorteioDeNovo(pagina) {
   await pagina.getByRole('button', { name: /Sortear times/ }).click();
   const legenda = pagina.getByText(/seed \d+/);
   await legenda.waitFor({ timeout: 20000 });
+  // O sorteio equilibra pelo histórico e devolve o de cada um: as 10 linhas
+  // dos dois times mostram o KDA da pessoa, ou "novo" para quem nunca jogou.
+  const linhasComHistorico = await pagina.getByText(/^(KDA \d+\.\d{2}|novo)$/).count();
+  exigir(
+    linhasComHistorico === 10,
+    `o resultado do sorteio mostra o histórico em ${linhasComHistorico} de 10 jogadores`
+  );
   const seed = async () => /seed (\d+)/.exec(await legenda.innerText())?.[1];
-  const primeira = await seed();
-  await pagina.getByRole('button', { name: /tenta outro/ }).click();
-  await esperarAte(async () => {
-    const agora = await seed();
-    return agora !== primeira || `seed ${agora}`;
-  }, '"Não gostei, tenta outro" não trouxe outro sorteio');
+  // Uma divisão é quem joga com quem, sem importar o lado. Trocar só a seed não
+  // basta: com a força de cada um vindo do histórico, seeds diferentes davam
+  // exatamente os mesmos times.
+  const nomesDoTime = async (titulo) =>
+    (
+      await pagina
+        .locator('div', { has: pagina.getByRole('heading', { name: titulo }) })
+        .last()
+        .locator('li span.truncate')
+        .allInnerTexts()
+    )
+      .sort()
+      .join(', ');
+  const divisao = async () => [await nomesDoTime('Time Azul'), await nomesDoTime('Time Vermelho')];
+  const vistas = [await divisao()];
+  for (let clique = 1; clique <= 2; clique++) {
+    const antes = await seed();
+    await pagina.getByRole('button', { name: /tenta outro/ }).click();
+    await esperarAte(async () => {
+      const agora = await seed();
+      return agora !== antes || `seed ${agora}`;
+    }, '"Não gostei, tenta outro" não trouxe outro sorteio');
+    const [azul, vermelho] = await divisao();
+    exigir(
+      vistas.every(([a, v]) => a !== azul && a !== vermelho && v !== azul),
+      `o ${clique}º "tenta outro" repetiu uma divisão já mostrada: ${azul} x ${vermelho}`
+    );
+    vistas.push([azul, vermelho]);
+  }
 }
 
 async function fluxoDosCapitaes(pagina) {
@@ -655,7 +686,9 @@ async function fluxoDaConta(pagina) {
   const nova = 'senha-do-fluxo-2';
   // Um jogador só para isto: reivindicar um veterano mexeria no "sem conta"
   // que o fluxo dos filtros confere.
-  await api('POST', '/players', { name: nome, roles: ['MID'], riotId: null });
+  // Fill, não uma role só: esse jogador fica ativo no banco, e um monte de
+  // gente que só joga MID tornava impossível o sorteio de quem roda depois.
+  await api('POST', '/players', { name: nome, roles: ['FILL'], riotId: null });
   const enviarFormulario = () => pagina.locator('form button[type="submit"]').click();
 
   await pagina.goto(`${BASE}/criar-conta`, { waitUntil: 'networkidle' });
@@ -888,7 +921,7 @@ async function main() {
     ['Ranking: a imagem baixa', fluxoDoRanking],
     ['Ranking: cada ordenação deixa a tabela na ordem da API', fluxoDaOrdenacao],
     ['Jogadores: cada filtro mostra quantos a API diz que faltam', fluxoDosFiltros],
-    ['Sorteio: "tenta outro" traz outro sorteio', fluxoDoSorteioDeNovo],
+    ['Sorteio: "tenta outro" traz outros times, nunca uma divisão já vista', fluxoDoSorteioDeNovo],
     ['Sorteio: capitães escolhidos na mão, draft fecha 5x5', fluxoDosCapitaes],
     ['Ajuda: o "?" leva para "Como funciona"', fluxoDaAjuda],
     ['Sorteio: usar os times abre a MD3 e leva para a Série', fluxoDoSorteio],

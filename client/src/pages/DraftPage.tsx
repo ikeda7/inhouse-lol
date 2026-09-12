@@ -9,6 +9,12 @@ import { UsarTimesNaSerie } from '../components/UsarTimesNaSerie';
 import { CaptainsDraft } from '../components/CaptainsDraft';
 import { fromAutoBalance, fromCaptains, saveActiveDraft } from '../lib/activeDraft';
 import {
+  chaveDoElenco,
+  divisoesAEvitar,
+  registrarDivisao,
+  type DivisoesVistas,
+} from '../lib/divisoes';
+import {
   ROLES,
   ROLE_LABEL,
   type AutoBalanceResult,
@@ -31,6 +37,8 @@ export function DraftPage() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [result, setResult] = useState<AutoBalanceResult | null>(null);
+  /** O que já apareceu para estes 10: o próximo clique nunca repete os times. */
+  const [vistas, setVistas] = useState<DivisoesVistas | null>(null);
 
   // O modo Capitães divide a tela com o sorteio em vez de ter aba própria: o
   // começo é idêntico (marcar quem veio hoje), e o grupo decide DEPOIS de ter
@@ -86,8 +94,13 @@ export function DraftPage() {
     });
 
   const handleDraw = async () => {
-    const drawn = await draw.run([...selected], {});
-    if (drawn) setResult(drawn);
+    const elenco = chaveDoElenco(selected);
+    const evitar = divisoesAEvitar(vistas, elenco);
+    const drawn = await draw.run([...selected], { evitar });
+    if (!drawn) return;
+    setResult(drawn);
+    const ids = (lado: AutoBalanceResult['blueTeam']) => lado.players.map((p) => p.player.id);
+    setVistas(registrarDivisao(evitar, ids(drawn.blueTeam), ids(drawn.redTeam), elenco));
   };
 
   const handleIniciarCapitaes = async () => {
@@ -329,8 +342,8 @@ export function DraftPage() {
       {result && (
         <div className="space-y-3">
           <div className="grid gap-4 md:grid-cols-2">
-            <TeamCard team={result.blueTeam} averageRating />
-            <TeamCard team={result.redTeam} averageRating />
+            <TeamCard team={result.blueTeam} historico={result.historico} />
+            <TeamCard team={result.redTeam} historico={result.historico} />
           </div>
 
           <UsarTimesNaSerie salvar={() => saveActiveDraft(fromAutoBalance(result))} />
@@ -338,8 +351,9 @@ export function DraftPage() {
           {/* Transparencia do algoritmo: a seed permite reproduzir um sorteio
               contestado, e o custo justifica as escolhas de role. */}
           <p className="text-center text-xs text-ink-faint">
-            Diferenca de rating: {result.ratingDiff} · custo de roles: {result.comfortCost} ·{' '}
-            {result.solutionsEvaluated} composicoes avaliadas · seed {result.seed}
+            Equilibrado pelo histórico de cada um (KDA e vitórias; quem jogou pouco conta perto da
+            média) · diferença de força: {result.ratingDiff} · custo de roles: {result.comfortCost}{' '}
+            · {result.solutionsEvaluated} composições avaliadas · seed {result.seed}
           </p>
           <p className="flex items-center justify-center gap-4 text-[11px] text-ink-faint">
             <span className="flex items-center gap-1">

@@ -67,7 +67,23 @@ export interface BalancedTeam {
   comfortCost: number;
 }
 
+/** O histórico de um jogador no sorteio: os números do ranking. */
+export interface HistoricoNoSorteio {
+  jogos: number;
+  kda: number;
+  /** 0 a 100, como no ranking. */
+  winRate: number;
+  /**
+   * O que o sorteio considerou (lib/forca): com a média do grupo emprestada a
+   * quem jogou pouco e KDA com teto. É a média disso que o card do time mostra.
+   */
+  kdaConsiderado: number;
+  winRateConsiderado: number;
+}
+
 export interface AutoBalanceResult {
+  /** Histórico de cada um dos 10, por id -- é por ele que o sorteio equilibra. */
+  historico?: Record<string, HistoricoNoSorteio>;
   blueTeam: BalancedTeam;
   redTeam: BalancedTeam;
   ratingDiff: number;

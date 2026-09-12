@@ -409,7 +409,10 @@ await passo('sorteia 10 com o novato dentro, 20 vezes seguidas', async () => {
   // impossível e o sorteio, o draft e a sala falhavam a partir da 5ª rodada
   // no mesmo banco (#89). "Reserva" é o que o --preparar da verificação de
   // telas cria.
-  const veteranos = ctx.jogadores.filter((p) => !/^(Conta|Novato|Reserva) /.test(p.name));
+  // "Fluxo" são os jogadores que os fluxos do navegador cadastram (Jogadores e
+  // Conta), pelo mesmo motivo: rodando o ensaio depois deles no mesmo banco, o
+  // elenco ficava impossível.
+  const veteranos = ctx.jogadores.filter((p) => !/^(Conta|Novato|Reserva|Fluxo) /.test(p.name));
   ctx.elenco = [...veteranos.slice(0, 9).map((p) => p.id), ctx.novato.id];
   for (let seed = 1; seed <= 20; seed++) {
     const times = dados(
@@ -417,6 +420,12 @@ await passo('sorteia 10 com o novato dentro, 20 vezes seguidas', async () => {
       `sorteio ${seed}`
     );
     validarTimes(times, `sorteio ${seed}`);
+    // O sorteio equilibra pelo histórico (lib/forca) e devolve o de cada um,
+    // que é o que a tela mostra para o grupo conferir se ficou parelho.
+    exigir(
+      times.historico && ctx.elenco.every((id) => id in times.historico),
+      `sorteio ${seed}: a resposta não trouxe o histórico dos 10`
+    );
     if (seed === 1) ctx.times = times;
   }
 });
@@ -433,6 +442,31 @@ await passo('a mesma seed repete o mesmo sorteio', async () => {
       .sort()
       .join();
   exigir(azul(deNovo) === azul(ctx.times), 'mesma seed deu times diferentes');
+});
+
+await passo('"tenta outro" nunca repete uma divisão já mostrada', async () => {
+  precisa('elenco', 'times');
+  // O cliente manda um time de cada divisão que já apareceu, azul ou vermelho.
+  // Com a força vinda do histórico o ótimo é único: sem `evitar`, seeds
+  // diferentes devolviam os mesmos times.
+  const ids = (time) => time.players.map((a) => a.player.id);
+  const divisao = (t) =>
+    [ids(t.blueTeam), ids(t.redTeam)]
+      .map((l) => l.sort().join())
+      .sort()
+      .join('|');
+  const vistas = [divisao(ctx.times)];
+  const evitar = [ids(ctx.times.redTeam)];
+  for (let clique = 1; clique <= 4; clique++) {
+    const outro = dados(
+      await api('POST', '/draft/auto-balance', { playerIds: ctx.elenco, seed: 1, evitar }),
+      `tenta outro ${clique}`
+    );
+    validarTimes(outro, `tenta outro ${clique}`);
+    exigir(!vistas.includes(divisao(outro)), `o ${clique}º "tenta outro" repetiu uma divisão`);
+    vistas.push(divisao(outro));
+    evitar.push(ids(outro.blueTeam));
+  }
 });
 
 await passo('com 9 jogadores recusa em vez de sortear torto', async () => {

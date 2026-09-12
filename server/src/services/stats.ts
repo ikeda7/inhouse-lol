@@ -693,3 +693,32 @@ export async function getWinRates(): Promise<Map<string, { winRate: number; game
     ])
   );
 }
+
+/**
+ * O histórico que o sorteio usa para equilibrar os times (lib/forca): KDA e
+ * vitórias de cada jogador, e o KDA do grupo inteiro somado, que é a régua.
+ * Sai do ranking para ser o MESMO número que a galera vê na tabela.
+ */
+export async function getHistoricoDoSorteio(): Promise<{
+  kdaDoGrupo: number;
+  porJogador: Map<string, { jogos: number; vitorias: number; kda: number; winRate: number }>;
+}> {
+  const leaderboard = await getLeaderboard();
+  const total = leaderboard.reduce(
+    (soma, entry) => ({
+      k: soma.k + entry.totalKills,
+      d: soma.d + entry.totalDeaths,
+      a: soma.a + entry.totalAssists,
+    }),
+    { k: 0, d: 0, a: 0 }
+  );
+  return {
+    kdaDoGrupo: computeKda(total.k, total.d, total.a),
+    porJogador: new Map(
+      leaderboard.map((entry) => [
+        entry.playerId,
+        { jogos: entry.games, vitorias: entry.wins, kda: entry.avgKda, winRate: entry.winRate },
+      ])
+    ),
+  };
+}
