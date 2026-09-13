@@ -7,7 +7,7 @@ import { resolvedorDeIcone } from '../lib/imagem/canvas';
 import { gerarImagemDaPartida } from '../lib/imagem/partida';
 import { gerarImagemDaSerie } from '../lib/imagem/serie';
 import { useAction, useAsync } from '../hooks/useAsync';
-import { Card, EmptyState, ErrorState, LoadingState } from '../components/ui';
+import { Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../components/ui';
 import { ChampionIcon, ordenarPorLane } from '../components/ChampionIcon';
 import { Highlights } from '../components/Highlights';
 import { conquistasEmOrdem, selosDaPartida, type SeloConquistado } from '../lib/selos';
@@ -46,14 +46,7 @@ export function HistoryPage() {
   }
 
   return (
-    <Card
-      title={
-        <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
-          <History size={16} />
-          Histórico de séries
-        </h2>
-      }
-    >
+    <Card destaque title={<CardTitle icon={History}>Histórico de séries</CardTitle>}>
       <ul className="divide-y divide-line/40">
         {data.map((series) => {
           const isOpen = expanded === series.id;

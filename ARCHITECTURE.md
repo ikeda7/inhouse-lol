@@ -300,6 +300,38 @@ canvas → surface → raised → overlay
 Hierarquia vem de escala e espaço. O dourado é **acento**, nunca texto corrido.
 Azul e vermelho identificam **só** time.
 
+**Direção "Placar" (redesign de 2026-09).** O Claude Design propôs três
+direções:
+
+| Direção | O que muda | Decisão |
+|---|---|---|
+| A · Placar | hierarquia por escala, menos fio | escolhida |
+| B · Transmissão | caixa-alta, canto chanfrado | descartada |
+| C · Folha do rachão | a tela desenhada como a imagem do zap | uma ideia aproveitada |
+
+O que ficou:
+
+- O `Card` perdeu a borda.
+- O título de seção subiu de 13px, que sumia entre os números, para 20px em
+  Inter Tight.
+- O dourado ficou só no número que decide a tela e na ação principal.
+- Da C veio o fio dourado de 2px no bloco principal de cada tela (`destaque`),
+  que é o mesmo filete das imagens exportadas.
+
+A B saiu por dois motivos: o `clip-path` do canto chanfrado recorta o contorno
+de foco, e a caixa-alta em tudo contraria a regra de sentence case.
+
+**Fontes carregadas de verdade.** Antes os tokens pediam Inter sem que nada
+carregasse a fonte, então a tela saía na fonte do sistema. Agora as três
+famílias vêm do fontsource e são servidas pelo próprio site. O canvas das
+imagens desenha com a mesma Inter e espera `fontesProntas()`: desenhar antes de
+a fonte chegar mede o texto com a fonte errada.
+
+**O hash do avatar não mudou, e foi de propósito.** O design apontou que o
+multiplicador 31 degenera sobre 6 cores (31 ≡ 1 mod 6). Com os 15 nomes reais,
+porém, o hash atual usa as 6 cores (4-1-2-2-5-1), e o FNV-1a deixaria 7 numa
+cor só. Trocar mudaria a cor de todo mundo sem ganho.
+
 **O primeiro nível se chamava `base`, e o nome colidia com uma utility do
 Tailwind.** `--color-base` faz o Tailwind gerar uma utility de *cor*
 `text-base`, que tem exatamente o mesmo nome da utility de *tamanho de fonte*

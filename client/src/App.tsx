@@ -83,8 +83,10 @@ export function App() {
       <header className="sticky top-0 z-30 border-b border-line/50 bg-canvas/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-6 px-4 py-3.5 sm:px-6 lg:px-8">
           <NavLink to="/" className="group flex items-baseline gap-1.5">
-            <span className="text-lg font-bold tracking-tight text-ink">InHouse</span>
-            <span className="text-lg font-bold tracking-tight text-gold">LoL</span>
+            <span className="font-display text-lg font-bold tracking-[-0.01em] text-ink">
+              InHouse
+            </span>
+            <span className="font-display text-lg font-bold tracking-[-0.01em] text-gold">LoL</span>
           </NavLink>
 
           <div className="flex items-center gap-1">

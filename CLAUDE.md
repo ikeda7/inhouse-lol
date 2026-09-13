@@ -431,6 +431,19 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
   moment titles/phrases) come from the page by parameter (`CATEGORIA`,
   `textoDoMomento` in `HighlightsPage.tsx`), never duplicated in the image
   modules.
+- Visual direction is "Placar", chosen from the Claude Design export (the
+  export lives untracked in `.claude/design/`):
+  - `Card` has **no border**; it separates from the page by layer and space.
+  - `CardTitle` is 20px Inter Tight with an ink-colored icon. Don't hand-roll
+    a 13px `<h2>`.
+  - `destaque` puts a 2px gold rule on **one** block per screen, the same rule
+    as the exported images.
+  - Gold marks only the number that decides the screen (points, leader) and
+    the primary action. The ranking's W–L is ink, not gold.
+- Fonts are Inter / Inter Tight / JetBrains Mono from fontsource, self-hosted
+  and imported in `main.tsx`. Their family names end in `Variable`. Canvas
+  doesn't wait for fonts, so every image generator calls `fontesProntas()`
+  before measuring text; after 2.5s it falls back to the system font.
 - Match badges ("selos": most damage, most deaths, fewest deaths, …) live in
   `client/src/lib/selos.ts` and feed **both** the Histórico rows and the match
   image, so the screen and the shared PNG never disagree. Rules worth keeping:
