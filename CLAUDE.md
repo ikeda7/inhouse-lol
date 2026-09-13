@@ -105,7 +105,9 @@ one already shown (a new seed alone gave the same teams once strength came
 from history), and captains mode with two
 hand-picked captains drafts to 5x5 (draw and draft are stateless
 calculators, so these run read-only against production too); the
-"?" reaches the help page; Chromium itself reports the site as installable
+"?" reaches the help page; a duo partner on a profile links to their
+profile, which shows the same duo with the same record from the other side;
+Chromium itself reports the site as installable
 (`Page.getInstallabilityErrors` over CDP, in a persistent profile, since the
 default Playwright context is incognito and always answers `in-incognito`)
 and every manifest icon loads as a PNG; and (with `--preparar`) Sorteio → "Usar esses times
@@ -248,7 +250,7 @@ migration unmodified. Never add a framework import to it.
 |---|---|
 | `lib/autoBalance.ts` | Team draw: Hall's theorem feasibility check + MRV backtracking + cost-based restarts. Picks at random among splits within `ratingTolerance` of the best that put nobody further off-role, and never one in `avoidSplits` (what the screen already showed) |
 | `lib/forca.ts` | A player's strength from history — ranking KDA (log scale) and wins, shrunk toward the group average for players with few games — which is the `rating` the draw balances. `internalRating` is only a manual offset on top (1000 = none). Before this every rating was 1000 and "balance" did nothing |
-| `lib/duplas.ts` | Duos on the profile: teammates are players on the same side of the same match; a duo needs 3 games together; "Ganha mais com" is winrate ≥ 50%, "Perde mais com" below it (zoeira, shown in `loss`, never gold) |
+| `lib/duplas.ts` | Duos on the profile: teammates are players on the same side of the same match; a duo needs 3 games together; "Ganha mais com" is winrate above 50%, "Perde mais com" below it (zoeira, shown in `loss`, never gold); exactly 50% is in neither |
 | `lib/captainsDraft.ts` | Snake draft, order `1-2-2-2-1` |
 | `lib/lcu.ts` | Parses the LoL client's local match-history API (LCU) |
 | `lib/rofl.ts` | Parses `.rofl` replay files (binary format found by reverse engineering) |

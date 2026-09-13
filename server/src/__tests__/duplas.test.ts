@@ -46,6 +46,14 @@ describe('duplas', () => {
     ]);
   });
 
+  it('dupla em 50% não ganha mais nem perde mais: não entra em nenhuma lista', () => {
+    const linhas = [
+      ...[1, 2].flatMap((n) => partida(`v${n}`, ['eu', 'ana'], ['x'], 'BLUE')),
+      ...[3, 4].flatMap((n) => partida(`d${n}`, ['eu', 'ana'], ['x'], 'RED')),
+    ];
+    expect(duplasDe('eu', linhas)).toEqual({ melhores: [], piores: [] });
+  });
+
   it('winrate empatado: quem jogou mais junto vem antes, e cada lista para em 3', () => {
     const linhas = [
       ...['ana', 'bia', 'caio', 'duda'].flatMap((parceiro) =>
