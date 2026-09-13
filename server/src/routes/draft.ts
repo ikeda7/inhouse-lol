@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { autoBalanceTeams, DraftError } from '../lib/autoBalance.js';
+import { autoBalanceTeams, DraftError, NEUTRAL_RATING } from '../lib/autoBalance.js';
+import { historicoConsiderado, ratingPorHistorico } from '../lib/forca.js';
 import {
   applyPick,
   buildPickOrder,
@@ -11,7 +12,7 @@ import {
 } from '../lib/captainsDraft.js';
 import { findPlayersByIds, toDraftablePlayer } from '../services/players.js';
 import { getLastGameLosers } from '../services/series.js';
-import { getWinRates } from '../services/stats.js';
+import { getHistoricoDoSorteio, getWinRates } from '../services/stats.js';
 import {
   buscarSala,
   criarSala,
@@ -49,6 +50,11 @@ const autoBalanceSchema = z.object({
   seed: z.number().int().optional(),
   /** Ignora o rating e busca so o melhor encaixe de roles. */
   ignoreRating: z.boolean().optional(),
+  /**
+   * Divisoes que ja apareceram na tela ("tenta outro"): cada item sao os ids de
+   * um dos times. O teto so protege o servidor; o cliente manda as ultimas.
+   */
+  evitar: z.array(z.array(z.string()).length(5)).max(50).optional(),
 });
 
 /**
@@ -58,15 +64,46 @@ const autoBalanceSchema = z.object({
 draftRouter.post(
   '/auto-balance',
   asyncHandler(async (req, res) => {
-    const { playerIds, seed, ignoreRating } = autoBalanceSchema.parse(req.body);
-    const roster = await loadRoster(playerIds);
+    const { playerIds, seed, ignoreRating, evitar } = autoBalanceSchema.parse(req.body);
+    const [roster, { kdaDoGrupo, porJogador }] = await Promise.all([
+      loadRoster(playerIds),
+      getHistoricoDoSorteio(),
+    ]);
 
-    const result = autoBalanceTeams(roster.map(toDraftablePlayer), {
-      seed,
-      ...(ignoreRating ? { ratingWeight: 0 } : {}),
-    });
+    // Força pelo histórico (lib/forca). O internalRating do cadastro vira um
+    // ajuste manual por cima -- 1000 é "sem ajuste" -- para ainda dar para
+    // dizer "o novato é bom" antes de ele ter jogo aqui.
+    const result = autoBalanceTeams(
+      roster.map((player) => ({
+        ...toDraftablePlayer(player),
+        rating:
+          ratingPorHistorico(porJogador.get(player.id), kdaDoGrupo) +
+          (player.internalRating - NEUTRAL_RATING),
+      })),
+      { seed, avoidSplits: evitar, ...(ignoreRating ? { ratingWeight: 0 } : {}) }
+    );
 
-    res.json({ success: true, data: result });
+    // O histórico de cada um volta junto: o KDA do ranking para cada linha, e o
+    // que o sorteio considerou para a média do time -- é assim que o grupo
+    // confere se ficou parelho sem um KDA absurdo distorcer a média.
+    const historico = Object.fromEntries(
+      playerIds.map((id) => {
+        const doJogador = porJogador.get(id);
+        const considerado = historicoConsiderado(doJogador, kdaDoGrupo);
+        return [
+          id,
+          {
+            jogos: doJogador?.jogos ?? 0,
+            kda: doJogador?.kda ?? 0,
+            winRate: doJogador?.winRate ?? 0,
+            kdaConsiderado: Math.round(considerado.kda * 100) / 100,
+            winRateConsiderado: Math.round(considerado.vitorias * 1000) / 10,
+          },
+        ];
+      })
+    );
+
+    res.json({ success: true, data: { ...result, historico } });
   })
 );
 

@@ -75,7 +75,7 @@ export function AjudaPage() {
             Em <Aba to="/sorteio">Sorteio</Aba>, marque os 10 que vão jogar e escolha um jeito:
             <ul className="mt-2 space-y-1.5">
               <Item titulo="Sorteio automático">
-                equilibra os dois times pelo nível e pelas roles de cada um.
+                equilibra os dois times pelo histórico de cada um (KDA e vitórias) e pelas roles.
               </Item>
               <Item titulo="Modo capitães">
                 draft 1-2-2-2-1. O capitão sai por maior winrate, por quem perdeu a última, no

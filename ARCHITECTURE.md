@@ -37,7 +37,8 @@ reescrever:
 
 | Arquivo | O que resolve |
 |---|---|
-| `autoBalance.ts` | Sorteio de times. Hall + MRV + restarts. 14 testes. |
+| `autoBalance.ts` | Sorteio de times. Hall + MRV + restarts. Sorteia entre as divisões perto da melhor sem tirar ninguém da main, e nunca repete uma que a tela já mostrou (`avoidSplits`): com a força vinda do histórico o ótimo é único, e trocar a seed dava os mesmos times. |
+| `forca.ts` | Força de cada jogador pelo histórico (KDA do ranking em escala log + vitórias, puxada para a média de quem jogou pouco): é o rating que o sorteio equilibra. |
 | `lcu.ts` | Parser do histórico do cliente do LoL |
 | `rofl.ts` | Parser de replay (formato descoberto por engenharia reversa) |
 | `captainsDraft.ts` | Snake draft 1-2-2-2-1 |

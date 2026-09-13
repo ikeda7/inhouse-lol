@@ -99,7 +99,9 @@ each sort tab requests its own `sortBy` and leaves the table in that order
 (the request is the proof when the data gives the same order in all four,
 as the CI database does); each
 Jogadores filter shows exactly as many rows as the API says are missing;
-Sorteio's "tenta outro" brings a new seed, and captains mode with two
+Sorteio's "tenta outro" brings a different team split twice in a row, never
+one already shown (a new seed alone gave the same teams once strength came
+from history), and captains mode with two
 hand-picked captains drafts to 5x5 (draw and draft are stateless
 calculators, so these run read-only against production too); the
 "?" reaches the help page; and (with `--preparar`) Sorteio → "Usar esses times
@@ -132,7 +134,7 @@ node client/e2e/ensaio-da-noite.mjs --base http://localhost:3334
 ```
 
 Walks the whole night through the API, in order: register a late player,
-draw teams (20 seeds), captains draft, live draft room (turn and version
+draw teams (20 seeds; "tenta outro" never repeats a split), captains draft, live draft room (turn and version
 locks), open a Fearless MD3, record games, a Fearless violation, a side swap
 scored by roster, the auto-finish at 2 wins, discarding an empty series, and
 the LCU import path the companion uses (dry run, idempotent resend,
@@ -238,7 +240,8 @@ migration unmodified. Never add a framework import to it.
 
 | File | Purpose |
 |---|---|
-| `lib/autoBalance.ts` | Team draw: Hall's theorem feasibility check + MRV backtracking + cost-based restarts |
+| `lib/autoBalance.ts` | Team draw: Hall's theorem feasibility check + MRV backtracking + cost-based restarts. Picks at random among splits within `ratingTolerance` of the best that put nobody further off-role, and never one in `avoidSplits` (what the screen already showed) |
+| `lib/forca.ts` | A player's strength from history — ranking KDA (log scale) and wins, shrunk toward the group average for players with few games — which is the `rating` the draw balances. `internalRating` is only a manual offset on top (1000 = none). Before this every rating was 1000 and "balance" did nothing |
 | `lib/captainsDraft.ts` | Snake draft, order `1-2-2-2-1` |
 | `lib/lcu.ts` | Parses the LoL client's local match-history API (LCU) |
 | `lib/rofl.ts` | Parses `.rofl` replay files (binary format found by reverse engineering) |
