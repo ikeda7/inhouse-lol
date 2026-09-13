@@ -12,12 +12,20 @@ import { ROLE_LABEL, type RoleInput } from '../types';
  * nenhuma tela "esqueça" de tratar algum deles.
  */
 
+/**
+ * O bloco de toda tela.
+ *
+ * Direção "Placar" do redesign: o card não tem borda. Ele se separa do fundo
+ * pela camada (`surface` sobre `canvas`) e pelo respiro, e a hierarquia vem
+ * do título de 20px. Borda em todo card fazia a tela inteira ter o mesmo peso.
+ */
 export function Card({
   title,
   action,
   children,
   className = '',
   padding = true,
+  destaque = false,
 }: {
   title?: ReactNode;
   action?: ReactNode;
@@ -25,21 +33,25 @@ export function Card({
   className?: string;
   /** Desligue quando o conteúdo controla o próprio respiro (tabela, lista). */
   padding?: boolean;
+  /**
+   * O bloco principal da tela: ganha o fio dourado de 2px no topo, o mesmo das
+   * imagens que vão para o zap. Um por tela, senão deixa de dizer "é aqui".
+   */
+  destaque?: boolean;
 }) {
   return (
     <section
-      className={`surgir overflow-hidden rounded-lg border border-line/60 bg-surface/80 backdrop-blur-sm ${className}`}
+      className={`surgir relative overflow-hidden rounded-lg bg-surface/80 backdrop-blur-sm ${className}`}
     >
+      {destaque && (
+        <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gold" />
+      )}
       {(title || action) && (
         // flex-wrap: quando a ação é pesada (as abas de ordenação + os botões
         // de imagem no ranking), ela desce para a própria linha em vez de
         // espremer o título em duas linhas e vazar para fora da tela.
-        <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line/50 px-4 py-3 sm:px-5">
-          {typeof title === 'string' ? (
-            <h2 className="text-[13px] font-semibold tracking-tight text-ink">{title}</h2>
-          ) : (
-            title
-          )}
+        <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line/40 px-4 py-3.5 sm:px-5">
+          {typeof title === 'string' ? <CardTitle>{title}</CardTitle> : title}
           {action}
         </header>
       )}
@@ -48,17 +60,26 @@ export function Card({
   );
 }
 
-/** Título de seção com o mesmo peso em todo lugar. */
+/**
+ * Título de seção com o mesmo peso em todo lugar: 20px em Inter Tight. Com
+ * 13px ele sumia entre os números da tabela.
+ *
+ * O ícone sai em tinta, não em dourado: o dourado fica para o número que
+ * decide a tela (pontos, líder) e a ação principal. Um ícone que carrega
+ * sentido próprio (a chama do Fearless) passa a cor em `iconClassName`.
+ */
 export function CardTitle({
   icon: Icon,
+  iconClassName = 'text-ink-muted',
   children,
 }: {
   icon?: React.ElementType;
+  iconClassName?: string;
   children: ReactNode;
 }) {
   return (
-    <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
-      {Icon && <Icon size={15} className="text-gold" />}
+    <h2 className="flex min-w-0 items-center gap-2 font-display text-xl font-bold leading-tight tracking-[-0.01em] text-ink">
+      {Icon && <Icon size={18} className={`shrink-0 ${iconClassName}`} aria-hidden />}
       {children}
     </h2>
   );

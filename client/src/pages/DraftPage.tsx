@@ -3,7 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Dices, Users, RefreshCw, Check, Crown, Radio, Swords } from 'lucide-react';
 import { draftApi, playersApi } from '../api/client';
 import { useAction, useAsync } from '../hooks/useAsync';
-import { Avatar, Button, Card, ErrorState, LoadingState, RoleBadge } from '../components/ui';
+import {
+  Avatar,
+  Button,
+  Card,
+  CardTitle,
+  ErrorState,
+  LoadingState,
+  RoleBadge,
+} from '../components/ui';
 import { TeamCard } from '../components/TeamCard';
 import { UsarTimesNaSerie } from '../components/UsarTimesNaSerie';
 import { CaptainsDraft } from '../components/CaptainsDraft';
@@ -140,12 +148,8 @@ export function DraftPage() {
   return (
     <div className="space-y-6">
       <Card
-        title={
-          <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
-            <Users size={16} />
-            Quem veio hoje
-          </h2>
-        }
+        destaque
+        title={<CardTitle icon={Users}>Quem veio hoje</CardTitle>}
         action={
           <div className="flex items-center gap-3">
             {sortedPlayers.length >= REQUIRED_PLAYERS && selected.size === 0 && (

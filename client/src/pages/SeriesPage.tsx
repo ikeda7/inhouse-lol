@@ -11,7 +11,15 @@ import {
 import { playersApi, riotApi, seriesApi } from '../api/client';
 import { useAction, useAsync } from '../hooks/useAsync';
 import { useChampions } from '../hooks/useChampions';
-import { Button, Card, EmptyState, ErrorState, LoadingState, RoleBadge } from '../components/ui';
+import {
+  Button,
+  Card,
+  CardTitle,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  RoleBadge,
+} from '../components/ui';
 import { BurnedChampions } from '../components/BurnedChampions';
 import { MatchForm, type PrefilledSlot } from '../components/MatchForm';
 import { clearActiveDraft, loadActiveDraft } from '../lib/activeDraft';
@@ -84,12 +92,8 @@ export function SeriesPage() {
     <div className="space-y-6">
       {/* ---------------- placar ---------------- */}
       <Card
-        title={
-          <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
-            <Swords size={16} />
-            {current.name ?? 'MD3 em andamento'}
-          </h2>
-        }
+        destaque
+        title={<CardTitle icon={Swords}>{current.name ?? 'MD3 em andamento'}</CardTitle>}
         action={
           <Button
             variant="ghost"
@@ -267,14 +271,7 @@ export function SeriesPage() {
           <BurnedChampions burned={current.burnedChampions} ddragonVersion={manifest?.version} />
 
           {/* ---------------- importacao automatica ---------------- */}
-          <Card
-            title={
-              <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
-                <Terminal size={16} />
-                Importar do cliente do LoL
-              </h2>
-            }
-          >
+          <Card title={<CardTitle icon={Terminal}>Importar do cliente do LoL</CardTitle>}>
             <p className="mb-3 text-xs leading-relaxed text-ink-faint">
               A API pública da Riot <strong className="text-ink">não lista custom games</strong>.
               Quem lista é o próprio cliente do LoL. Rode o agente na máquina de quem hospedou a

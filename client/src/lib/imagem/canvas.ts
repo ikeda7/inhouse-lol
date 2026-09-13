@@ -9,8 +9,10 @@ import type { ChampionManifest } from '../../types';
  * (copiar, baixar, enviar). Assim a mesma pessoa, o mesmo campeão e o mesmo
  * dourado saem iguais em qualquer imagem que alguém mande no grupo.
  *
- * O app não carrega webfont -- usa a fonte do sistema -- então o canvas bate
- * com a tela sem precisar esperar `document.fonts.ready`.
+ * A tela usa Inter (carregada em main.tsx), e o canvas desenha com a mesma
+ * família. Canvas não espera fonte: desenhar antes de ela chegar sai na fonte
+ * do sistema, com a medida do texto errada. Por isso toda imagem começa por
+ * `fontesProntas()`.
  */
 
 /** Desenha em 2x e reduz na exibição: sem isso, sai borrado em tela retina. */
@@ -40,7 +42,26 @@ export const COR = {
   vermelho: '#ff5c5c',
 };
 
-const FONTE = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif';
+const FAMILIA = 'Inter Variable';
+const FONTE = `"${FAMILIA}", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif`;
+
+/** Sem a fonte nesse prazo, a imagem sai na do sistema em vez de não sair. */
+export const ESPERA_DA_FONTE_MS = 2500;
+
+/**
+ * Garante os pesos que as imagens usam antes de medir ou desenhar texto.
+ * `document.fonts.load` baixa a fonte se a tela ainda não precisou dela (a
+ * imagem pode pedir o 700 antes de qualquer texto em negrito aparecer). Nunca
+ * falha: sem suporte, sem rede ou demorando, segue com a fonte do sistema.
+ */
+export async function fontesProntas(): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts?.load) return;
+  const pesos = [400, 600, 700].map((peso) => document.fonts.load(`${peso} 16px "${FAMILIA}"`));
+  await Promise.race([
+    Promise.all(pesos).catch(() => undefined),
+    new Promise((resolver) => setTimeout(resolver, ESPERA_DA_FONTE_MS)),
+  ]);
+}
 
 /** A cor com transparência -- para etiquetas tingidas ("#d4b26a" + 0.16). */
 export function comAlfa(hex: string, alfa: number): string {

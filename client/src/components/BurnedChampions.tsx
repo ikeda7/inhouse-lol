@@ -1,7 +1,7 @@
 import { ICONE_INDISPONIVEL } from './ChampionIcon';
 import { Flame } from 'lucide-react';
 import type { BurnedChampion } from '../types';
-import { Card, EmptyState } from './ui';
+import { Card, CardTitle, EmptyState } from './ui';
 
 /**
  * FEARLESS DRAFT: campeoes indisponiveis para o resto da MD3.
@@ -32,10 +32,9 @@ export function BurnedChampions({
   return (
     <Card
       title={
-        <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
-          <Flame size={16} className="text-orange-400" />
+        <CardTitle icon={Flame} iconClassName="text-orange-400">
           Campeões queimados
-        </h2>
+        </CardTitle>
       }
       action={
         <span className="text-xs text-ink-faint">

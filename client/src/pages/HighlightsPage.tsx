@@ -123,6 +123,7 @@ export function HighlightsPage() {
   return (
     <div className="space-y-6">
       <Card
+        destaque
         padding={false}
         title={<CardTitle icon={Award}>Recordes</CardTitle>}
         action={

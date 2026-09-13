@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { UserPlus, Save } from 'lucide-react';
 import { playersApi } from '../api/client';
 import { useAction, useAsync } from '../hooks/useAsync';
-import { Button, Card, ErrorState, LoadingState } from '../components/ui';
+import { Button, Card, CardTitle, ErrorState, LoadingState } from '../components/ui';
 import { PlayerRow } from '../components/PlayerRow';
 import { ROLE_LABEL, ROLES, type Player, type RoleInput } from '../types';
 import { contarPorFiltro, filtrarJogadores, type FiltroDeJogadores } from '../lib/filtroJogadores';
@@ -55,14 +55,7 @@ export function PlayersPage() {
 
   return (
     <div className="space-y-6">
-      <Card
-        title={
-          <h2 className="flex items-center gap-2 text-[13px] font-semibold tracking-tight text-ink">
-            <UserPlus size={16} />
-            Novo jogador
-          </h2>
-        }
-      >
+      <Card title={<CardTitle icon={UserPlus}>Novo jogador</CardTitle>}>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-xs text-ink-faint">
             Nome
@@ -127,6 +120,7 @@ export function PlayersPage() {
       </Card>
 
       <Card
+        destaque
         title={`Jogadores (${players?.length ?? 0})`}
         action={
           <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[11px]">
