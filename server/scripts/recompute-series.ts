@@ -16,7 +16,7 @@
  */
 
 import '../src/lib/env.js';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/db/prisma.js';
 import { computeSeriesStanding, WINS_TO_CLINCH } from '../src/services/series.js';
 
 const dryRun = process.argv.includes('--dry-run');
