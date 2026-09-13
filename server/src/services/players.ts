@@ -6,7 +6,7 @@
  * ordenado por preferencia.
  */
 
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../db/prisma.js';
 import { normalizeRole, type RoleInput } from '../lib/roles.js';
 import type { DraftablePlayer } from '../lib/autoBalance.js';
 

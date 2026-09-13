@@ -102,9 +102,10 @@ npm run db:recompute                # aplica
 
 Monorepo com npm workspaces: [`server/`](server/) e [`client/`](client/).
 
-**Documentação:** [COMECE-AQUI.md](COMECE-AQUI.md) (subir numa máquina nova) ·
-[ARCHITECTURE.md](ARCHITECTURE.md) (por que o código é assim) ·
-[DEPLOY.md](DEPLOY.md) (como publicar) · [CONTRIBUTING.md](CONTRIBUTING.md) (como contribuir)
+**Documentação:** [ARCHITECTURE.md](ARCHITECTURE.md) (por que o código é assim) ·
+[DEPLOY.md](DEPLOY.md) (como publicar) · [CONTRIBUTING.md](CONTRIBUTING.md) (fluxo de branches) ·
+[NOITE-DE-JOGOS.md](NOITE-DE-JOGOS.md) (o passo a passo da noite). O backlog vive nas
+[issues](https://github.com/ikeda7/inhouse-lol/issues).
 
 ---
 
@@ -133,8 +134,8 @@ Abra <http://localhost:5173>.
 
 > **A `RIOT_API_KEY` é opcional e você provavelmente não precisa dela.** O
 > caminho principal de importação usa o cliente do LoL, não a API pública — e
-> esse caminho dispensa chave. A chave só serve para importar por Match ID ou
-> pelo spectator. Ela sai em <https://developer.riotgames.com/> e a versão de
+> esse caminho dispensa chave. A chave só serve para importar por Match ID e
+> para o "Usar ícone do LoL" da conta. Ela sai em <https://developer.riotgames.com/> e a versão de
 > desenvolvimento expira a cada 24 horas.
 
 ### Outros comandos
@@ -277,7 +278,6 @@ silêncio.
 | **Agente local (LCU)** | Padrão. Scoreboard completo, automático. ~1 mês de histórico. |
 | **Replay .rofl** | Mais antigo que isso. Precisa do replay salvo. |
 | **Match ID na API pública** | Alguém anotou o ID. `POST /api/riot/import`. Precisa da chave. |
-| **Spectator** | Captura o ID durante o jogo. `POST /api/riot/sync-last`. Precisa da chave. |
 | **Formulário manual** | Sempre disponível, sem chave nenhuma. |
 
 O formulário manual **não é plano B improvisado**: como a API pública não cobre
@@ -329,17 +329,13 @@ O arquivo some a cada deploy e a escrita **não dá erro** — ela desaparece, q
 pior. Por que Turso e não Postgres: mantém o mesmo motor em dev e em produção,
 evitando a divergência silenciosa que gera "na minha máquina funciona".
 
-Alternativas que rodam o mesmo código, sem alteração:
+Fora da Vercel, o mesmo código roda em qualquer lugar com Node: `npm run build`
+e `npm start` sobem API e front juntos. Na rede local, o pessoal acessa pelo
+seu IP; o PC só precisa estar ligado.
 
-- **Rede local** — `npm start` e o pessoal acessa pelo seu IP. Zero custo, mas
-  depende do seu PC ligado.
-- **VPS** (~R$25/mês) — [`Dockerfile`](Dockerfile) pronto. O SQLite volta a ser
-  arquivo e o Turso vira opcional.
-- **Fly.io** — [`fly.toml`](fly.toml) pronto, com volume persistente.
-
-> **O app não tem autenticação.** Quem tiver o link mexe em tudo. Para um link
-> não divulgado entre amigos costuma bastar, mas leia o aviso em
-> [DEPLOY.md](DEPLOY.md) antes de compartilhar.
+> **Escrita protegida.** Com a `GROUP_KEY` definida, toda escrita exige a chave
+> do grupo ou uma conta logada; leitura é pública. Detalhes em
+> [DEPLOY.md](DEPLOY.md).
 
 ---
 
@@ -432,7 +428,6 @@ exatamente os mesmos times — útil quando alguém contesta o resultado.
 | `GET` | `/api/series/:id` | Detalhe: scoreboard, objetivos por time e bans |
 | `GET` | `/api/stats/leaderboard` | Classificação geral |
 | `GET` | `/api/stats/highlights` | Recordes e momentos (aba Destaques) |
-| `POST` | `/api/riot/link` | Vincula Riot ID → PUUID |
 | `POST` | `/api/riot/import` | Importa partida por Match ID |
 | `GET` | `/api/riot/champions` | Manifesto de campeões do Data Dragon |
 | `GET` | `/api/riot/build` | Itens, feitiços e runas (só o histórico usa) |

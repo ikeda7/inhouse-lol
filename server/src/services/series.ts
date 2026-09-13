@@ -2,7 +2,7 @@
  * Regras da MD3: registro de jogo, Fearless Draft e fechamento da serie.
  */
 
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../db/prisma.js';
 import { isRole, type Role, type TeamSide } from '../lib/roles.js';
 import { resolveChampion } from '../lib/ddragon.js';
 
@@ -789,6 +789,12 @@ export async function getSeriesDetail(seriesId: string) {
   if (!series) return null;
 
   return { ...series, burnedChampions: await getBurnedChampions(seriesId) };
+}
+
+/** A MD3 em andamento com jogos e queimados, ou null se não houver. */
+export async function getOngoingSeriesDetail() {
+  const ongoing = await serieEmAndamento();
+  return ongoing ? getSeriesDetail(ongoing.id) : null;
 }
 
 export async function listSeries(limit = 20) {

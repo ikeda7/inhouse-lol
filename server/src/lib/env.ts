@@ -128,7 +128,7 @@ export const env = {
   riotApiKey: process.env.RIOT_API_KEY?.trim() || null,
   /** Roteamento regional para account-v1/match-v5: americas | europe | asia | sea. */
   riotRegionalRoute: optional('RIOT_REGIONAL_ROUTE', 'americas'),
-  /** Plataforma para spectator-v5: br1 | na1 | euw1 | ... */
+  /** Plataforma para summoner-v4 (ícone da conta): br1 | na1 | euw1 | ... */
   riotPlatform: optional('RIOT_PLATFORM', 'br1'),
 
   /** Origem liberada no CORS para o front do Vite. */

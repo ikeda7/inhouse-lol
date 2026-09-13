@@ -17,7 +17,7 @@
  */
 
 import '../src/lib/env.js';
-import { prisma } from '../src/lib/prisma.js';
+import { prisma } from '../src/db/prisma.js';
 
 const args = process.argv.slice(2);
 const confirmar = args.includes('--confirmar');
