@@ -67,7 +67,9 @@ export function HistoryPage() {
                   <span className="flex-1 text-[17px] font-semibold text-ink">
                     {series.name ?? new Date(series.date).toLocaleDateString('pt-BR')}
                   </span>
-                  <span className="tabular text-lg font-bold text-gold">{series.scoreline}</span>
+                  {/* Tinta, não dourado: numa lista em que toda linha tem placar, dourado
+                    em todas deixa de apontar qualquer coisa (direção "Placar"). */}
+                  <span className="tabular text-lg font-bold text-ink">{series.scoreline}</span>
                   <span
                     className={`w-28 text-right text-[13px] ${
                       series.status === 'ONGOING' ? 'text-amber-400' : 'text-ink-faint'
@@ -213,18 +215,17 @@ function MatchCard({ match, nomeDaSerie }: { match: Match; nomeDaSerie: string |
 
   return (
     <div className="rounded-lg border border-line/50 bg-raised/30 p-3 sm:p-4">
-      <div className="mb-2.5 flex flex-wrap items-center gap-2.5 text-[13px] font-semibold uppercase tracking-wider text-ink-faint">
-        <span>Jogo {match.matchNumber}</span>
+      <div className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-faint">
+        {/* Subtítulo do bloco, não rótulo miúdo: é o que separa um jogo do outro
+            numa MD3 aberta. */}
+        <h3 className="font-display text-base font-bold tracking-[-0.01em] text-ink">
+          Jogo {match.matchNumber}
+        </h3>
         {match.gameDurationSec && (
-          <span className="tabular font-normal normal-case tracking-normal">
-            {Math.round(match.gameDurationSec / 60)} min
-          </span>
+          <span className="tabular">{Math.round(match.gameDurationSec / 60)} min</span>
         )}
         {match.gameVersion && (
-          <span
-            className="font-normal normal-case tracking-normal"
-            title="Patch em que a partida foi jogada"
-          >
+          <span title="Patch em que a partida foi jogada">
             patch {match.gameVersion.split('.').slice(0, 2).join('.')}
           </span>
         )}
@@ -233,7 +234,7 @@ function MatchCard({ match, nomeDaSerie }: { match: Match; nomeDaSerie: string |
             apresentar números incomparáveis como se fossem equivalentes. */}
         {match.surrendered && (
           <span
-            className="flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-normal normal-case tracking-normal text-amber-400"
+            className="flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-amber-400"
             title="O jogo terminou em rendição -- as médias por minuto ficam mais altas do que num jogo completo."
           >
             <TriangleAlert size={11} />

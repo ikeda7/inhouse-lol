@@ -290,7 +290,7 @@ function Metric({
   const toneClass = tone === 'good' ? 'text-win' : tone === 'bad' ? 'text-loss' : 'text-ink';
 
   return (
-    <div className="rounded-lg border border-line/50 bg-raised/40 p-3">
+    <div className="rounded-lg bg-raised/40 p-3">
       <p className="text-[11px] uppercase tracking-wider text-ink-faint">{label}</p>
       <p
         className={`tabular mt-1 whitespace-nowrap font-bold ${pequeno ? 'text-base' : 'text-2xl'} ${toneClass}`}
