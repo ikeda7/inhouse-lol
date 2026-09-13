@@ -17,6 +17,12 @@ Deixe rodando a noite inteira. Ele vigia o cliente do LoL a cada 15 segundos e,
 **quando cada jogo termina, manda o placar sozinho** — build, dano, visão,
 bans, objetivos, tudo. Você não abre o site no meio da noite para nada.
 
+Esqueceu de ligar o vigia? No fim da noite, um comando só resolve:
+
+```bash
+node companion/inhouse-companion.mjs --noite --api https://inhouse-lol.vercel.app/api
+```
+
 O resto deste arquivo é o que fazer em volta disso.
 
 ---
@@ -142,7 +148,26 @@ tempo, tudo bem: a segunda tentativa é recusada como duplicada.
 
 ### 4. Fim da noite
 
-[Série](https://inhouse-lol.vercel.app/serie) → **Encerrar**.
+Rode o `--noite`, com ou sem vigia ligado:
+
+```bash
+node companion/inhouse-companion.mjs --noite --api https://inhouse-lol.vercel.app/api
+```
+
+Ele pega os customs da última noite no histórico do cliente, na ordem em que
+foram jogados:
+
+- **O que falta:** importa.
+- **O que o vigia já mandou:** atualiza no lugar, sem duplicar.
+- **Nenhuma MD3 aberta:** abre a da noite. Com cinco jogos, a primeira fecha em
+  2 vitórias e ele abre a segunda sozinho ("Quinta 10/09 · MD3 2").
+- **Alguma partida recusada:** para ali, porque importar a seguinte bagunçaria a
+  numeração da MD3. Conta sem vínculo aparece com o Riot ID. Cadastre em
+  Jogadores e rode `--noite` de novo: o que já entrou não duplica.
+
+Com `--dry-run` ele só confere, sem abrir nem gravar nada.
+
+Se a MD3 parou no 1-1, feche na mão: [Série](https://inhouse-lol.vercel.app/serie) → **Encerrar**.
 
 Isso fecha a MD3, define o vencedor pelo placar e libera o bônus de +1 ponto no
 ranking para quem venceu.
@@ -212,6 +237,9 @@ com o caso de uso concreto, não com a ideia.
 ```bash
 # durante a noite (é esse que importa)
 node companion/inhouse-companion.mjs --watch --api https://inhouse-lol.vercel.app/api
+
+# fim da noite: importa o que faltou, na ordem, e atualiza o que já entrou
+node companion/inhouse-companion.mjs --noite --api https://inhouse-lol.vercel.app/api
 
 # mandar a última partida na mão
 node companion/inhouse-companion.mjs --last --api https://inhouse-lol.vercel.app/api

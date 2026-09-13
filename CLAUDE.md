@@ -249,7 +249,8 @@ migration unmodified. Never add a framework import to it.
 | `lib/ddragon.ts` / `ddragonBuild.ts` | Data Dragon assets, items/spells/runes |
 | `lib/auth.ts` | Password hashing (bcryptjs) and session JWT — pure, no Prisma |
 | `lib/roles.ts` | Canonical roles — the source of truth since the schema has no `enum` (sqlite provider doesn't support it) |
-| `services/series.ts` | Bo3 lifecycle, Fearless burns, match ingest/refresh |
+| `services/series.ts` | Bo3 lifecycle, Fearless burns, match recording/refresh |
+| `services/ingest.ts` | Match import rules shared by LCU, replay and Match-ID: PUUID auto-link, unknown-player creation, LoL icon, idempotency, target MD3. `routes/ingest.ts` only validates and responds |
 | `services/stats.ts` | Leaderboard, player profile |
 | `services/highlights.ts` | Records/highlights (`CATEGORIAS` table) |
 | `services/draftRooms.ts` | Live-draft room state machine |
@@ -275,7 +276,13 @@ LCU client and no API key.
 
 `companion/inhouse-companion.mjs` is the local agent a player runs to push
 their LCU/replay history to the API; it's dependency-free by design (plain
-`node`, no npm install). `--refresh-all` re-sends already-imported games to
+`node`, no npm install). `--noite` imports the latest night in play order: it
+refreshes what is already in, opens the night's MD3 (and a second one after
+a 2-0) through `/series/garantir`, and stops at the first refusal so game 3
+never lands as game 2. Its flow (`importarNoite`) takes `enviar`/`abrirMd3` as
+parameters and is tested in `server/src/__tests__/companionNoite.test.ts`
+against a fake server; `main()` only runs when the file is executed, not
+imported. `--refresh-all` re-sends already-imported games to
 backfill new scoreboard columns without touching winner/series/Fearless state
 — see `refreshMatchStats` in `services/series.ts`, guarded by
 `assertMesmaPartida` (winner+roster must match) and a refusal to create new
