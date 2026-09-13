@@ -10,6 +10,7 @@
 import { prisma } from '../db/prisma.js';
 import { ROLES, type Role } from '../lib/roles.js';
 import { resolveChampion } from '../lib/ddragon.js';
+import { duplasDe, type Dupla } from '../lib/duplas.js';
 import { WINS_TO_CLINCH } from './series.js';
 
 /** Pontuacao: +3 por mapa vencido, +1 de bonus por vencer a MD3. */
@@ -506,6 +507,39 @@ export interface PlayerProfile {
   championPodium: ChampionPodiumEntry[];
   /** As ultimas partidas, para o perfil responder "como ele vem jogando". */
   recentMatches: RecentMatch[];
+  /** Com quem mais ganha e com quem mais perde no mesmo time (lib/duplas). */
+  duplas: { melhores: DuplaNoPerfil[]; piores: DuplaNoPerfil[] };
+}
+
+export interface DuplaNoPerfil extends Dupla {
+  name: string;
+  photoUrl: string | null;
+}
+
+/**
+ * As duplas do perfil. Carrega os dez de cada partida em que a pessoa jogou --
+ * uma query só, porque parceiro é quem está na mesma partida -- e a regra de
+ * quem conta como dupla fica pura em lib/duplas.
+ */
+async function carregarDuplas(playerId: string): Promise<PlayerProfile['duplas']> {
+  const linhas = await prisma.matchPlayerStat.findMany({
+    where: { match: { stats: { some: { playerId } } } },
+    select: {
+      matchId: true,
+      playerId: true,
+      teamSide: true,
+      win: true,
+      player: { select: { name: true, photoUrl: true } },
+    },
+  });
+  const pessoas = new Map(linhas.map((linha) => [linha.playerId, linha.player]));
+  const comNome = (dupla: Dupla): DuplaNoPerfil => ({
+    ...dupla,
+    name: pessoas.get(dupla.parceiroId)?.name ?? '?',
+    photoUrl: pessoas.get(dupla.parceiroId)?.photoUrl ?? null,
+  });
+  const { melhores, piores } = duplasDe(playerId, linhas);
+  return { melhores: melhores.map(comNome), piores: piores.map(comNome) };
 }
 
 /** Quantas partidas o perfil lista. Uma noite tem 2-3; dez cobre ~4 noites. */
@@ -575,10 +609,11 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile 
   });
   if (!player) return null;
 
-  const [rows, recentMatches, seriesBonus] = await Promise.all([
+  const [rows, recentMatches, seriesBonus, duplas] = await Promise.all([
     loadStatRows({ playerId }),
     loadRecentMatches(playerId),
     loadSeriesWinBonus(),
+    carregarDuplas(playerId),
   ]);
 
   let wins = 0;
@@ -667,6 +702,7 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile 
     totalAssists: assists,
     seriesWon: (seriesBonus.get(playerId) ?? 0) / POINTS_PER_SERIES_WIN,
     recentMatches,
+    duplas,
     // Mantem as 5 roles na ordem canonica, inclusive as com 0 jogos: a UI
     // desenha o grafico completo sem precisar preencher buracos.
     byRole: ROLES.map((role) => {

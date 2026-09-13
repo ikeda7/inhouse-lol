@@ -19,6 +19,8 @@
  *      o draft fecha 5x5. Nada disso grava -- sorteio e draft são calculadoras
  *      (lib/escritas.ts).
  *   6. Ajuda: o "?" do cabeçalho leva para "Como funciona".
+ *   6a. Perfil: o parceiro de dupla é link para o perfil dele, e a dupla tem o
+ *      mesmo placar vista dos dois lados.
  *   6b. App: o próprio Chromium aceita instalar o site na tela inicial
  *      (manifest válido, ícones que carregam como PNG).
  *   7. Sorteio → Série (só com --preparar): marcar 10, sortear, "Usar esses
@@ -326,6 +328,40 @@ async function fluxoDoRanking(pagina) {
   const botao = pagina.getByRole('button', { name: 'Baixar' }).first();
   if ((await botao.count()) === 0) return 'ranking vazio';
   await baixar(pagina, botao, 'ranking.png');
+}
+
+/**
+ * Duplas no perfil: o parceiro é um link, e clicar nele abre o perfil DELE --
+ * com a dupla aparecendo do outro lado também, porque jogar junto é simétrico.
+ */
+async function fluxoDasDuplas(pagina) {
+  const ranking = await api('GET', '/stats/leaderboard?sortBy=wins&minGames=3');
+  let comDupla = null;
+  for (const entrada of ranking.slice(0, 10)) {
+    const perfil = await api('GET', `/players/${entrada.playerId}/profile`);
+    const dupla = perfil.duplas.melhores[0] ?? perfil.duplas.piores[0];
+    if (dupla) {
+      comDupla = { perfil, dupla };
+      break;
+    }
+  }
+  if (!comDupla) return 'ninguém com 3 jogos no mesmo time de alguém';
+  const { perfil, dupla } = comDupla;
+
+  await pagina.goto(`${BASE}/jogadores/${perfil.playerId}`, { waitUntil: 'networkidle' });
+  const card = pagina.locator('section', { has: pagina.getByRole('heading', { name: 'Duplas' }) });
+  await card.getByRole('link', { name: dupla.name, exact: true }).first().click();
+  await pagina.waitForURL(new RegExp(`/jogadores/${dupla.parceiroId}$`), { timeout: 10000 });
+  await pagina.getByRole('heading', { level: 1, name: dupla.name }).waitFor({ timeout: 10000 });
+
+  const doParceiro = await api('GET', `/players/${dupla.parceiroId}/profile`);
+  const volta = [...doParceiro.duplas.melhores, ...doParceiro.duplas.piores].find(
+    (d) => d.parceiroId === perfil.playerId
+  );
+  exigir(
+    !volta || (volta.jogos === dupla.jogos && volta.vitorias === dupla.vitorias),
+    `a dupla ${perfil.name} + ${dupla.name} tem placar diferente em cada perfil`
+  );
 }
 
 async function fluxoDaAjuda(pagina) {
@@ -968,6 +1004,7 @@ async function main() {
     ['Sorteio: "tenta outro" traz outros times, nunca uma divisão já vista', fluxoDoSorteioDeNovo],
     ['Sorteio: capitães escolhidos na mão, draft fecha 5x5', fluxoDosCapitaes],
     ['Ajuda: o "?" leva para "Como funciona"', fluxoDaAjuda],
+    ['Perfil: a dupla leva ao perfil do parceiro, com o mesmo placar', fluxoDasDuplas],
     ['App: o navegador aceita instalar o site na tela inicial', fluxoDoAppInstalavel],
     ['Sorteio: usar os times abre a MD3 e leva para a Série', fluxoDoSorteio],
     [

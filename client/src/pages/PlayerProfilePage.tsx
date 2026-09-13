@@ -5,6 +5,7 @@ import { useAsync } from '../hooks/useAsync';
 import { Avatar, Card, CardTitle, ErrorState, LoadingState, EmptyState } from '../components/ui';
 import { ChampionIcon } from '../components/ChampionIcon';
 import { Highlights } from '../components/Highlights';
+import { Duplas } from '../components/Duplas';
 import { ROLE_LABEL, type PlayerProfile, type RecentMatch } from '../types';
 
 /**
@@ -36,6 +37,7 @@ export function PlayerProfilePage() {
         <div className="space-y-5">
           <Campeoes data={data} />
           <PorRole data={data} />
+          <Duplas duplas={data.duplas} />
         </div>
 
         <UltimasPartidas partidas={data.recentMatches} />
