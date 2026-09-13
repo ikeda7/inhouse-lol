@@ -17,7 +17,8 @@ export function Duplas({ duplas }: { duplas: PlayerProfile['duplas'] }) {
     <Card title={<CardTitle icon={Handshake}>Duplas</CardTitle>}>
       {vazio ? (
         <p className="text-sm text-ink-faint">
-          Aparece quem jogou pelo menos 3 partidas no mesmo time.
+          Aparece quem jogou pelo menos 3 partidas no mesmo time e tem mais vitórias ou mais
+          derrotas junto.
         </p>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2">
