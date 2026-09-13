@@ -250,7 +250,7 @@ migration unmodified. Never add a framework import to it.
 |---|---|
 | `lib/autoBalance.ts` | Team draw: Hall's theorem feasibility check + MRV backtracking + cost-based restarts. Picks at random among splits within `ratingTolerance` of the best that put nobody further off-role, and never one in `avoidSplits` (what the screen already showed) |
 | `lib/forca.ts` | A player's strength from history — ranking KDA (log scale) and wins, shrunk toward the group average for players with few games — which is the `rating` the draw balances. `internalRating` is only a manual offset on top (1000 = none). Before this every rating was 1000 and "balance" did nothing |
-| `lib/duplas.ts` | Duos on the profile: teammates are players on the same side of the same match; a duo needs 3 games together; "Ganha mais com" is winrate ≥ 50%, "Perde mais com" below it (zoeira, shown in `loss`, never gold) |
+| `lib/duplas.ts` | Duos on the profile: teammates are players on the same side of the same match; a duo needs 3 games together; "Ganha mais com" is winrate above 50%, "Perde mais com" below it (zoeira, shown in `loss`, never gold); exactly 50% is in neither |
 | `lib/captainsDraft.ts` | Snake draft, order `1-2-2-2-1` |
 | `lib/lcu.ts` | Parses the LoL client's local match-history API (LCU) |
 | `lib/rofl.ts` | Parses `.rofl` replay files (binary format found by reverse engineering) |

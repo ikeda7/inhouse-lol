@@ -29,9 +29,11 @@ export const JOGOS_MINIMOS_DA_DUPLA = 3;
 export const DUPLAS_POR_LISTA = 3;
 
 /**
- * `melhores`: winrate de 50% para cima, da maior para a menor.
+ * `melhores`: winrate acima de 50%, da maior para a menor.
  * `piores`: abaixo de 50%, da menor para a maior -- a zoeira.
- * O corte em 50% impede a mesma dupla de aparecer nas duas listas quando a
+ * Exatamente 50% não entra em nenhuma: um 2-2 em verde embaixo de "Ganha mais
+ * com" (foi o que apareceu em produção) afirma algo que o placar não diz.
+ * O corte também impede a mesma dupla de aparecer nas duas listas quando a
  * pessoa tem poucos parceiros. Empate de winrate: quem jogou mais junto vem antes.
  */
 export function duplasDe(
@@ -68,7 +70,7 @@ export function duplasDe(
     }));
 
   const melhores = duplas
-    .filter((dupla) => dupla.winRate >= 50)
+    .filter((dupla) => dupla.winRate > 50)
     .sort((a, b) => b.winRate - a.winRate || b.jogos - a.jogos)
     .slice(0, DUPLAS_POR_LISTA);
   const piores = duplas
