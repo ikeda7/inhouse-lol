@@ -105,7 +105,9 @@ one already shown (a new seed alone gave the same teams once strength came
 from history), and captains mode with two
 hand-picked captains drafts to 5x5 (draw and draft are stateless
 calculators, so these run read-only against production too); the
-"?" reaches the help page; Chromium itself reports the site as installable
+"?" reaches the help page; a duo partner on a profile links to their
+profile, which shows the same duo with the same record from the other side;
+Chromium itself reports the site as installable
 (`Page.getInstallabilityErrors` over CDP, in a persistent profile, since the
 default Playwright context is incognito and always answers `in-incognito`)
 and every manifest icon loads as a PNG; and (with `--preparar`) Sorteio → "Usar esses times
