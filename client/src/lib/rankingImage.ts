@@ -6,6 +6,7 @@ import {
   COR,
   cortar,
   criarCanvas,
+  fontesProntas,
   desenharMarca,
   desenharRodape,
   fonte,
@@ -106,6 +107,8 @@ export async function gerarImagemDoRanking(
       }),
   ]);
 
+  // Antes de medir ou desenhar texto: canvas não espera a fonte chegar.
+  await fontesProntas();
   const { canvas, ctx } = criarCanvas(altura);
 
   desenharCabecalho(ctx, opcoes.ordenadoPor);

@@ -5,6 +5,7 @@ import {
   COR,
   cortar,
   criarCanvas,
+  fontesProntas,
   desenharIcone,
   desenharMarca,
   desenharRodape,
@@ -94,6 +95,8 @@ export async function gerarImagemDaSerie(
     opcoes.iconeDoCampeao
   );
 
+  // Antes de medir ou desenhar texto: canvas não espera a fonte chegar.
+  await fontesProntas();
   const { canvas, ctx } = criarCanvas(altura);
 
   // A data do primeiro JOGO, não a da série: `serie.date` é quando a MD3 foi

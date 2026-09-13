@@ -9,3 +9,7 @@
 
 # Gerado pelo npm.
 package-lock.json
+
+# Arquivos locais do Claude Code (o export do Claude Design fica aqui e não é
+# versionado): o formatador não tem por que reescrever o que veio de fora.
+.claude/

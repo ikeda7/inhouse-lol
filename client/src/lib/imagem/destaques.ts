@@ -5,6 +5,7 @@ import {
   COR,
   cortar,
   criarCanvas,
+  fontesProntas,
   desenharIcone,
   desenharMarca,
   desenharRodape,
@@ -56,6 +57,8 @@ export async function gerarImagemDosRecordes(
     opcoes.iconeDoCampeao
   );
 
+  // Antes de medir ou desenhar texto: canvas não espera a fonte chegar.
+  await fontesProntas();
   const { canvas, ctx } = criarCanvas(altura);
   desenharMarca(
     ctx,

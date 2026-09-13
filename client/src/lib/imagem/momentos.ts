@@ -6,6 +6,7 @@ import {
   comAlfa,
   cortar,
   criarCanvas,
+  fontesProntas,
   desenharIcone,
   desenharMarca,
   desenharRodape,
@@ -171,6 +172,8 @@ export async function gerarImagemDosMomentos(
     opcoes.iconeDoCampeao
   );
 
+  // Antes de medir ou desenhar texto: canvas não espera a fonte chegar.
+  await fontesProntas();
   const { canvas, ctx } = criarCanvas(altura);
   const primeiro = momentos[0];
   const noite =
