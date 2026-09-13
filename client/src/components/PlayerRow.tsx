@@ -77,7 +77,7 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
           <div className="flex flex-wrap items-center gap-2">
             <Link
               to={`/jogadores/${player.id}`}
-              className="text-sm font-medium hover:text-gold hover:underline"
+              className="py-1 text-sm font-medium hover:text-gold hover:underline"
             >
               {player.name}
             </Link>
@@ -136,7 +136,9 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
           onClick={toggleActive}
           title={player.active ? 'Desativar (some do sorteio)' : 'Reativar'}
           aria-label={player.active ? `Desativar ${player.name}` : `Reativar ${player.name}`}
-          className="shrink-0 text-ink-faint hover:text-gold"
+          // 36px de área para o dedo sem mudar o desenho: o ícone de 15px
+          // sozinho era o alvo, e no celular o toque caía no botão do lado.
+          className="-m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-faint hover:text-gold"
         >
           {player.active ? <Eye size={15} /> : <EyeOff size={15} />}
         </button>
@@ -144,7 +146,7 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
           onClick={() => setEditing(true)}
           title="Editar"
           aria-label={`Editar ${player.name}`}
-          className="shrink-0 text-ink-faint hover:text-gold"
+          className="-m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-faint hover:text-gold"
         >
           <Pencil size={15} />
         </button>

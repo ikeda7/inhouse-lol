@@ -114,7 +114,7 @@ export function LiveDraftPage() {
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="flex items-center gap-2 text-xl font-bold text-ink">
+            <h1 className="flex items-center gap-2 font-display text-xl font-bold tracking-[-0.01em] text-ink">
               <Radio size={18} className={conectado ? 'text-win' : 'text-ink-faint'} />
               Draft ao vivo
             </h1>
