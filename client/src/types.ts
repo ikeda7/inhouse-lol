@@ -285,6 +285,16 @@ export interface RecentMatch {
   firstBloodKill: boolean;
 }
 
+export interface DuplaNoPerfil {
+  parceiroId: string;
+  name: string;
+  photoUrl: string | null;
+  jogos: number;
+  vitorias: number;
+  /** 0-100. */
+  winRate: number;
+}
+
 export interface PlayerProfile {
   playerId: string;
   name: string;
@@ -303,6 +313,8 @@ export interface PlayerProfile {
   totalAssists: number;
   seriesWon: number;
   recentMatches: RecentMatch[];
+  /** Com quem mais ganha e com quem mais perde no mesmo time (3+ jogos juntos). */
+  duplas: { melhores: DuplaNoPerfil[]; piores: DuplaNoPerfil[] };
   championPodium: {
     championName: string;
     ddragonId: string | null;
