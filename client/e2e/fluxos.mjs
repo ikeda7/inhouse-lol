@@ -21,6 +21,8 @@
  *   6. Ajuda: o "?" do cabeçalho leva para "Como funciona".
  *   6a. Perfil: o parceiro de dupla é link para o perfil dele, e a dupla tem o
  *      mesmo placar vista dos dois lados.
+ *   6b. App: o próprio Chromium aceita instalar o site na tela inicial
+ *      (manifest válido, ícones que carregam como PNG).
  *   7. Sorteio → Série (só com --preparar): marcar 10, sortear, "Usar esses
  *      times na série" abre a MD3 e leva para a Série.
  *   8. Série (só com --preparar): registra o jogo 1 pelo formulário, linha a
@@ -49,7 +51,8 @@
  * Sai com 1 se algum fluxo falhar, 2 se não conseguir nem começar.
  */
 
-import { mkdirSync, statSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
 
@@ -366,6 +369,47 @@ async function fluxoDaAjuda(pagina) {
   await pagina.getByRole('link', { name: 'Ajuda: como funciona' }).click();
   await pagina.waitForURL(/\/ajuda$/, { timeout: 10000 });
   await pagina.getByRole('heading', { name: 'Como funciona' }).waitFor({ timeout: 10000 });
+}
+
+/**
+ * O site instala na tela inicial do celular. Quem responde é o próprio
+ * Chromium (a mesma checagem que decide se ele oferece "Instalar app"), não
+ * uma leitura do manifest feita à mão: um ícone que não carrega ou um campo
+ * que o navegador recusa aparece aqui, e em nenhuma tela.
+ */
+async function fluxoDoAppInstalavel() {
+  // Perfil próprio e persistente: o contexto normal do Playwright é anônimo, e
+  // em aba anônima o Chrome nunca oferece instalar -- a checagem responderia
+  // só "in-incognito" e não diria nada sobre o site.
+  const perfil = mkdtempSync(join(tmpdir(), 'inhouse-instalavel-'));
+  const contexto = await chromium.launchPersistentContext(perfil, {
+    headless: true,
+    ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}),
+  });
+  try {
+    const pagina = await contexto.newPage();
+    await pagina.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+    const cdp = await contexto.newCDPSession(pagina);
+
+    const { installabilityErrors } = await cdp.send('Page.getInstallabilityErrors');
+    exigir(
+      installabilityErrors.length === 0,
+      `o navegador não aceita instalar o site: ${installabilityErrors.map((e) => e.errorId).join(', ')}`
+    );
+
+    const manifesto = await cdp.send('Page.getAppManifest');
+    exigir(manifesto.errors.length === 0, `manifest com erro: ${JSON.stringify(manifesto.errors)}`);
+    for (const icone of JSON.parse(manifesto.data).icons) {
+      const resposta = await pagina.request.get(new URL(icone.src, BASE).href);
+      exigir(
+        resposta.ok() && (resposta.headers()['content-type'] ?? '').startsWith('image/png'),
+        `ícone ${icone.src} não carregou como PNG (HTTP ${resposta.status()})`
+      );
+    }
+  } finally {
+    await contexto.close();
+    rmSync(perfil, { recursive: true, force: true });
+  }
 }
 
 const ORDENACOES = [
@@ -961,6 +1005,7 @@ async function main() {
     ['Sorteio: capitães escolhidos na mão, draft fecha 5x5', fluxoDosCapitaes],
     ['Ajuda: o "?" leva para "Como funciona"', fluxoDaAjuda],
     ['Perfil: a dupla leva ao perfil do parceiro, com o mesmo placar', fluxoDasDuplas],
+    ['App: o navegador aceita instalar o site na tela inicial', fluxoDoAppInstalavel],
     ['Sorteio: usar os times abre a MD3 e leva para a Série', fluxoDoSorteio],
     [
       'Série: registrar o jogo pelo formulário, Fearless no jogo 2, encerrar',

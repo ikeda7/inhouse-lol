@@ -105,7 +105,10 @@ one already shown (a new seed alone gave the same teams once strength came
 from history), and captains mode with two
 hand-picked captains drafts to 5x5 (draw and draft are stateless
 calculators, so these run read-only against production too); the
-"?" reaches the help page; and (with `--preparar`) Sorteio → "Usar esses times
+"?" reaches the help page; Chromium itself reports the site as installable
+(`Page.getInstallabilityErrors` over CDP, in a persistent profile, since the
+default Playwright context is incognito and always answers `in-incognito`)
+and every manifest icon loads as a PNG; and (with `--preparar`) Sorteio → "Usar esses times
 na série" opens the MD3 and lands on Série, and the Série manual form
 registers game 1 row by row — the player and champion menus on the last row
 must open unclipped and without scrolling the table — scores it, refuses a
@@ -451,6 +454,12 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
     as the exported images.
   - Gold marks only the number that decides the screen (points, leader) and
     the primary action. The ranking's W–L is ink, not gold.
+- The site installs to the phone home screen: `client/public/manifest.webmanifest`
+  plus PNG icons in `client/public/icones/`, rendered from `favicon.svg`
+  (the maskable and apple-touch icons are full-bleed with the mark in the safe
+  zone). There is **no service worker on purpose**: its cache would pin the
+  group to a stale build after each deploy, and nothing works offline anyway,
+  because everything comes from the API.
 - Fonts are Inter / Inter Tight / JetBrains Mono from fontsource, self-hosted
   and imported in `main.tsx`. Their family names end in `Variable`. Canvas
   doesn't wait for fonts, so every image generator calls `fontesProntas()`

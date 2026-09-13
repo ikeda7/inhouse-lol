@@ -10,6 +10,17 @@
       name="description"
       content="Custom games 5x5 semanais: draft por roles, Fearless Draft e estatisticas."
     />
+    <!--
+      Instalável na tela inicial do celular (Android e iPhone): abre em tela
+      cheia, sem a barra do navegador. Sem service worker de propósito -- um
+      cache de SW prenderia o grupo numa versão velha do site depois de cada
+      deploy, e o app não tem uso offline (tudo vem da API).
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icones/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="InHouse" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   </head>
   <body>
     <div id="root"></div>
