@@ -155,7 +155,7 @@ export function DraftPage() {
             {sortedPlayers.length >= REQUIRED_PLAYERS && selected.size === 0 && (
               <button
                 onClick={selectAll}
-                className="text-xs font-semibold text-ink-faint hover:text-gold"
+                className="-my-1.5 rounded-md px-2 py-2 text-xs font-semibold text-ink-faint hover:text-gold"
               >
                 marcar todos
               </button>
@@ -195,38 +195,49 @@ export function DraftPage() {
           </p>
         )}
 
-        {/* Cobertura à esquerda, o que fazer à direita: as duas coisas nascem
-            da mesma seleção e cabem lado a lado numa tela larga. Empilhada, a
-            cobertura esticava por 1330px para mostrar cinco números. */}
-        <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
-          <CoberturaDeRoles escolhidos={sortedPlayers.filter((p) => selected.has(p.id))} />
+        {/* Cobertura em cima, e embaixo UMA linha centralizada com o modo e a
+            ação: marcar os 10, conferir a cobertura, sortear. Com o seletor
+            numa coluna e o botão embaixo dele, a ação principal ficava perdida
+            no canto esquerdo de um card de 1400px. */}
+        <div className="mt-5 space-y-4">
+          <div className="mx-auto max-w-2xl">
+            <CoberturaDeRoles escolhidos={sortedPlayers.filter((p) => selected.has(p.id))} />
+          </div>
 
-          <div>
+          <div className="flex flex-wrap items-center justify-center gap-3">
             {/* Escolha de modo: os dois começam com os mesmos 10, e é aqui que
                 o caminho se separa. */}
-            <div className="flex gap-0.5 rounded-lg bg-raised p-0.5" role="group" aria-label="Modo">
+            <div
+              className="flex w-full gap-0.5 rounded-lg bg-raised p-0.5 sm:w-auto"
+              role="group"
+              aria-label="Modo"
+            >
               {[
-                { valor: false, rotulo: 'Sorteio automático', icone: Dices },
-                { valor: true, rotulo: 'Modo capitães', icone: Crown },
-              ].map(({ valor, rotulo, icone: Icone }) => (
+                // Rótulo curto no celular: com o nome inteiro, os dois não cabem
+                // numa linha de 296px e "Modo capitães" saía cortado na borda.
+                { valor: false, rotulo: 'Sorteio automático', curto: 'Automático', icone: Dices },
+                { valor: true, rotulo: 'Modo capitães', curto: 'Capitães', icone: Crown },
+              ].map(({ valor, rotulo, curto, icone: Icone }) => (
                 <button
                   key={rotulo}
                   onClick={() => trocarModo(valor)}
                   aria-pressed={modoCapitaes === valor}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                  aria-label={rotulo}
+                  className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold transition sm:flex-none sm:px-4 ${
                     modoCapitaes === valor
                       ? 'bg-overlay text-ink shadow-sm'
                       : 'text-ink-faint hover:text-ink-muted'
                   }`}
                 >
-                  <Icone size={15} />
-                  {rotulo}
+                  <Icone size={15} aria-hidden />
+                  <span className="sm:hidden">{curto}</span>
+                  <span className="hidden sm:inline">{rotulo}</span>
                 </button>
               ))}
             </div>
 
             {!modoCapitaes && (
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="flex flex-wrap justify-center gap-2">
                 <Button onClick={handleDraw} disabled={!canDraw} loading={draw.loading}>
                   <Dices size={16} />
                   {result ? 'Sortear de novo' : 'Sortear times'}
@@ -239,14 +250,16 @@ export function DraftPage() {
                 )}
               </div>
             )}
+          </div>
 
+          <div>
             {modoCapitaes && !draft && (
-              <div className="mt-4 space-y-3">
+              <div className="mx-auto flex max-w-3xl flex-col items-center space-y-3 text-center">
                 <div>
                   <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-ink-faint">
                     Como escolher os capitães
                   </p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap justify-center gap-1.5">
                     {(
                       [
                         ['TOP_WINRATE', 'Maior winrate'],
@@ -279,7 +292,7 @@ export function DraftPage() {
                   />
                 )}
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap justify-center gap-2">
                   <Button
                     onClick={handleIniciarCapitaes}
                     disabled={!canDraw || !capitaesProntos}
@@ -560,7 +573,7 @@ function EscolherCapitaes({
       <p className="mb-1.5 text-xs text-ink-muted">
         Clique em dois: o primeiro tira o time azul, o segundo o vermelho.
       </p>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap justify-center gap-1.5">
         {jogadores.map((jogador) => {
           const posicao = capitaes.indexOf(jogador.id);
           const lado = posicao === 0 ? 'azul' : posicao === 1 ? 'vermelho' : null;
