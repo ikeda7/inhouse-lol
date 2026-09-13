@@ -7,7 +7,7 @@
  * num Player que a aba Jogadores ja cadastrou. Ver ARCHITECTURE.md.
  */
 
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../db/prisma.js';
 import { hasRiotApi } from '../lib/env.js';
 import {
   hashPassword,

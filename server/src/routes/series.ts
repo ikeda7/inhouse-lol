@@ -6,12 +6,12 @@ import {
   finishSeries,
   garantirSerieDaNoite,
   getBurnedChampions,
+  getOngoingSeriesDetail,
   getSeriesDetail,
   listSeries,
   recordMatch,
   renameSeries,
 } from '../services/series.js';
-import { prisma } from '../lib/prisma.js';
 import { ROLES, TEAM_SIDES } from '../lib/roles.js';
 import { asyncHandler } from './helpers.js';
 
@@ -56,15 +56,7 @@ seriesRouter.get(
 seriesRouter.get(
   '/current',
   asyncHandler(async (_req, res) => {
-    const ongoing = await prisma.series.findFirst({
-      where: { status: 'ONGOING' },
-      orderBy: { date: 'desc' },
-    });
-    if (!ongoing) {
-      res.json({ success: true, data: null });
-      return;
-    }
-    res.json({ success: true, data: await getSeriesDetail(ongoing.id) });
+    res.json({ success: true, data: await getOngoingSeriesDetail() });
   })
 );
 

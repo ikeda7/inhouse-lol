@@ -29,7 +29,7 @@
  */
 
 import { ROLES, type Role, type TeamSide } from './roles.js';
-import { DraftError, type DraftablePlayer } from './autoBalance.js';
+import type { DraftablePlayer } from './autoBalance.js';
 
 export class LcuError extends Error {
   constructor(
@@ -866,4 +866,3 @@ function mapBans(game: LcuGame): LcuImportedBan[] {
 }
 
 /** Reexportado para as rotas tratarem os dois erros de dominio juntos. */
-export { DraftError };

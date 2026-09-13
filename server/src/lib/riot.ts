@@ -5,20 +5,17 @@
  *
  * Custom Games NAO aparecem em `/lol/match/v5/matches/by-puuid/{puuid}/ids`.
  * Esse endpoint so lista filas oficiais (ranqueada, normal, ARAM...). Ou seja,
- * o botao "Sincronizar Ultima Partida" NAO consegue descobrir sozinho o id de
- * um inhouse varrendo o historico -- nao existe historico de custom por ali.
+ * nao da para descobrir sozinho o id de um inhouse varrendo o historico -- nao
+ * existe historico de custom por ali.
  *
- * O que funciona:
- *   - `/lol/match/v5/matches/{matchId}` COM o id em maos devolve o custom game
- *     normalmente (queueId 0, gameType CUSTOM_GAME).
- *   - `/lol/spectator/v5/active-games/by-summoner/{puuid}` enxerga a partida
- *     enquanto ela esta rolando, e de la sai o gameId. Guardando esse gameId
- *     durante o jogo, da pra buscar o resultado completo depois que acabar.
+ * O que funciona: `/lol/match/v5/matches/{matchId}` COM o id em maos devolve o
+ * custom game normalmente (queueId 0, gameType CUSTOM_GAME). E o "Importar por
+ * Match ID" da aba Serie. O caminho principal de importacao nem passa por aqui:
+ * e o cliente do LoL (lib/lcu.ts), que nao precisa de chave.
  *
- * Por isso o fluxo do produto e:
- *   1. (melhor) durante o jogo, `captureLiveMatchId` guarda o id via spectator;
- *   2. (bom) o usuario cola o Match ID e a gente busca por id;
- *   3. (sempre disponivel) formulario manual, que nao depende da Riot.
+ * Existiu tambem a captura ao vivo pelo spectator e o vinculo de Riot ID por
+ * Account-V1. Nenhuma tela chegava nelas e, sem chave em producao, so
+ * respondiam 503: sairam em 13/09/2026 (o historico do git guarda o codigo).
  *
  * Chave de desenvolvimento expira a cada 24h. Sem RIOT_API_KEY o modulo inteiro
  * responde `RIOT_DISABLED` e o app cai no modo manual sem quebrar.
@@ -94,36 +91,6 @@ async function riotFetch<T>(url: string): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
-// Account-V1: Riot ID -> PUUID
-// ---------------------------------------------------------------------------
-
-export interface RiotAccount {
-  puuid: string;
-  gameName: string;
-  tagLine: string;
-}
-
-/** Divide "Nick#BR1" em nome e tag. */
-export function parseRiotId(riotId: string): { gameName: string; tagLine: string } {
-  const [gameName, tagLine] = riotId.split('#');
-  if (!gameName || !tagLine) {
-    throw new RiotApiError(
-      `Riot ID inválido: "${riotId}". Formato esperado: Nick#TAG.`,
-      'INVALID_RIOT_ID'
-    );
-  }
-  return { gameName: gameName.trim(), tagLine: tagLine.trim() };
-}
-
-export async function getAccountByRiotId(riotId: string): Promise<RiotAccount> {
-  const { gameName, tagLine } = parseRiotId(riotId);
-  const url =
-    `${ACCOUNT_ROUTE()}/riot/account/v1/accounts/by-riot-id/` +
-    `${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`;
-  return riotFetch<RiotAccount>(url);
-}
-
-// ---------------------------------------------------------------------------
 // Summoner-V4: icone de invocador (usado pela conta do jogador, issue #3)
 // ---------------------------------------------------------------------------
 
@@ -136,34 +103,6 @@ export async function getSummonerByPuuid(puuid: string): Promise<{ profileIconId
     `${PLATFORM_ROUTE()}/lol/summoner/v4/summoners/by-puuid/${encodeURIComponent(puuid)}`
   );
   return { profileIconId: dto.profileIconId };
-}
-
-// ---------------------------------------------------------------------------
-// Spectator-V5: capturar o id enquanto o custom esta em andamento
-// ---------------------------------------------------------------------------
-
-interface SpectatorGame {
-  gameId: number;
-  platformId: string;
-  gameQueueConfigId?: number;
-}
-
-/**
- * Se o jogador estiver numa partida agora, devolve o matchId no formato do
- * match-v5 ("BR1_1234567890"). E o unico jeito automatico de descobrir o id de
- * um custom game.
- */
-export async function captureLiveMatchId(puuid: string): Promise<string | null> {
-  try {
-    const game = await riotFetch<SpectatorGame>(
-      `${PLATFORM_ROUTE()}/lol/spectator/v5/active-games/by-summoner/${encodeURIComponent(puuid)}`
-    );
-    return `${game.platformId}_${game.gameId}`;
-  } catch (error) {
-    // 404 = simplesmente nao esta em jogo. Nao e erro do ponto de vista do app.
-    if (error instanceof RiotApiError && error.code === 'NOT_FOUND') return null;
-    throw error;
-  }
 }
 
 // ---------------------------------------------------------------------------

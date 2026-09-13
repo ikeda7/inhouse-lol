@@ -10,8 +10,7 @@ live-draft mode), enforces Fearless Draft across a Bo3, and tracks stats. Full
 product description in [README.md](README.md); the reasoning behind every
 non-obvious design decision is in [ARCHITECTURE.md](ARCHITECTURE.md) — **read
 ARCHITECTURE.md before changing `lib/`, the DB schema, series/Fearless logic,
-or the live-draft room.** [COMECE-AQUI.md](COMECE-AQUI.md) has the current
-backlog/open decisions.
+or the live-draft room.** The backlog lives in GitHub issues.
 
 npm workspaces monorepo: `server/` (Express + TypeScript + Prisma), `client/`
 (React 19 + Vite + Tailwind v4), `companion/` (a zero-dependency Node script
@@ -230,8 +229,9 @@ Merging is the maintainer's call: open PRs, don't merge them unless asked.
 
 ```
 lib/        pure TypeScript — zero Express, zero Prisma, zero React
-services/   business rules — knows Prisma
-routes/     HTTP — knows Express
+db/         the Prisma client (prisma.ts)
+services/   business rules — knows Prisma, through db/
+routes/     HTTP — knows Express, calls services, never the database
 ```
 
 `server/src/lib/` is the expensive, reverse-engineered part of this project
@@ -245,7 +245,7 @@ migration unmodified. Never add a framework import to it.
 | `lib/captainsDraft.ts` | Snake draft, order `1-2-2-2-1` |
 | `lib/lcu.ts` | Parses the LoL client's local match-history API (LCU) |
 | `lib/rofl.ts` | Parses `.rofl` replay files (binary format found by reverse engineering) |
-| `lib/riot.ts` | Public Riot API (only used for Match-ID/spectator import) |
+| `lib/riot.ts` | Public Riot API: Match-ID import and the summoner icon. Spectator capture and Riot ID linking were removed (no screen used them, and prod has no key) |
 | `lib/ddragon.ts` / `ddragonBuild.ts` | Data Dragon assets, items/spells/runes |
 | `lib/auth.ts` | Password hashing (bcryptjs) and session JWT — pure, no Prisma |
 | `lib/roles.ts` | Canonical roles — the source of truth since the schema has no `enum` (sqlite provider doesn't support it) |
@@ -284,7 +284,7 @@ matches during a refresh sweep.
 ### Two entrypoints, one Express app
 
 `app.ts` builds and returns the Express app without calling `listen()`.
-`index.ts` calls `listen()` (local/VPS/Docker); `api/index.ts` exports the
+`index.ts` calls `listen()` (local or any Node host); `api/index.ts` exports the
 handler for Vercel's serverless runtime. Don't merge these — calling
 `listen()` at import time would hang a serverless cold start.
 
@@ -486,7 +486,7 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
 ## Non-obvious repo constraints
 
 - **`RIOT_API_KEY` is optional.** The primary import path (LCU) needs no key;
-  the key only matters for Match-ID/spectator import, and dev keys expire
+  the key only matters for Match-ID import and "Usar ícone do LoL", and dev keys expire
   every 24h.
 - **Set `GROUP_KEY` in production.** Without it every write is open to any
   visitor (see "Write protection" above). It is optional only so a deploy

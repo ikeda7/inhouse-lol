@@ -303,36 +303,3 @@ export function RoleBadge({
     </span>
   );
 }
-
-/** Número grande com rótulo -- usado em placar e métricas de perfil. */
-export function Stat({
-  label,
-  value,
-  tone = 'neutral',
-  size = 'md',
-}: {
-  label: string;
-  value: string;
-  tone?: 'neutral' | 'good' | 'bad' | 'blue' | 'red';
-  size?: 'md' | 'lg';
-}) {
-  const tones = {
-    neutral: 'text-ink',
-    good: 'text-win',
-    bad: 'text-loss',
-    blue: 'text-blue',
-    red: 'text-red',
-  };
-  return (
-    <div>
-      <p
-        className={`tabular font-bold leading-none ${tones[tone]} ${size === 'lg' ? 'text-4xl' : 'text-xl'}`}
-      >
-        {value}
-      </p>
-      <p className="mt-1.5 text-[10px] font-medium uppercase tracking-wider text-ink-faint">
-        {label}
-      </p>
-    </div>
-  );
-}

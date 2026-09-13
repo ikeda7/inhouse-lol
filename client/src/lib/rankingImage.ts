@@ -16,16 +16,6 @@ import {
   type ResolverIcone,
 } from './imagem/canvas';
 
-// A entrega (copiar, baixar, enviar) é a mesma para toda imagem e mora em
-// lib/imagem/canvas.ts; fica reexportada aqui para quem já importava daqui.
-export {
-  baixarImagem,
-  compartilharImagem,
-  copiarImagem,
-  ehTelaDeToque,
-  podeCopiarImagem,
-} from './imagem/canvas';
-
 /**
  * A tabela do ranking como imagem, para mandar no grupo (issue #7).
  *

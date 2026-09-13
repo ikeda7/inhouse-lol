@@ -25,7 +25,7 @@ import { exigirGrupo } from './middleware/auth.js';
  *
  * Então:
  *   - `app.ts`    monta e exporta        -> usado pelos dois
- *   - `index.ts`  chama listen           -> local, VPS, Docker
+ *   - `index.ts`  chama listen           -> local ou servidor Node
  *   - `api/index.ts` exporta o handler   -> Vercel
  */
 export function createApp(): Express {

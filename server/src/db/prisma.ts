@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSQL } from '@prisma/adapter-libsql';
-import { env } from './env.js';
+import { env } from '../lib/env.js';
 
 /**
  * CLIENTE DO BANCO

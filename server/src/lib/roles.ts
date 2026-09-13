@@ -13,15 +13,6 @@ export type RoleInput = Role | typeof FILL;
 export const TEAM_SIDES = ['BLUE', 'RED'] as const;
 export type TeamSide = (typeof TEAM_SIDES)[number];
 
-/** Rotulos curtos para a UI. */
-export const ROLE_LABEL: Record<Role, string> = {
-  TOP: 'Top',
-  JUNGLE: 'Jungle',
-  MID: 'Mid',
-  ADC: 'ADC',
-  SUPPORT: 'Support',
-};
-
 /**
  * Aceita as variacoes que aparecem na vida real (seed em portugues, resposta da
  * Riot API, digitacao do usuario) e devolve a role canonica.
