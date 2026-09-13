@@ -104,9 +104,9 @@ jobs:
   # build não enxergam: rolagem lateral e contraste depois de compor opacidade
   # e fundo. Três bugs passaram pelos outros jobs sem aviso (issue #44).
   #
-  # Nasce FORA dos checks obrigatórios da proteção de branch: a primeira
-  # versão de uma verificação de navegador pode ter falso positivo, e ela não
-  # deve travar merge de ninguém enquanto não provar que é estável.
+  # Check obrigatório da proteção de branch desde 13/09/2026. Nasceu fora,
+  # porque verificação de navegador pode ter falso positivo; entrou depois de
+  # 100 execuções em que as únicas 3 falhas foram bugs de verdade.
   telas:
     name: Telas no navegador
     runs-on: ubuntu-latest

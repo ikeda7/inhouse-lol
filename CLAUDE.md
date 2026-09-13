@@ -78,8 +78,10 @@ tablet. No screenshot baseline on purpose: both checks are baseline-free.
 - `CHROME_PATH` points at an existing Chromium instead of the one
   `npx playwright-core install chromium` downloads.
 
-The job is **not** a required check yet. Promote it in branch protection once
-it has proven stable across a few PRs.
+The job **is a required check** on `develop` and `main` since 2026-09-13. It
+was promoted after 100 CI runs in which its only 3 failures were real bugs
+(the Momentos selector, on fix branches) and none was a flake. A PR that breaks
+a screen or a flow does not merge.
 
 ### Interaction flows (same CI job, after the screen check)
 
@@ -103,7 +105,10 @@ one already shown (a new seed alone gave the same teams once strength came
 from history), and captains mode with two
 hand-picked captains drafts to 5x5 (draw and draft are stateless
 calculators, so these run read-only against production too); the
-"?" reaches the help page; and (with `--preparar`) Sorteio → "Usar esses times
+"?" reaches the help page; Chromium itself reports the site as installable
+(`Page.getInstallabilityErrors` over CDP, in a persistent profile, since the
+default Playwright context is incognito and always answers `in-incognito`)
+and every manifest icon loads as a PNG; and (with `--preparar`) Sorteio → "Usar esses times
 na série" opens the MD3 and lands on Série, and the Série manual form
 registers game 1 row by row — the player and champion menus on the last row
 must open unclipped and without scrolling the table — scores it, refuses a
@@ -199,8 +204,9 @@ remote: error: GH006: Protected branch update failed for refs/heads/develop.
 remote: - Changes must be made through a pull request.
 ```
 
-Everything reaches them through a PR with green CI (both jobs — "Testes,
-tipos e build" and "Segredos e dependências" — are required checks). Zero
+Everything reaches them through a PR with green CI (all three jobs — "Testes,
+tipos e build", "Segredos e dependências" and "Telas no navegador" — are
+required checks). Zero
 approvals are required, because there is one maintainer and nobody approves
 their own PR; the gate is the PR plus CI, not review.
 
@@ -447,6 +453,12 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
     as the exported images.
   - Gold marks only the number that decides the screen (points, leader) and
     the primary action. The ranking's W–L is ink, not gold.
+- The site installs to the phone home screen: `client/public/manifest.webmanifest`
+  plus PNG icons in `client/public/icones/`, rendered from `favicon.svg`
+  (the maskable and apple-touch icons are full-bleed with the mark in the safe
+  zone). There is **no service worker on purpose**: its cache would pin the
+  group to a stale build after each deploy, and nothing works offline anyway,
+  because everything comes from the API.
 - Fonts are Inter / Inter Tight / JetBrains Mono from fontsource, self-hosted
   and imported in `main.tsx`. Their family names end in `Variable`. Canvas
   doesn't wait for fonts, so every image generator calls `fontesProntas()`
