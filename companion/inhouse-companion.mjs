@@ -23,6 +23,7 @@
  * ---------------------------------------------------------------------------
  * COMO USAR
  *
+ *   node companion/inhouse-companion.mjs --noite      importa a ultima noite inteira, em ordem
  *   node companion/inhouse-companion.mjs --list       lista os customs por noite
  *   node companion/inhouse-companion.mjs --last       manda o custom mais recente
  *   node companion/inhouse-companion.mjs --watch      manda sozinho ao fim de cada jogo
@@ -51,6 +52,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { request } from 'node:https';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // ---------------------------------------------------------------------------
 // Argumentos
@@ -843,6 +845,178 @@ async function commandWatch() {
 }
 
 // ---------------------------------------------------------------------------
+// Fim de noite (#131)
+//
+// O que alguém fazia na mão depois do jogo: descobrir os gameIds da noite,
+// abrir a MD3 se ninguém abriu, importar NA ORDEM, parar em conta sem vínculo
+// e atualizar o que já tinha entrado. Um comando só, e seguro de rodar de novo.
+// ---------------------------------------------------------------------------
+
+const DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+/** Até esta hora (exclusive) ainda é a noite anterior -- a mesma regra do site. */
+const VIRADA_DA_NOITE = 6;
+
+/** A data da noite de um jogo: 0h30 de sexta ainda é a noite de quinta. */
+function diaDaNoite(ms) {
+  const dia = new Date(ms);
+  if (dia.getHours() < VIRADA_DA_NOITE) dia.setDate(dia.getDate() - 1);
+  return dia;
+}
+
+/** "2026-09-10": agrupa os jogos da mesma noite. */
+export function chaveDaNoite(ms) {
+  const dia = diaDaNoite(ms);
+  return `${dia.getFullYear()}-${String(dia.getMonth() + 1).padStart(2, '0')}-${String(dia.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * "Quinta 10/09" -- o mesmo nome que o "Usar esses times" do site dá à MD3
+ * (client/src/lib/nomeDaNoite.ts). Repetido aqui porque o agente não tem
+ * dependência nenhuma, nem do próprio projeto.
+ */
+export function nomeDaNoite(ms) {
+  const dia = diaDaNoite(ms);
+  const dd = String(dia.getDate()).padStart(2, '0');
+  const mm = String(dia.getMonth() + 1).padStart(2, '0');
+  return `${DIAS[dia.getDay()]} ${dd}/${mm}`;
+}
+
+/** Os customs da noite mais recente do histórico, na ordem em que foram jogados. */
+export function jogosDaUltimaNoite(customs) {
+  const comData = customs.filter((jogo) => jogo.gameCreation);
+  if (comData.length === 0) return [];
+  const ultima = comData
+    .map((jogo) => chaveDaNoite(jogo.gameCreation))
+    .sort()
+    .at(-1);
+  return comData
+    .filter((jogo) => chaveDaNoite(jogo.gameCreation) === ultima)
+    .sort((a, b) => a.gameCreation - b.gameCreation);
+}
+
+/**
+ * Importa os jogos de uma noite, em ordem.
+ *
+ * - Já importado: reenvia com refreshStats, para a scoreboard ficar completa.
+ * - Sem MD3 aberta: abre a da noite e tenta de novo. Uma noite com cinco jogos
+ *   tem duas MD3 (a primeira fecha sozinha em 2 vitórias), e a segunda ganha
+ *   " · MD3 2" no nome.
+ * - Qualquer outra recusa PARA a noite: seguir importaria o jogo 3 como jogo 2
+ *   da MD3. Conta sem vínculo aparece com os Riot IDs para cadastrar -- nunca
+ *   se adivinha de quem é uma conta.
+ * - Em dry-run nada é aberto nem gravado; a falta de MD3 só é avisada.
+ *
+ * `enviar(jogo, extras)` e `abrirMd3(nome)` devolvem `{ ok, payload }`, o mesmo
+ * formato de `postJson`: é isso que deixa este fluxo testável sem o cliente do
+ * LoL aberto.
+ */
+export async function importarNoite({
+  jogos,
+  enviar,
+  abrirMd3,
+  dryRun = false,
+  relatar = () => {},
+}) {
+  const resumo = { gravadas: 0, atualizadas: 0, conferidas: 0, md3Abertas: [], parouEm: null };
+  const seriesDaNoite = new Set();
+
+  for (const [indice, jogo] of jogos.entries()) {
+    const rotulo = `jogo ${indice + 1}/${jogos.length} (${jogo.gameId})`;
+    let resultado = await enviar(jogo, {});
+
+    if (!resultado.ok && resultado.payload?.code === 'NO_ONGOING_SERIES') {
+      if (dryRun) {
+        relatar(`${rotulo}: sem MD3 aberta -- sem --dry-run, a MD3 da noite seria aberta aqui`);
+        resumo.conferidas++;
+        continue;
+      }
+      const base = nomeDaNoite(jogo.gameCreation);
+      const nome = seriesDaNoite.size > 0 ? `${base} · MD3 ${seriesDaNoite.size + 1}` : base;
+      const aberta = await abrirMd3(nome);
+      if (!aberta.ok) {
+        resumo.parouEm = { jogo, resultado: aberta };
+        return resumo;
+      }
+      resumo.md3Abertas.push(nome);
+      relatar(`MD3 "${nome}" aberta`);
+      resultado = await enviar(jogo, {});
+    }
+
+    if (resultado.ok && resultado.payload?.data?.alreadyImported) {
+      const serieId = resultado.payload.data.match?.seriesId;
+      if (serieId) seriesDaNoite.add(serieId);
+      if (dryRun) {
+        relatar(`${rotulo}: já estava registrado`);
+        resumo.conferidas++;
+        continue;
+      }
+      resultado = await enviar(jogo, { refreshStats: true });
+      if (!resultado.ok) {
+        resumo.parouEm = { jogo, resultado };
+        return resumo;
+      }
+      relatar(`${rotulo}: já estava registrado -- estatísticas atualizadas`);
+      resumo.atualizadas++;
+      continue;
+    }
+
+    if (!resultado.ok) {
+      resumo.parouEm = { jogo, resultado };
+      return resumo;
+    }
+
+    const data = resultado.payload?.data ?? {};
+    if (data.saved) {
+      if (data.series?.id) seriesDaNoite.add(data.series.id);
+      relatar(`${rotulo}: gravado (placar ${data.series?.blueScore}-${data.series?.redScore})`);
+      resumo.gravadas++;
+    } else {
+      relatar(`${rotulo}: conferido, nada gravado (dry-run)`);
+      resumo.conferidas++;
+    }
+  }
+
+  return resumo;
+}
+
+async function commandNoite() {
+  const jogos = jogosDaUltimaNoite((await fetchRecentGames()).filter(isCustom));
+  if (jogos.length === 0) {
+    log.warn('Nenhum custom game no historico do cliente.');
+    log.info('      Para partidas mais antigas: --replays\n');
+    return;
+  }
+
+  log.info(
+    `Noite de ${nomeDaNoite(jogos[0].gameCreation)}: ${jogos.length} custom(s)` +
+      (CONFIG.dryRun ? ' -- conferindo, sem gravar' : '') +
+      '\n'
+  );
+
+  const resumo = await importarNoite({
+    jogos,
+    dryRun: CONFIG.dryRun,
+    // O resumo do historico traz so o dono da conta; o detalhe traz os 10.
+    enviar: async (jogo, extras) => sendGame((await fetchGameDetail(jogo.gameId)) ?? jogo, extras),
+    abrirMd3: (nome) => postJson('/series/garantir', { name: nome, fearless: true }),
+    relatar: (linha) => log.ok(linha),
+  });
+
+  if (resumo.parouEm) {
+    log.info(`\nParei no jogo ${resumo.parouEm.jogo.gameId} para nao bagunçar a ordem da MD3:`);
+    describeResult(resumo.parouEm.resultado);
+    log.info('\n      Resolva e rode --noite de novo: o que ja entrou nao duplica.');
+  }
+
+  log.info(
+    `\nNoite: ${resumo.gravadas} gravado(s), ${resumo.atualizadas} atualizado(s)` +
+      (resumo.conferidas ? `, ${resumo.conferidas} conferido(s)` : '') +
+      (resumo.md3Abertas.length ? ` · MD3 aberta(s): ${resumo.md3Abertas.join(', ')}` : '')
+  );
+  if (resumo.parouEm) process.exitCode = 1;
+}
+
+// ---------------------------------------------------------------------------
 // Entrada
 // ---------------------------------------------------------------------------
 
@@ -872,6 +1046,7 @@ async function main() {
   if (hasFlag('--replay')) return commandSendReplay(getOption('--replay'));
   if (hasFlag('--who')) return commandWho(getOption('--who'));
   if (hasFlag('--refresh-all')) return commandRefreshAll();
+  if (hasFlag('--noite')) return commandNoite();
   if (hasFlag('--games')) return commandSendMany(getOption('--games'));
   if (hasFlag('--list')) return commandList();
   if (hasFlag('--watch')) return commandWatch();
@@ -879,6 +1054,9 @@ async function main() {
   if (hasFlag('--last')) return commandSend(null);
 
   log.info('Do cliente do LoL (precisa estar aberto):');
+  log.info(
+    '  --noite            importa a ultima noite inteira, na ordem (o comando do fim do jogo)'
+  );
   log.info('  --list             lista os customs que o cliente tem em cache');
   log.info('  --last             envia o custom mais recente');
   log.info('  --game <id>        envia um gameId especifico');
@@ -898,7 +1076,11 @@ async function main() {
   log.info('  --refresh          reescreve a scoreboard de partidas ja importadas\n');
 }
 
-main().catch((error) => {
-  log.fail(error.message);
-  process.exit(1);
-});
+// Só roda quando chamado pelo terminal: importado pelos testes, expõe as funções
+// da noite sem abrir o cliente do LoL nem falar com o servidor.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    log.fail(error.message);
+    process.exit(1);
+  });
+}
