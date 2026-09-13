@@ -228,6 +228,21 @@ Se algo estiver errado, o que fazer depende de onde:
 
 1. **Reimportar depois de cada noite virou hábito manual.** Vale um comando só
    (`--watch` já existe, mas ninguém lembra de deixar rodando).
+2. **Levar a direção "Placar" para dentro das telas.** O redesign de 13/09
+   mexeu no que é compartilhado: card, título e dourado. O detalhe do jogo no
+   Histórico e o Perfil ainda têm a hierarquia antiga por dentro. O export do
+   Claude Design fica em `.claude/design/`, só na máquina local.
+3. **Kit da imagem do zap no design.** Ficou em aberto no próprio export: ele
+   precisa das medidas de `lib/imagem/canvas.ts`.
+
+Feito em 12–13/09 e fora desta lista:
+- **Sorteio automático equilibrado pelo histórico** (`lib/forca.ts`), com
+  "tenta outro" que nunca repete uma divisão.
+- **Fontes do design carregadas de verdade.**
+- **Redesign "Placar"** (#126).
+- **Auditoria mobile** (#128): controles do Sorteio centralizados, sala ao vivo
+  com os times em cima do pote no celular, alvos de toque de 36px e a
+  verificação de telas também a 360px.
 
 Feito em 11/09 e fora desta lista: a aba Série em duas colunas com "A MD3 até
 agora" e o placar por elenco; o `autoBalance` de 200 sorteios roda em ~1s e
