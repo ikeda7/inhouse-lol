@@ -28,7 +28,7 @@ inclusive para admin.
 | Regra | Por quê |
 |---|---|
 | PR obrigatório, **0 aprovações** | força o fluxo sem travar quem trabalha sozinho (não dá para aprovar o próprio PR) |
-| CI obrigatório (testes + segredos) | nada entra vermelho |
+| CI obrigatório (testes, segredos e telas no navegador) | nada entra vermelho, nem tela quebrada |
 | Vale para admin | sem isso a proteção não protegeria justamente de quem mais empurra código |
 | Sem force push, sem apagar branch | o histórico de `main` é o que está no ar |
 
