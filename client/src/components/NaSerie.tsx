@@ -44,7 +44,7 @@ export function NaSerie({
       // `@container`: as duas colunas de time dependem da largura DO BLOCO, não
       // da janela. No Histórico ele ocupa a tela; na Série, a coluna da
       // esquerda -- e ali dois times lado a lado quebravam cada linha em duas.
-      className="@container rounded-lg border border-line/50 bg-raised/30 p-3 sm:p-4"
+      className="@container rounded-lg bg-raised/30 p-3 sm:p-4"
     >
       <p className="mb-2.5 text-[13px] font-semibold uppercase tracking-wider text-ink-faint">
         {rotulo}

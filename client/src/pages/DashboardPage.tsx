@@ -72,6 +72,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-5">
       <Card
+        destaque
         padding={false}
         title={<CardTitle icon={Trophy}>Classificação geral</CardTitle>}
         action={
@@ -237,7 +238,7 @@ function LinhaTabela({ entry, posicao }: { entry: LeaderboardEntry; posicao: num
         {entry.mainRole ? ROLE_LABEL[entry.mainRole] : '--'}
       </td>
 
-      <td className="tabular py-2.5 pr-3 text-right text-[15px] font-bold text-gold">
+      <td className="tabular py-2.5 pr-3 text-right text-[15px] font-semibold text-ink">
         {entry.wins}–{entry.losses}
         <span className="ml-1 text-[11px] font-normal text-ink-faint">({entry.games})</span>
       </td>
