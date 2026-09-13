@@ -135,16 +135,31 @@ registrador. HTTPS é automático e incluso no plano grátis.
 
 ## Se um dia sair da Vercel
 
-Nada disso vira lixo:
+O código não depende da Vercel. Em qualquer máquina com Node:
 
-| Destino | O que muda |
-|---|---|
-| **VPS** (~R$25/mês) | `Dockerfile` já pronto. O SQLite pode voltar a ser arquivo e o Turso vira opcional. |
-| **Fly.io** | `fly.toml` já pronto, com volume persistente. |
-| Continuar na Vercel | Nada. |
+```bash
+npm ci && npm run build
+DATABASE_URL="file:./prod.db" JWT_SECRET="..." GROUP_KEY="..." npm start
+```
 
-A separação entre `createApp()` e `listen()` existe justamente para isso: o
-mesmo app serve serverless e processo próprio, sem fork de código.
+Com processo próprio e disco persistente, o SQLite volta a ser arquivo e o Turso
+vira opcional. A separação entre `createApp()` e `listen()` existe justamente
+para isso: o mesmo app serve serverless e processo próprio, sem fork de código.
+
+O `Dockerfile` e o `fly.toml` que existiam para isso saíram em 13/09/2026:
+nunca foram usados nem testados no CI, e o Dockerfile ainda rodava
+`prisma db push`, que não funciona contra o Turso. O histórico do git guarda os
+dois.
+
+## Arquivos de ambiente que não vêm no clone
+
+Gitignored, e nenhum é necessário para desenvolver:
+
+| Arquivo | Para quê | Onde conseguir |
+|---|---|---|
+| `.env` | rodar local | `cp .env.example .env` |
+| `.env.turso` | `npm run db:turso` (schema no banco de produção) | painel do Turso: `DATABASE_URL` e `DATABASE_AUTH_TOKEN` |
+| `.env.vercel` | operar o deploy pela CLI da Vercel | painel da Vercel |
 
 ---
 

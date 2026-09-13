@@ -7,7 +7,7 @@
  * de verdade, o lugar de otimizar e aqui -- com $queryRaw ou uma view.
  */
 
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../db/prisma.js';
 import { ROLES, type Role } from '../lib/roles.js';
 import { resolveChampion } from '../lib/ddragon.js';
 import { WINS_TO_CLINCH } from './series.js';

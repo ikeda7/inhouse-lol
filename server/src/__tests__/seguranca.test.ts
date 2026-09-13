@@ -91,7 +91,7 @@ describe('dispensaChave', () => {
     expect(dispensaChave('POST', '/series/s1/matches')).toBe(false);
     expect(dispensaChave('DELETE', '/series/s1')).toBe(false);
     expect(dispensaChave('POST', '/ingest/lcu')).toBe(false);
-    expect(dispensaChave('POST', '/riot/link')).toBe(false);
+    expect(dispensaChave('POST', '/riot/import')).toBe(false);
     expect(dispensaChave('POST', '/draft/rooms')).toBe(false);
     expect(dispensaChave('PATCH', '/accounts/me')).toBe(false);
   });

@@ -29,11 +29,3 @@ export function salvarChaveDoGrupo(chave: string): void {
     // sem armazenamento, a chave vale só até recarregar -- nada a fazer
   }
 }
-
-export function esquecerChaveDoGrupo(): void {
-  try {
-    localStorage.removeItem(ONDE);
-  } catch {
-    // idem
-  }
-}

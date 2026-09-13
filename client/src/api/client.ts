@@ -279,18 +279,12 @@ export const accountApi = {
 };
 
 export const riotApi = {
-  status: () => request<{ enabled: boolean; note: string }>('/riot/status'),
-
   champions: () => request<ChampionManifest>('/riot/champions'),
 
   /** Itens, feiticos e runas -- so o historico precisa, entao vem separado. */
   build: () => request<BuildManifest>('/riot/build'),
 
-  link: (playerId: string, riotId: string) => post<Player>('/riot/link', { playerId, riotId }),
-
   /** Preview antes de gravar: a Riot as vezes nao infere a role em custom game. */
   importMatch: (matchId: string, seriesId: string, options: { dryRun?: boolean } = {}) =>
     post<unknown>('/riot/import', { matchId, seriesId, ...options }),
-
-  syncLast: (seriesId: string) => post<{ matchId: string }>('/riot/sync-last', { seriesId }),
 };

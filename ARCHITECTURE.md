@@ -16,8 +16,9 @@ inhouse-lol/
 │  ├─ scripts/             manutenção (recalcular placares)
 │  └─ src/
 │     ├─ app.ts            monta o Express (sem escutar porta)
-│     ├─ index.ts          escuta porta — local, VPS, Docker
+│     ├─ index.ts          escuta porta — local ou qualquer servidor Node
 │     ├─ lib/              ← lógica pura, sem framework
+│     ├─ db/               o cliente Prisma
 │     ├─ services/         regras de negócio
 │     └─ routes/           HTTP
 └─ client/src/
@@ -28,9 +29,16 @@ inhouse-lol/
 
 ```
 lib/            ← TypeScript puro. Zero Express, zero Prisma, zero React.
-services/       ← regras de negócio. Conhece Prisma.
-routes/         ← HTTP. Conhece Express.
+db/             ← o cliente Prisma.
+services/       ← regras de negócio. Conhece Prisma, por db/.
+routes/         ← HTTP. Conhece Express e chama serviço, nunca o banco.
 ```
+
+A regra é verificada, não só descrita: `__tests__/camadas.test.ts` reprova um
+`lib/` que importe Express, Prisma ou serviço, e uma rota que fale direto com o
+banco. Ela quebrou duas vezes sem ninguém ver antes do teste: o cliente Prisma
+morava em `lib/prisma.ts`, e `routes/ingest.ts` fazia a importação inteira de
+partida direto no banco (hoje em `services/ingest.ts`).
 
 **`lib/` é o que este projeto tem de valioso** e é a parte mais cara de
 reescrever:
@@ -56,7 +64,7 @@ uma que os reescreva joga fora descoberta que custou tempo real.
 
 ```
 app.ts  →  createApp()  monta e devolve, sem listen()
-             ├─ index.ts       chama listen()      → local, VPS, Docker
+             ├─ index.ts       chama listen()      → local ou servidor Node
              └─ api/index.ts   exporta o handler   → Vercel
 ```
 

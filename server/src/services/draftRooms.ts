@@ -16,7 +16,7 @@
  * vazio quando nada mudou.
  */
 
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../db/prisma.js';
 import { applyPick, finalizeCaptainsDraft, type CaptainsDraftState } from '../lib/captainsDraft.js';
 import { DraftError } from '../lib/autoBalance.js';
 import { randomInt, randomUUID } from 'node:crypto';

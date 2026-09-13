@@ -13,7 +13,7 @@
  * ele aconteceu.
  */
 
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../db/prisma.js';
 import { computeKda, round, safeDivide } from './stats.js';
 import { resolveChampion } from '../lib/ddragon.js';
 

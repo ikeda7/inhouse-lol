@@ -110,38 +110,6 @@ export async function resolveChampion(input: number | string): Promise<ChampionE
   return catalog.byId.get(input.toLowerCase()) ?? catalog.byName.get(normalizeName(input)) ?? null;
 }
 
-export interface ChampionAsset {
-  id: string;
-  key: number;
-  name: string;
-  /** Icone quadrado 120x120, o que a UI usa nos cards e nos queimados. */
-  squareUrl: string;
-  /** Splash 1215x717, para o podio do perfil. */
-  splashUrl: string;
-  /** Loading screen 308x560. */
-  loadingUrl: string;
-}
-
-export async function getChampionAsset(input: number | string): Promise<ChampionAsset | null> {
-  const catalog = await getChampionCatalog();
-  const champion = await resolveChampion(input);
-  if (!champion) return null;
-
-  return {
-    id: champion.id,
-    key: champion.key,
-    name: champion.name,
-    squareUrl: `${DDRAGON_BASE}/cdn/${catalog.version}/img/champion/${champion.id}.png`,
-    splashUrl: `${DDRAGON_BASE}/cdn/img/champion/splash/${champion.id}_0.jpg`,
-    loadingUrl: `${DDRAGON_BASE}/cdn/img/champion/loading/${champion.id}_0.jpg`,
-  };
-}
-
-export async function getItemIconUrl(itemId: number): Promise<string> {
-  const { version } = await getChampionCatalog();
-  return `${DDRAGON_BASE}/cdn/${version}/img/item/${itemId}.png`;
-}
-
 export async function getProfileIconUrl(iconId: number): Promise<string> {
   const { version } = await getChampionCatalog();
   return `${DDRAGON_BASE}/cdn/${version}/img/profileicon/${iconId}.png`;

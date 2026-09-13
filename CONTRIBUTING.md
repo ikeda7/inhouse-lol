@@ -5,7 +5,7 @@ as regras que valem aqui.
 
 ## Fluxo de branches
 
-GitFlow simplificado. `main` é protegida — nada entra direto nela.
+GitFlow simplificado. `develop` e `main` são protegidas: nada entra direto nelas.
 
 ```bash
 git checkout develop
@@ -16,6 +16,30 @@ git checkout -b feat/nome-curto
 Prefixos: `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`, `test/`.
 
 O código volta para `develop` por Pull Request. O CI precisa estar verde.
+Publicar também é PR: `develop` → `main`, e o merge em `main` é o que faz o
+deploy de produção na Vercel. Push em `develop` gera só *preview*: se a mudança
+não aparece no site, provavelmente ela ainda está só em `develop`.
+
+### As duas branches são protegidas
+
+`git push origin develop` e `git push origin main` são recusados pelo GitHub,
+inclusive para admin.
+
+| Regra | Por quê |
+|---|---|
+| PR obrigatório, **0 aprovações** | força o fluxo sem travar quem trabalha sozinho (não dá para aprovar o próprio PR) |
+| CI obrigatório (testes + segredos) | nada entra vermelho |
+| Vale para admin | sem isso a proteção não protegeria justamente de quem mais empurra código |
+| Sem force push, sem apagar branch | o histórico de `main` é o que está no ar |
+
+`develop` exige a branch atualizada antes do merge; `main` não, porque acumula
+commits de merge que nunca voltam para `develop`, e a regra travaria o deploy
+para sempre.
+
+**Emergência.** Dá para suspender a proteção pelo painel (*Settings → Branches*)
+ou com `gh api -X DELETE repos/ikeda7/inhouse-lol/branches/main/protection`,
+publicar e religar. É de propósito que não exista atalho silencioso: desligar a
+proteção fica no histórico do repositório, e um push direto não ficaria.
 
 ## Mensagens de commit
 
