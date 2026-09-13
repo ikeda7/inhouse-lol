@@ -45,7 +45,9 @@ export function PlayerProfilePage() {
 }
 
 function Cabecalho({ data }: { data: PlayerProfile }) {
-  const kda = `${data.totalKills} / ${data.totalDeaths} / ${data.totalAssists}`;
+  // Como o jogo escreve: 5/2/11. Com espaço, "100 / 60 / 133" quebrava em duas
+  // linhas na caixinha do celular.
+  const kda = `${data.totalKills}/${data.totalDeaths}/${data.totalAssists}`;
 
   return (
     <Card>
@@ -57,7 +59,10 @@ function Cabecalho({ data }: { data: PlayerProfile }) {
           <Avatar photoUrl={data.photoUrl} name={data.name} size="lg" />
 
           <div>
-            <h1 className="text-3xl font-bold text-gold">{data.name}</h1>
+            {/* Dourado é mérito, não o nome de quem abriu o perfil. */}
+            <h1 className="font-display text-3xl font-bold tracking-[-0.01em] text-ink">
+              {data.name}
+            </h1>
             <p className="mt-0.5 text-sm text-ink-faint">
               {data.games} partida{data.games === 1 ? '' : 's'} registrada
               {data.games === 1 ? '' : 's'}
@@ -200,7 +205,10 @@ function UltimasPartidas({ partidas }: { partidas: RecentMatch[] }) {
       title={<CardTitle icon={History}>Últimas partidas</CardTitle>}
       action={
         partidas.length > 0 ? (
-          <Link to="/historico" className="text-[11px] text-ink-faint hover:text-gold">
+          <Link
+            to="/historico"
+            className="-my-2 inline-block py-2 text-[11px] text-ink-faint hover:text-gold"
+          >
             ver histórico completo
           </Link>
         ) : undefined
@@ -284,7 +292,9 @@ function Metric({
   return (
     <div className="rounded-lg border border-line/50 bg-raised/40 p-3">
       <p className="text-[11px] uppercase tracking-wider text-ink-faint">{label}</p>
-      <p className={`tabular mt-1 font-bold ${pequeno ? 'text-base' : 'text-2xl'} ${toneClass}`}>
+      <p
+        className={`tabular mt-1 whitespace-nowrap font-bold ${pequeno ? 'text-base' : 'text-2xl'} ${toneClass}`}
+      >
         {value}
       </p>
     </div>

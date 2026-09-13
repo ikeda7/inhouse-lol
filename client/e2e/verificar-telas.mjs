@@ -68,8 +68,12 @@ const SO_ESSAS = opcao('--telas', '')
   .map((t) => t.trim())
   .filter(Boolean);
 
-/** As mesmas larguras em que os bugs de hoje apareceram. */
-const LARGURAS = [390, 768, 1024, 1440];
+/**
+ * As mesmas larguras em que os bugs de hoje apareceram. 360 é o Android mais
+ * comum: o seletor de modo do Sorteio cabia em 390 e saía cortado pelo card em
+ * 360, e só esta largura pega esse tipo de corte.
+ */
+const LARGURAS = [360, 390, 768, 1024, 1440];
 
 // ---------------------------------------------------------------------------
 // Cenário

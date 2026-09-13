@@ -48,10 +48,14 @@ export function CaptainsDraft({
     <div className="space-y-4">
       <FilaDeEscolhas state={state} />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1fr)]">
+      {/* No celular os dois times ficam lado a lado EM CIMA do pote: o capitão
+          pega o lado e vê o próprio time sem rolar a lista inteira. Com o pote
+          primeiro, "Sou o capitão" ficava 1300px abaixo. No desktop volta a
+          ser time | pote | time. */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-4">
         <ColunaDoTime side="BLUE" state={state} ativo={daVez === 'BLUE'} acoes={acoesDoTime} />
 
-        <div className="order-first lg:order-none">
+        <div className="order-last col-span-2 lg:order-none lg:col-span-1">
           <Pote
             state={state}
             onPick={onPick}
@@ -144,16 +148,18 @@ function ColunaDoTime({
     <div
       // O time da vez acende; o outro apaga. É o sinal mais forte da tela, e
       // por isso não compete com mais nada colorido aqui.
-      className={`rounded-lg border p-3 transition ${
+      // Sem opacidade no time que espera: ela diluía o texto (e o "Sou o
+      // capitão" vermelho) abaixo do AA. A diferença fica na borda e no fundo.
+      className={`min-w-0 rounded-lg border p-2.5 transition sm:p-3 ${
         ativo
           ? side === 'BLUE'
             ? 'border-blue/60 bg-blue/[0.06]'
             : 'border-red/60 bg-red/[0.06]'
-          : 'border-line/50 bg-raised/30 opacity-70'
+          : 'border-line/40 bg-raised/20'
       }`}
     >
       <p
-        className={`mb-2 flex items-center justify-between text-sm font-bold uppercase ${
+        className={`mb-2 flex flex-wrap items-center justify-between gap-1 text-sm font-bold uppercase ${
           side === 'BLUE' ? 'text-blue' : 'text-red'
         }`}
       >

@@ -81,7 +81,9 @@ export function App() {
   return (
     <div className="min-h-screen pb-20 sm:pb-0">
       <header className="sticky top-0 z-30 border-b border-line/50 bg-canvas/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-6 px-4 py-3.5 sm:px-6 lg:px-8">
+        {/* Mais baixo no celular: com a barra de baixo, os dois somavam 21% de
+            uma tela de 568px. */}
+        <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-6 px-4 py-2.5 sm:px-6 sm:py-3.5 lg:px-8">
           <NavLink to="/" className="group flex items-baseline gap-1.5">
             <span className="font-display text-lg font-bold tracking-[-0.01em] text-ink">
               InHouse

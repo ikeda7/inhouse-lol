@@ -40,16 +40,18 @@ export function TeamCard({
     >
       <header
         className={
-          'flex items-center justify-between gap-3 px-4 py-2 ' +
+          // flex-wrap: no celular "Time Vermelho" e a média do time não cabem
+          // lado a lado, e cada um quebrava no meio ("TIME / VERMELHO").
+          'flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-4 py-2 ' +
           (isBlue ? 'bg-blue/20' : 'bg-red/20')
         }
       >
-        <h3 className="text-sm font-bold uppercase tracking-widest">
+        <h3 className="whitespace-nowrap text-sm font-bold uppercase tracking-widest">
           {isBlue ? 'Time Azul' : 'Time Vermelho'}
         </h3>
         {considerados.length > 0 && (
           <span
-            className="tabular text-xs text-ink-muted"
+            className="tabular whitespace-nowrap text-xs text-ink-muted"
             title="O que o sorteio considerou: quem jogou pouco conta perto da média do grupo, e KDA tem teto"
           >
             KDA {media('kdaConsiderado').toFixed(2)} · {Math.round(media('winRateConsiderado'))}%
