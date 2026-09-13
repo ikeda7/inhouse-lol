@@ -78,8 +78,10 @@ tablet. No screenshot baseline on purpose: both checks are baseline-free.
 - `CHROME_PATH` points at an existing Chromium instead of the one
   `npx playwright-core install chromium` downloads.
 
-The job is **not** a required check yet. Promote it in branch protection once
-it has proven stable across a few PRs.
+The job **is a required check** on `develop` and `main` since 2026-09-13. It
+was promoted after 100 CI runs in which its only 3 failures were real bugs
+(the Momentos selector, on fix branches) and none was a flake. A PR that breaks
+a screen or a flow does not merge.
 
 ### Interaction flows (same CI job, after the screen check)
 
@@ -199,8 +201,9 @@ remote: error: GH006: Protected branch update failed for refs/heads/develop.
 remote: - Changes must be made through a pull request.
 ```
 
-Everything reaches them through a PR with green CI (both jobs — "Testes,
-tipos e build" and "Segredos e dependências" — are required checks). Zero
+Everything reaches them through a PR with green CI (all three jobs — "Testes,
+tipos e build", "Segredos e dependências" and "Telas no navegador" — are
+required checks). Zero
 approvals are required, because there is one maintainer and nobody approves
 their own PR; the gate is the PR plus CI, not review.
 
