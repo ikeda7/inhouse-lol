@@ -83,7 +83,13 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
     stat.physicalDamageToChampions + stat.magicDamageToChampions + stat.trueDamageToChampions;
 
   return (
-    <div className="space-y-4 border-l-2 border-gold/40 bg-canvas/50 px-3 py-3.5 sm:px-4">
+    // O filete diz o lado em que a pessoa jogou (a única borda colorida que o
+    // design permite), em vez de um dourado decorativo.
+    <div
+      className={`space-y-4 border-l-2 bg-canvas/50 px-3 py-3.5 sm:px-4 ${
+        stat.teamSide === 'BLUE' ? 'border-blue/70' : 'border-red/70'
+      }`}
+    >
       {/* De quem é este painel.
           Ele renderizava colado embaixo da linha do jogador, e ali o nome era
           redundante. Agora abre em largura cheia sob os dois times -- longe da
