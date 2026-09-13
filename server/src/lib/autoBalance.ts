@@ -34,8 +34,18 @@
  *
  *  3. PONTUACAO (com restarts aleatorios)
  *     Backtracking devolve UMA solucao valida; quase sempre existem varias.
- *     Ficamos com a de menor custo: diferenca de rating + desconforto de role +
+ *     O custo de cada uma e: diferenca de rating + desconforto de role +
  *     concentracao de autofill em um dos lados.
+ *
+ *     A escolhida NAO e sempre a de menor custo: a semente sorteia entre as
+ *     divisoes ate `ratingTolerance` pontos piores que a melhor, desde que
+ *     ninguem jogue mais fora da main do que na melhor. E `avoidSplits` tira
+ *     do sorteio as divisoes que ja apareceram na tela. Motivo: com o rating
+ *     vindo do historico (lib/forca.ts), o otimo e unico, e "tenta outro"
+ *     devolvia exatamente os mesmos times a cada clique. Quando todo mundo tinha
+ *     rating 1000 isso nao aparecia, porque havia dezenas de empates. So a
+ *     margem nao resolve: com as roles de um elenco real, medimos 2 divisoes
+ *     diferentes em 20 cliques.
  *
  *     A amostragem e feita com RESTARTS INDEPENDENTES, nao com uma unica DFS
  *     longa. Motivo: as primeiras N folhas de uma DFS compartilham quase todo o
@@ -128,6 +138,17 @@ export interface AutoBalanceOptions {
   offRoleCost?: number;
   /** Custo de alocar alguem numa role que so existe via FILL. Default 10. */
   fillCost?: number;
+  /**
+   * Quanto pior que a melhor composicao (em pontos de custo, a mesma escala do
+   * rating) ainda entra no sorteio. 0 = sempre a melhor. Default 25.
+   */
+  ratingTolerance?: number;
+  /**
+   * Divisoes que ja apareceram na tela e nao devem voltar ("tenta outro").
+   * Cada item sao os ids de UM dos times, tanto faz qual. Sem divisao nova
+   * perto da melhor, vem a proxima mais equilibrada; sem nenhuma nova, a melhor.
+   */
+  avoidSplits?: string[][];
 }
 
 export class DraftError extends Error {
@@ -159,6 +180,7 @@ const DEFAULTS = {
   fairnessWeight: 0.5,
   offRoleCost: 40,
   fillCost: 10,
+  ratingTolerance: 25,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -358,13 +380,25 @@ function scoreAssignment(
   return { score, ratingDiff, comfortCost };
 }
 
+interface Candidate {
+  assignment: Assignment;
+  score: number;
+  ratingDiff: number;
+  comfortCost: number;
+}
+
 interface SearchOutcome {
   best: Assignment | null;
   bestScore: number;
   bestRatingDiff: number;
   bestComfortCost: number;
   solutionsEvaluated: number;
+  /** Composicoes ate `tolerance` pontos da melhor (ver pickNearBest). */
+  candidates: Candidate[];
 }
+
+/** Acima disso a lista de candidatas e podada pela melhor conhecida ate agora. */
+const CANDIDATE_PRUNE_AT = 256;
 
 /**
  * Backtracking com MRV + forward checking.
@@ -384,6 +418,7 @@ function search(
     maxNodes: number;
     restarts: number;
     solutionsPerRestart: number;
+    tolerance: number;
   },
   rng: () => number,
   breakSymmetry: boolean
@@ -416,6 +451,7 @@ function search(
     bestRatingDiff: Number.POSITIVE_INFINITY,
     bestComfortCost: Number.POSITIVE_INFINITY,
     solutionsEvaluated: 0,
+    candidates: [],
   };
 
   let nodes = 0;
@@ -468,6 +504,13 @@ function search(
         slots,
         weights
       );
+      if (score <= outcome.bestScore + limits.tolerance) {
+        outcome.candidates.push({ assignment: assignment.slice(), score, ratingDiff, comfortCost });
+        if (outcome.candidates.length > CANDIDATE_PRUNE_AT && Number.isFinite(limits.tolerance)) {
+          const limit = Math.min(score, outcome.bestScore) + limits.tolerance;
+          outcome.candidates = outcome.candidates.filter((c) => c.score <= limit);
+        }
+      }
       if (score < outcome.bestScore) {
         outcome.best = assignment.slice();
         outcome.bestScore = score;
@@ -543,6 +586,74 @@ function search(
  * ponto de transformar o mergulho guloso em sorteio puro.
  */
 const NOISE_AMPLITUDE = 25;
+
+/**
+ * Chave de uma divisao: os ids do time do jogador 0, em ordem. A quebra de
+ * simetria prende o jogador 0 no azul, entao o azul de toda solucao e esse time.
+ */
+function splitKeyOf(assignment: Assignment, players: PreparedPlayer[], slots: Slot[]): string {
+  return players
+    .filter((player) => slots[assignment[player.index]].side === 'BLUE')
+    .map((player) => player.source.id)
+    .sort()
+    .join(',');
+}
+
+/** Mesma chave para um time vindo de fora: se nao tem o jogador 0, e o outro time. */
+function splitKeyOfTeam(teamIds: string[], players: PreparedPlayer[]): string {
+  const team = new Set(teamIds);
+  const hasPlayerZero = team.has(players[0].source.id);
+  return players
+    .filter((player) => team.has(player.source.id) === hasPlayerZero)
+    .map((player) => player.source.id)
+    .sort()
+    .join(',');
+}
+
+/**
+ * Escolhe a divisao que vai para a tela.
+ *
+ * 1. Uma entrada por divisao (a de menor custo): quem joga com quem e o que o
+ *    grupo enxerga, e a melhor -- que varios mergulhos acham -- nao ganha mais
+ *    chance so por ser mais facil de achar.
+ * 2. Tira as que ja apareceram (`avoided`).
+ * 3. Sorteia entre as que custam ate `tolerance` a mais que a melhor E nao
+ *    tiram mais ninguem da main: a variedade sai da divisao das pessoas, nunca
+ *    de alguem jogar fora da role so para o clique seguinte parecer diferente.
+ * 4. Nenhuma nova tao perto: a nova mais equilibrada. Nenhuma nova: a melhor.
+ */
+function pickCandidate(
+  outcome: SearchOutcome & { best: Assignment },
+  tolerance: number,
+  avoided: Set<string>,
+  keyOf: (assignment: Assignment) => string,
+  rng: () => number
+): Candidate {
+  const bySplit = new Map<string, Candidate>();
+  for (const candidate of outcome.candidates) {
+    const key = keyOf(candidate.assignment);
+    const current = bySplit.get(key);
+    if (!current || candidate.score < current.score) bySplit.set(key, candidate);
+  }
+
+  const fresh = [...bySplit.entries()]
+    .filter(([key]) => !avoided.has(key))
+    .map(([, candidate]) => candidate);
+  const near = fresh.filter(
+    (candidate) =>
+      candidate.score <= outcome.bestScore + tolerance &&
+      candidate.comfortCost <= outcome.bestComfortCost
+  );
+
+  if (near.length > 0) return near[Math.floor(rng() * near.length)];
+  if (fresh.length > 0) return fresh.reduce((a, b) => (b.score < a.score ? b : a));
+  return {
+    assignment: outcome.best,
+    score: outcome.bestScore,
+    ratingDiff: outcome.bestRatingDiff,
+    comfortCost: outcome.bestComfortCost,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Montagem do resultado
@@ -627,6 +738,9 @@ export function autoBalanceTeams(
 
   const seed = options.seed ?? (Math.random() * 0xffffffff) >>> 0;
   const rng = createRng(seed);
+  // `??` e nao so o spread: quem repassa `{ avoidSplits: undefined }` apagaria o default.
+  const tolerance = options.ratingTolerance ?? DEFAULTS.ratingTolerance;
+  const avoidSplits = options.avoidSplits ?? [];
 
   // --- preparo ---
   // Ordena por pool crescente ANTES de reindexar: assim o jogador de indice 0 e
@@ -656,6 +770,9 @@ export function autoBalanceTeams(
       maxNodes: opts.maxNodes,
       restarts: opts.restarts,
       solutionsPerRestart: opts.solutionsPerRestart,
+      // Evitando divisoes, a substituta pode estar longe da melhor: guarda todas
+      // (no maximo maxSolutions arrays de 10 numeros).
+      tolerance: avoidSplits.length > 0 ? Number.POSITIVE_INFINITY : tolerance,
     },
     rng,
     true
@@ -671,12 +788,21 @@ export function autoBalanceTeams(
     );
   }
 
+  const avoided = new Set(avoidSplits.map((team) => splitKeyOfTeam(team, prepared)));
+  const chosen = pickCandidate(
+    { ...outcome, best: outcome.best },
+    tolerance,
+    avoided,
+    (assignment) => splitKeyOf(assignment, prepared, slots),
+    rng
+  );
+
   return {
-    blueTeam: buildTeam('BLUE', outcome.best, prepared, slots),
-    redTeam: buildTeam('RED', outcome.best, prepared, slots),
-    ratingDiff: outcome.bestRatingDiff,
-    comfortCost: outcome.bestComfortCost,
-    score: outcome.bestScore,
+    blueTeam: buildTeam('BLUE', chosen.assignment, prepared, slots),
+    redTeam: buildTeam('RED', chosen.assignment, prepared, slots),
+    ratingDiff: chosen.ratingDiff,
+    comfortCost: chosen.comfortCost,
+    score: chosen.score,
     solutionsEvaluated: outcome.solutionsEvaluated,
     seed,
   };
@@ -727,6 +853,7 @@ export function assignRolesWithinTeam(
       maxNodes: opts.maxNodes,
       restarts: opts.restarts,
       solutionsPerRestart: opts.solutionsPerRestart,
+      tolerance: 0,
     },
     rng,
     false

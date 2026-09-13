@@ -126,8 +126,10 @@ export const playersApi = {
 
 export const draftApi = {
   /** O botao "Sortear Times". */
-  autoBalance: (playerIds: string[], options: { seed?: number; ignoreRating?: boolean } = {}) =>
-    post<AutoBalanceResult>('/draft/auto-balance', { playerIds, ...options }),
+  autoBalance: (
+    playerIds: string[],
+    options: { seed?: number; ignoreRating?: boolean; evitar?: string[][] } = {}
+  ) => post<AutoBalanceResult>('/draft/auto-balance', { playerIds, ...options }),
 
   /** `captainIds` só vale no modo MANUAL: [capitão azul, capitão vermelho]. */
   startCaptains: (

@@ -198,6 +198,82 @@ describe('autoBalanceTeams', () => {
     });
   });
 
+  describe('"tenta outro" com rating de verdade', () => {
+    // Ratings todos diferentes, como os que vem do historico: o otimo e unico,
+    // e foi assim que "tenta outro" passou a devolver sempre os mesmos times.
+    const COM_RATING: DraftablePlayer[] = ROSTER.map((player, i) => ({
+      ...player,
+      rating: 900 + i * 23,
+    }));
+
+    const divisao = (r: ReturnType<typeof autoBalanceTeams>) =>
+      [r.blueTeam, r.redTeam]
+        .map((team) =>
+          team.players
+            .map((entry) => entry.player.id)
+            .sort()
+            .join(',')
+        )
+        .sort()
+        .join('|');
+
+    it('nunca repete uma divisao que ja apareceu, venha o time azul ou o vermelho', () => {
+      const vistas: string[][] = [];
+      const mostradas = new Set<string>();
+
+      for (let clique = 0; clique < 6; clique++) {
+        const result = autoBalanceTeams(COM_RATING, { seed: clique, avoidSplits: vistas });
+        expectValidTeams(result);
+        expectRolesRespected(result);
+
+        expect(mostradas.has(divisao(result))).toBe(false);
+        mostradas.add(divisao(result));
+        const time = clique % 2 === 0 ? result.blueTeam : result.redTeam;
+        vistas.push(time.players.map((entry) => entry.player.id));
+      }
+    });
+
+    it('a margem nunca passa do limite nem tira ninguem da main', () => {
+      for (let seed = 0; seed < 40; seed++) {
+        // Mesma seed = mesma busca; so muda a escolha no fim.
+        const melhor = autoBalanceTeams(COM_RATING, { seed, ratingTolerance: 0 });
+        const result = autoBalanceTeams(COM_RATING, { seed });
+
+        expect(result.score).toBeLessThanOrEqual(melhor.score + 25);
+        expect(result.comfortCost).toBeLessThanOrEqual(melhor.comfortCost);
+      }
+    }, 15_000);
+
+    it('sem roles travando, a margem da divisoes diferentes a cada seed', () => {
+      // Com as roles de um elenco real quase nenhuma divisao cabe na margem
+      // (por isso existe o avoidSplits); com todo mundo Fill, varias cabem.
+      const todosFill: DraftablePlayer[] = COM_RATING.map((player) => ({
+        ...player,
+        roles: ['FILL'],
+      }));
+      const divisoes = new Set<string>();
+
+      for (let seed = 0; seed < 20; seed++) {
+        const melhor = autoBalanceTeams(todosFill, { seed, ratingTolerance: 0 });
+        const result = autoBalanceTeams(todosFill, { seed });
+        expect(result.score).toBeLessThanOrEqual(melhor.score + 25);
+        divisoes.add(divisao(result));
+      }
+
+      expect(divisoes.size).toBeGreaterThan(1);
+    }, 15_000);
+
+    it('opcoes repassadas como undefined nao apagam os defaults', () => {
+      const result = autoBalanceTeams(COM_RATING, {
+        seed: 3,
+        ratingTolerance: undefined,
+        avoidSplits: undefined,
+      });
+      expectValidTeams(result);
+      expect(result.score).toBe(autoBalanceTeams(COM_RATING, { seed: 3 }).score);
+    });
+  });
+
   it('roda rapido mesmo no pior caso (10 jogadores Fill)', () => {
     const roster: DraftablePlayer[] = Array.from({ length: 10 }, (_, i) => ({
       id: `p${i}`,
