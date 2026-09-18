@@ -9,7 +9,7 @@ import { useChampions } from '../hooks/useChampions';
 import { gerarImagemDoRanking } from '../lib/rankingImage';
 import { resolvedorDeIcone } from '../lib/imagem/canvas';
 import { ExportarImagem } from '../components/ExportarImagem';
-import { PodioDoRanking } from '../components/PodioDoRanking';
+import { PodioDoRanking, TAMANHO_DO_PODIO } from '../components/PodioDoRanking';
 import { ROLE_LABEL, type LeaderboardEntry } from '../types';
 
 type SortKey = 'wins' | 'winRate' | 'avgKda' | 'points';
@@ -71,6 +71,15 @@ export function DashboardPage() {
   const { data, loading, error, reload } = useAsync(() => statsApi.leaderboard(sortBy), [sortBy]);
 
   const semDados = !data || data.length === 0;
+
+  /**
+   * Com pódio, a lista começa no 4º: os três de cima já estão lá em cima com a
+   * ficha inteira, e repetir a mesma pessoa duas vezes na mesma tela é espaço
+   * gasto duas vezes. Sem pódio (menos de três), a lista mostra todo mundo.
+   */
+  const temPodio = (data?.length ?? 0) >= TAMANHO_DO_PODIO;
+  const primeiraPosicaoDaLista = temPodio ? TAMANHO_DO_PODIO : 0;
+  const daListaParaBaixo = data?.slice(primeiraPosicaoDaLista) ?? [];
 
   const nomeDoArquivo = `inhouse-lol-ranking-${new Date().toISOString().slice(0, 10)}.png`;
 
@@ -154,8 +163,12 @@ export function DashboardPage() {
 
             {/* --- celular e tablet --- */}
             <ul className="divide-y divide-line/40 lg:hidden">
-              {data.map((entry, index) => (
-                <LinhaCelular key={entry.playerId} entry={entry} posicao={index} />
+              {daListaParaBaixo.map((entry, index) => (
+                <LinhaCelular
+                  key={entry.playerId}
+                  entry={entry}
+                  posicao={index + primeiraPosicaoDaLista}
+                />
               ))}
             </ul>
 
@@ -187,8 +200,12 @@ export function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/25">
-                  {data.map((entry, index) => (
-                    <LinhaTabela key={entry.playerId} entry={entry} posicao={index} />
+                  {daListaParaBaixo.map((entry, index) => (
+                    <LinhaTabela
+                      key={entry.playerId}
+                      entry={entry}
+                      posicao={index + primeiraPosicaoDaLista}
+                    />
                   ))}
                 </tbody>
               </table>

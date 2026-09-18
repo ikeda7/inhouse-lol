@@ -1,4 +1,5 @@
 import { hexDeCorDoNome, iniciaisDoNome } from './avatar';
+import { TAMANHO_DO_PODIO } from '../components/PodioDoRanking';
 import type { LeaderboardEntry } from '../types';
 import {
   caixa,
@@ -7,6 +8,7 @@ import {
   cortar,
   criarCanvas,
   fontesProntas,
+  desenharIcone,
   desenharMarca,
   desenharRodape,
   fonte,
@@ -78,7 +80,7 @@ export interface OpcoesDaImagem {
  * Altura do bloco do pódio. Só existe com três colocados: com dois, "pódio de
  * olimpíada" não é pódio, é degrau solto.
  */
-const ALTURA_PODIO = 300;
+const ALTURA_PODIO = 345;
 /** Espaço reservado ao cabeçalho da tabela, que desce para depois do pódio. */
 const ESPACO_DO_CABECALHO = 34;
 /** Altura de cada degrau, do primeiro ao terceiro. */
@@ -90,8 +92,12 @@ export async function gerarImagemDoRanking(
   entries: LeaderboardEntry[],
   opcoes: OpcoesDaImagem
 ): Promise<Blob> {
-  const linhas = entries.slice(0, MAX_LINHAS);
-  const temPodio = entries.length >= 3;
+  const temPodio = entries.length >= TAMANHO_DO_PODIO;
+  const noPodio = temPodio ? entries.slice(0, TAMANHO_DO_PODIO) : [];
+  // Quem está no pódio não entra de novo na tabela: a ficha inteira já subiu
+  // para lá, e a imagem é vista pequena demais para repetir gente.
+  const linhas = entries.slice(noPodio.length, MAX_LINHAS);
+  const visiveis = [...noPodio, ...linhas];
   const alturaDoPodio = temPodio ? ALTURA_PODIO : 0;
   const altura = ALTURA_CABECALHO + alturaDoPodio + linhas.length * ALTURA_LINHA + ALTURA_RODAPE;
 
@@ -103,13 +109,13 @@ export async function gerarImagemDoRanking(
   // duas levas dobraria a espera do botão à toa.
   const fotos = new Map<string, HTMLImageElement | null>();
   await Promise.all([
-    ...[...new Set(linhas.flatMap((e) => e.topChampions.map((c) => c.championName)))].map(
+    ...[...new Set(visiveis.flatMap((e) => e.topChampions.map((c) => c.championName)))].map(
       async (nome) => {
         const url = opcoes.iconeDoCampeao(nome);
         icones.set(nome, url ? await carregarIcone(url) : null);
       }
     ),
-    ...linhas
+    ...visiveis
       .filter((e) => e.photoUrl)
       .map(async (e) => {
         fotos.set(e.playerId, await carregarIcone(e.photoUrl as string));
@@ -123,11 +129,11 @@ export async function gerarImagemDoRanking(
   desenharCabecalho(ctx, opcoes.ordenadoPor, alturaDoPodio);
 
   if (temPodio) {
-    desenharPodio(ctx, linhas.slice(0, 3), fotos, opcoes);
+    desenharPodio(ctx, noPodio, fotos, icones, opcoes);
   }
 
   linhas.forEach((entry, index) => {
-    desenharLinha(ctx, entry, index, icones, fotos, alturaDoPodio);
+    desenharLinha(ctx, entry, index, noPodio.length + index, icones, fotos, alturaDoPodio);
   });
 
   desenharRodape(ctx, altura, '+3 por mapa vencido · +1 por MD3');
@@ -184,14 +190,16 @@ function desenharCabecalho(
  * O pódio, como no quadro de medalhas: segundo à esquerda, primeiro no meio e
  * mais alto, terceiro à direita.
  *
- * Os três seguem na tabela abaixo. O pódio responde "quem está ganhando" de
- * longe, num balão de conversa; a tabela é a conferência, e tirar os três dela
- * esconderia KDA e dano de justamente quem mais se olha.
+ * Cada degrau carrega a ficha inteira (placar, winrate, KDA, dano, farm,
+ * visão, MD3 e os campeões), e por isso os três NÃO aparecem de novo na
+ * tabela: a imagem é vista pequena no telefone, e repetir a mesma pessoa duas
+ * vezes gastava metade do espaço útil dizendo a mesma coisa.
  */
 function desenharPodio(
   ctx: CanvasRenderingContext2D,
   tres: LeaderboardEntry[],
   fotos: Map<string, HTMLImageElement | null>,
+  icones: Map<string, HTMLImageElement | null>,
   opcoes: OpcoesDaImagem
 ) {
   // Os degraus terminam logo acima do cabeçalho da tabela, que agora vem
@@ -222,22 +230,48 @@ function desenharPodio(
 
     ctx.textAlign = 'center';
     ctx.fillStyle = cor;
-    ctx.font = fonte(30, 700);
-    ctx.fillText(String(posicao + 1), centro, topoDoDegrau + 34);
+    ctx.font = fonte(26, 700);
+    ctx.fillText(String(posicao + 1), centro, topoDoDegrau + 30);
 
-    // Rótulo, número e nome, subindo a partir do degrau.
-    ctx.font = fonte(11, 600);
+    // A ficha sobe a partir do degrau: três linhas com o que a tabela mostrava.
+    const fichas = [
+      `${entry.wins}–${entry.losses}  ·  ${entry.winRate}%  ·  KDA ${entry.avgKda.toFixed(2)}`,
+      `DPM ${Math.round(entry.avgDamagePerMinute)}  ·  CS/M ${entry.avgCsPerMinute.toFixed(1)}`,
+      `VISÃO ${entry.avgVisionScore.toFixed(1)}  ·  ${entry.seriesWon > 0 ? `MD3 ${entry.seriesWon}` : 'sem MD3'}  ·  ${entry.points} pts`,
+    ];
+    ctx.font = fonte(12);
+    ctx.fillStyle = COR.apagado;
+    fichas.forEach((linha, i) => {
+      ctx.fillText(linha, centro, topoDoDegrau - 46 + i * 16);
+    });
+
+    // Os campeões mais jogados: é por eles que o grupo reconhece a pessoa.
+    const dosCampeoes = entry.topChampions.slice(0, 3);
+    const tamanhoDoIcone = 24;
+    const larguraDosIcones = dosCampeoes.length * (tamanhoDoIcone + 4) - 4;
+    dosCampeoes.forEach((campeao, i) => {
+      desenharIcone(
+        ctx,
+        icones.get(campeao.championName) ?? null,
+        centro - larguraDosIcones / 2 + i * (tamanhoDoIcone + 4),
+        topoDoDegrau - 82,
+        tamanhoDoIcone
+      );
+    });
+
+    // Rótulo, número e nome, subindo a partir dos campeões.
+    ctx.font = fonte(10, 600);
     ctx.fillStyle = COR.fraco;
-    ctx.fillText(opcoes.ordenadoPor.toUpperCase(), centro, topoDoDegrau - 12);
+    ctx.fillText(opcoes.ordenadoPor.toUpperCase(), centro, topoDoDegrau - 92);
 
     // Dourado só no primeiro: ouro marca quem decide a imagem, não os três.
     ctx.font = fonte(posicao === 0 ? 30 : 25, 700);
     ctx.fillStyle = posicao === 0 ? COR.ouro : COR.texto;
-    ctx.fillText(valor(entry), centro, topoDoDegrau - 30);
+    ctx.fillText(valor(entry), centro, topoDoDegrau - 108);
 
     ctx.font = fonte(15, 600);
     ctx.fillStyle = COR.texto;
-    ctx.fillText(cortar(ctx, entry.name, largura - 8), centro, topoDoDegrau - 60);
+    ctx.fillText(cortar(ctx, entry.name, largura - 8), centro, topoDoDegrau - 136);
 
     const tamanho = AVATAR_NO_PODIO[posicao];
     desenharAvatar(
@@ -245,7 +279,7 @@ function desenharPodio(
       entry,
       fotos.get(entry.playerId),
       centro,
-      topoDoDegrau - 78 - tamanho / 2,
+      topoDoDegrau - 152 - tamanho / 2,
       posicao,
       tamanho
     );
@@ -325,10 +359,16 @@ function desenharAvatar(
   ctx.textAlign = 'left';
 }
 
+/**
+ * `index` é a posição NA TABELA (para a faixa alternada e o y); `posicao` é a
+ * colocação no ranking. Com pódio, a tabela começa no 4º e os dois separam:
+ * usar um no lugar do outro numeraria o quarto colocado como primeiro.
+ */
 function desenharLinha(
   ctx: CanvasRenderingContext2D,
   entry: LeaderboardEntry,
   index: number,
+  posicao: number,
   icones: Map<string, HTMLImageElement | null>,
   fotos: Map<string, HTMLImageElement | null>,
   deslocamento: number
@@ -347,15 +387,22 @@ function desenharLinha(
   ctx.textBaseline = 'middle';
 
   ctx.font = fonte(20, 700);
-  ctx.fillStyle = medalha(index);
+  ctx.fillStyle = medalha(posicao);
   ctx.textAlign = 'center';
-  ctx.fillText(String(index + 1), MARGEM + 14, meio);
+  ctx.fillText(String(posicao + 1), MARGEM + 14, meio);
   ctx.textAlign = 'left';
 
   // A foto vem logo depois do número, como na tela: primeiro QUEM, depois o que
   // a pessoa jogou.
   const X_AVATAR = MARGEM + 38;
-  desenharAvatar(ctx, entry, fotos.get(entry.playerId), X_AVATAR + TAMANHO_AVATAR / 2, meio, index);
+  desenharAvatar(
+    ctx,
+    entry,
+    fotos.get(entry.playerId),
+    X_AVATAR + TAMANHO_AVATAR / 2,
+    meio,
+    posicao
+  );
 
   // +4 de folga para o anel do pódio, que passa 2px do raio.
   let x = X_AVATAR + TAMANHO_AVATAR + 12;
