@@ -96,6 +96,8 @@ clicks: every night and every game in the Destaques selector must filter the
 list and the image caption; Histórico opens series → game → player, the
 "A MD3 inteira" block lists exactly one row per person who played the series
 (both teams), and the series/game images download as real PNGs; the ranking image downloads and
+the podium shows the API's top three in podium order (2nd, 1st, 3rd) and the
+middle one opens the leader's profile;
 each sort tab requests its own `sortBy` and leaves the table in that order
 (the request is the proof when the data gives the same order in all four,
 as the CI database does); each
@@ -517,6 +519,13 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
 - Match history is three levels deep behind clicks (series → game → player);
   the player level exists specifically so post-game stats don't require the
   LoL client to still be open.
+- The ranking opens with an **Olympic podium** (`components/PodioDoRanking.tsx`
+  on screen, `desenharPodio` in `lib/rankingImage.ts`): 2nd left, 1st center and
+  tallest, 3rd right, with the number of the **active sort** under each face
+  (`VALOR_DA_METRICA` in `DashboardPage.tsx` feeds both screen and image, so
+  they never disagree). The three stay in the table below — dropping them would
+  hide KDA and DPM of exactly who gets looked at most. Fewer than three
+  players: no podium, a lone step reads as a bug.
 - Any big stat number is paired with a bar showing it relative to the best in
   the match — a number is only meaningful next to a max.
 - Data Dragon champion/item/spell/rune catalogs are fetched once and cached in
