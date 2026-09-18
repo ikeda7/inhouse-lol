@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import {
+  addRiotAccount,
   createPlayer,
   deactivatePlayer,
   getPlayerById,
   listPlayers,
+  removeRiotAccount,
   updatePlayer,
 } from '../services/players.js';
 import { getPlayerProfile } from '../services/stats.js';
@@ -31,6 +33,13 @@ const createPlayerSchema = z.object({
 
 const updatePlayerSchema = createPlayerSchema.partial().extend({
   active: z.boolean().optional(),
+});
+
+const contaSchema = z.object({
+  riotId: z
+    .string()
+    .trim()
+    .regex(/^.+#.+$/, 'Riot ID deve ter o formato Nick#TAG'),
 });
 
 /** GET /api/players?includeInactive=true */
@@ -83,6 +92,29 @@ playersRouter.patch(
   asyncHandler(async (req, res) => {
     const input = updatePlayerSchema.parse(req.body);
     res.json({ success: true, data: await updatePlayer(req.params.id, input) });
+  })
+);
+
+/**
+ * POST /api/players/:id/contas - liga mais uma conta da Riot (o smurf) ao
+ * jogador, para a importacao reconhecer as duas como a mesma pessoa.
+ */
+playersRouter.post(
+  '/:id/contas',
+  asyncHandler(async (req, res) => {
+    const { riotId } = contaSchema.parse(req.body);
+    res.status(201).json({ success: true, data: await addRiotAccount(req.params.id, riotId) });
+  })
+);
+
+/** DELETE /api/players/:id/contas/:contaId - desliga uma conta extra. */
+playersRouter.delete(
+  '/:id/contas/:contaId',
+  asyncHandler(async (req, res) => {
+    res.json({
+      success: true,
+      data: await removeRiotAccount(req.params.id, req.params.contaId),
+    });
   })
 );
 

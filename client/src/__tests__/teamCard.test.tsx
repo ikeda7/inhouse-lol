@@ -18,6 +18,7 @@ function time(): BalancedTeam {
       id: 'p' + i,
       name: 'Jogador ' + i,
       riotId: null,
+      riotAccounts: [],
       roles: [role],
       internalRating: 1000,
       active: true,

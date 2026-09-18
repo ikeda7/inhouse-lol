@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Link2, Pencil, X, EyeOff, Eye, UserCheck } from 'lucide-react';
+import { Check, Link2, Pencil, Plus, X, EyeOff, Eye, UserCheck } from 'lucide-react';
 import { playersApi } from '../api/client';
 import { useAction } from '../hooks/useAsync';
 import { Avatar, Button, ErrorState, RoleBadge } from './ui';
@@ -25,7 +25,23 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
   const [riotId, setRiotId] = useState(player.riotId ?? '');
   const [roles, setRoles] = useState<RoleInput[]>(player.roles);
 
+  const [novaConta, setNovaConta] = useState('');
+
   const update = useAction(playersApi.update);
+  const addAccount = useAction(playersApi.addAccount);
+  const removeAccount = useAction(playersApi.removeAccount);
+
+  const adicionarConta = async () => {
+    if (!(await addAccount.run(player.id, novaConta.trim()))) return;
+    setNovaConta('');
+    onChanged();
+  };
+
+  const removerConta = async (contaId: string) => {
+    if (await removeAccount.run(player.id, contaId)) onChanged();
+  };
+
+  const erroDeConta = addAccount.error ?? removeAccount.error;
 
   const cancel = () => {
     setName(player.name);
@@ -87,7 +103,7 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
                 <Link2 size={11} />
                 {player.riotId}
               </span>
-            ) : (
+            ) : player.riotAccounts.length > 0 ? null : (
               <span
                 className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-400"
                 title="Sem Riot ID, a importação automática não consegue identificar essa pessoa"
@@ -95,6 +111,20 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
                 sem Riot ID
               </span>
             )}
+
+            {/* Smurf: o nick some do texto principal para a linha não virar uma
+                lista de contas, mas o selo avisa que a pessoa joga de mais de
+                uma -- é o que explica partida dela aparecendo com outro nick. */}
+            {player.riotAccounts.map((conta) => (
+              <span
+                key={conta.id}
+                className="flex items-center gap-1 text-xs text-ink-faint"
+                title="Conta extra: as partidas dela entram no mesmo jogador"
+              >
+                <Link2 size={11} />
+                {conta.riotId}
+              </span>
+            ))}
 
             {/* Quem já tem conta ganha o selo; quem não tem aparece com um
                 lembrete neutro -- não é erro, é convite. O e-mail nunca vem
@@ -175,6 +205,57 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
             className="mt-1 w-full rounded border border-line bg-raised px-2 py-1.5 text-xs text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
           />
         </label>
+      </div>
+
+      {/* Smurf. Fica aqui, e não num campo de texto com dois nicks, porque cada
+          conta é uma linha própria no banco: é ela que recebe o PUUID quando a
+          primeira partida daquela conta é importada. */}
+      <div className="mt-2">
+        <p className="text-[11px] text-ink-faint">Outras contas (smurf)</p>
+        <ul className="mt-1.5 space-y-1">
+          {player.riotAccounts.map((conta) => (
+            <li key={conta.id} className="flex items-center gap-2">
+              <span className="flex min-w-0 flex-1 items-center gap-1 truncate text-xs text-ink">
+                <Link2 size={11} className="shrink-0 text-ink-faint" />
+                {conta.riotId}
+              </span>
+              <button
+                type="button"
+                onClick={() => removerConta(conta.id)}
+                title="Desligar essa conta"
+                aria-label={`Desligar a conta ${conta.riotId} de ${player.name}`}
+                className="-m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-faint hover:text-loss"
+              >
+                <X size={14} />
+              </button>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-1.5 flex gap-2">
+          <input
+            value={novaConta}
+            onChange={(event) => setNovaConta(event.target.value)}
+            placeholder="Outra conta: Nick#TAG"
+            aria-label={`Outra conta de ${player.name}`}
+            className="min-w-0 flex-1 rounded border border-line bg-raised px-2 py-1.5 text-xs text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
+          />
+          <Button
+            variant="ghost"
+            onClick={adicionarConta}
+            loading={addAccount.loading}
+            disabled={!novaConta.includes('#')}
+          >
+            <Plus size={14} />
+            Adicionar
+          </Button>
+        </div>
+
+        {erroDeConta && (
+          <div className="mt-2">
+            <ErrorState error={erroDeConta} />
+          </div>
+        )}
       </div>
 
       <div className="mt-2">
