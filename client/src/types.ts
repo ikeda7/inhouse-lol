@@ -407,6 +407,27 @@ export interface RecordeDeCampeao {
   exibicao: string;
 }
 
+/** O campeão em si, no grupo inteiro: escolhido, banido e ganhando. */
+export interface EstatisticaDeCampeao {
+  championName: string;
+  championId: number | null;
+  championIcon: string | null;
+  partidas: number;
+  vitorias: number;
+  bans: number;
+  pickRate: number;
+  banRate: number;
+  /** Escolhido OU banido, sobre o total de partidas. */
+  presenca: number;
+  /** Null quando só foi banido: sem jogo não existe aproveitamento. */
+  winRate: number | null;
+}
+
+export interface EstatisticasDeCampeoes {
+  campeoes: EstatisticaDeCampeao[];
+  partidas: number;
+}
+
 export interface Highlights {
   recordes: RecordEntry[];
   recordesDeCampeao: RecordeDeCampeao[];

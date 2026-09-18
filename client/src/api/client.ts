@@ -17,6 +17,7 @@ import type {
   DraftRoom,
   DraftRoomUnchanged,
   ChampionManifest,
+  EstatisticasDeCampeoes,
   Highlights,
   LeaderboardEntry,
   Player,
@@ -244,6 +245,9 @@ export const statsApi = {
     request<LeaderboardEntry[]>(`/stats/leaderboard?sortBy=${sortBy}&minGames=${minGames}`),
 
   highlights: () => request<Highlights>('/stats/highlights'),
+
+  /** Pick, ban, presença e aproveitamento por campeão. */
+  campeoes: () => request<EstatisticasDeCampeoes>('/stats/campeoes'),
 };
 
 // ---------------------------------------------------------------------------

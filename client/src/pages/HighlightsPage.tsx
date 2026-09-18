@@ -27,6 +27,7 @@ import { harmonizarNoite } from '../lib/momentos';
 import { useChampions } from '../hooks/useChampions';
 import { ExportarImagem } from '../components/ExportarImagem';
 import { RecordesDeCampeao } from '../components/RecordesDeCampeao';
+import { TabelaDeCampeoes } from '../components/TabelaDeCampeoes';
 import { resolvedorDeIcone } from '../lib/imagem/canvas';
 import { gerarImagemDosRecordes } from '../lib/imagem/destaques';
 import {
@@ -49,11 +50,12 @@ import { ROLE_LABEL, type MomentEntry, type MomentType, type RecordEntry } from 
 /**
  * Destaques (ideia do Vinim, issue #14).
  *
- * Duas leituras do mesmo dado, com pesos diferentes de propósito:
+ * Duas leituras do mesmo dado, separadas por um seletor no topo porque uma
+ * rolava por cima da outra quando os campeões entraram:
  *
- *   RECORDES é a parte que o grupo vai discutir no zap, então ganha o espaço
- *   nobre. Todo recorde aponta para UMA partida -- a graça é poder dizer em que
- *   jogo aconteceu.
+ *   RECORDES é número: o recorde de UMA partida (a graça é dizer em que jogo
+ *   aconteceu), o acumulado de cada pessoa com cada campeão, e o campeão em si
+ *   (pick, ban, presença). É o que o grupo discute no zap.
  *
  *   MOMENTOS é linha do tempo, agrupada por noite. Cada cartão usa a palavra
  *   que o próprio jogo grita ("LEGENDARY", "QUADRA KILL") em vez de descrever
@@ -77,7 +79,15 @@ const CATEGORIA: Record<string, { label: string; icon: LucideIcon; tom?: 'zoeira
 
 export function HighlightsPage() {
   const { data, loading, error, reload } = useAsync(() => statsApi.highlights());
+  const campeoes = useAsync(() => statsApi.campeoes());
   const { manifest } = useChampions();
+  /**
+   * Recordes e Momentos viraram duas visões da mesma aba: o que é número
+   * (recorde, campeão, pick e ban) não se mistura com o que é linha do tempo.
+   * Seletor aqui dentro, e não uma sétima aba na barra: com sete, cada item
+   * fica com ~45px num celular de 320px e o rótulo quebra em duas linhas.
+   */
+  const [aba, setAba] = useState<'recordes' | 'momentos'>('recordes');
   /**
    * O que os Momentos mostram (e a imagem leva): todas as noites, ou UMA noite
    * -- qualquer uma, pelo índice (0 = a mais recente) -- e talvez um jogo dela.
@@ -123,149 +133,177 @@ export function HighlightsPage() {
 
   return (
     <div className="space-y-6">
-      <Card
-        destaque
-        padding={false}
-        title={<CardTitle icon={Award}>Recordes</CardTitle>}
-        action={
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <span className="text-[11px] text-ink-faint">
-              de {data.partidas} partida{data.partidas === 1 ? '' : 's'}
-            </span>
-            {/* A imagem usa os MESMOS textos da tela (rótulo, "LEGENDARY", a
+      <div role="group" aria-label="O que mostrar" className={`${GRUPO_DO_SELETOR} w-fit`}>
+        {(['recordes', 'momentos'] as const).map((opcao) => (
+          <button
+            key={opcao}
+            type="button"
+            onClick={() => setAba(opcao)}
+            aria-pressed={aba === opcao}
+            className={botaoDoSeletor(aba === opcao)}
+          >
+            {opcao === 'recordes' ? 'Recordes' : 'Momentos'}
+          </button>
+        ))}
+      </div>
+
+      {aba === 'recordes' && (
+        <>
+          <Card
+            destaque
+            padding={false}
+            title={<CardTitle icon={Award}>Recordes</CardTitle>}
+            action={
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <span className="text-[11px] text-ink-faint">
+                  de {data.partidas} partida{data.partidas === 1 ? '' : 's'}
+                </span>
+                {/* A imagem usa os MESMOS textos da tela (rótulo, "LEGENDARY", a
                 frase): se a tela mudar, a imagem muda junto. */}
-            <ExportarImagem
-              gerar={() =>
-                gerarImagemDosRecordes(data, {
-                  iconeDoCampeao: resolvedorDeIcone(manifest),
-                  categoria: (chave) => {
-                    const meta = CATEGORIA[chave];
-                    return meta ? { label: meta.label, zoeira: meta.tom === 'zoeira' } : null;
-                  },
-                })
-              }
-              nomeDoArquivo={`inhouse-lol-recordes-${new Date().toISOString().slice(0, 10)}.png`}
-              titulo="Recordes · InHouse LoL"
-              vazio={data.recordes.length === 0}
-            />
-          </div>
-        }
-      >
-        {data.recordes.length === 0 ? (
-          <div className="p-4">
-            <EmptyState label="Sem recordes por enquanto." />
-          </div>
-        ) : (
-          // 12 categorias: fecha exatamente em 2, 3 ou 4 colunas, sem cartão
-          // órfão numa última linha pela metade.
-          <div className="grid gap-2.5 p-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-            {data.recordes.map((recorde) => (
-              <CartaoDeRecorde key={recorde.categoria} recorde={recorde} />
-            ))}
-          </div>
-        )}
-      </Card>
-
-      <RecordesDeCampeao recordes={data.recordesDeCampeao} />
-
-      <Card
-        padding={false}
-        title={<CardTitle icon={Flame}>Momentos</CardTitle>}
-        action={
-          noiteDaImagem && (
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <div role="group" aria-label="Noite dos momentos" className={GRUPO_DO_SELETOR}>
-                {(['todas', 'noite'] as const).map((opcao) => (
-                  <button
-                    key={opcao}
-                    type="button"
-                    onClick={() => {
-                      setModo(opcao);
-                      setJogoEscolhido(null);
-                    }}
-                    aria-pressed={modo === opcao}
-                    className={botaoDoSeletor(modo === opcao)}
-                  >
-                    {opcao === 'todas' ? 'Todas' : 'Por noite'}
-                  </button>
+                <ExportarImagem
+                  gerar={() =>
+                    gerarImagemDosRecordes(data, {
+                      iconeDoCampeao: resolvedorDeIcone(manifest),
+                      categoria: (chave) => {
+                        const meta = CATEGORIA[chave];
+                        return meta ? { label: meta.label, zoeira: meta.tom === 'zoeira' } : null;
+                      },
+                    })
+                  }
+                  nomeDoArquivo={`inhouse-lol-recordes-${new Date().toISOString().slice(0, 10)}.png`}
+                  titulo="Recordes · InHouse LoL"
+                  vazio={data.recordes.length === 0}
+                />
+              </div>
+            }
+          >
+            {data.recordes.length === 0 ? (
+              <div className="p-4">
+                <EmptyState label="Sem recordes por enquanto." />
+              </div>
+            ) : (
+              // 12 categorias: fecha exatamente em 2, 3 ou 4 colunas, sem cartão
+              // órfão numa última linha pela metade.
+              <div className="grid gap-2.5 p-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                {data.recordes.map((recorde) => (
+                  <CartaoDeRecorde key={recorde.categoria} recorde={recorde} />
                 ))}
               </div>
-              {/* Setas em vez de menu: funciona com 3 noites ou com 50, e não
-                  tem lista suspensa para o card cortar. */}
-              {noite && (
-                <div role="group" aria-label="Escolher a noite" className={GRUPO_DO_SELETOR}>
-                  <button
-                    type="button"
-                    aria-label="Noite anterior"
-                    disabled={indiceDaNoite >= noites.length - 1}
-                    onClick={() => irParaNoite(indiceDaNoite + 1)}
-                    className={botaoDoSeletor(false)}
-                  >
-                    <ChevronLeft size={13} />
-                  </button>
-                  <span aria-live="polite" className="px-1.5 text-[11px] font-semibold text-ink">
-                    {noite.nome}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="Próxima noite"
-                    disabled={indiceDaNoite <= 0}
-                    onClick={() => irParaNoite(indiceDaNoite - 1)}
-                    className={botaoDoSeletor(false)}
-                  >
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
-              )}
-              {noite && (
-                <div role="group" aria-label="Quais momentos mostrar" className={GRUPO_DO_SELETOR}>
-                  {[null, ...noite.jogos].map((opcao) => (
+            )}
+          </Card>
+
+          <RecordesDeCampeao recordes={data.recordesDeCampeao} />
+
+          {campeoes.data && (
+            <TabelaDeCampeoes campeoes={campeoes.data.campeoes} partidas={campeoes.data.partidas} />
+          )}
+        </>
+      )}
+
+      {aba === 'momentos' && (
+        <Card
+          padding={false}
+          title={<CardTitle icon={Flame}>Momentos</CardTitle>}
+          action={
+            noiteDaImagem && (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <div role="group" aria-label="Noite dos momentos" className={GRUPO_DO_SELETOR}>
+                  {(['todas', 'noite'] as const).map((opcao) => (
                     <button
-                      key={String(opcao)}
+                      key={opcao}
                       type="button"
-                      onClick={() => setJogoEscolhido(opcao)}
-                      aria-pressed={jogo === opcao}
-                      className={botaoDoSeletor(jogo === opcao)}
+                      onClick={() => {
+                        setModo(opcao);
+                        setJogoEscolhido(null);
+                      }}
+                      aria-pressed={modo === opcao}
+                      className={botaoDoSeletor(modo === opcao)}
                     >
-                      {opcao === null ? 'Noite toda' : `Jogo ${opcao}`}
+                      {opcao === 'todas' ? 'Todas' : 'Por noite'}
                     </button>
                   ))}
                 </div>
-              )}
-              <span className="text-[11px] text-ink-faint">
-                Imagem: {noiteDaImagem.nome}
-                {jogo !== null ? ` · Jogo ${jogo}` : ''}
-              </span>
-              <ExportarImagem
-                gerar={() =>
-                  gerarImagemDosMomentos(momentosDaImagem, {
-                    iconeDoCampeao: resolvedorDeIcone(manifest),
-                    momento: textoDoMomento,
-                    jogo: jogo ?? undefined,
-                  })
-                }
-                nomeDoArquivo={`inhouse-lol-momentos-${(momentosDaImagem[0]?.playedAt ?? '').slice(0, 10)}${
-                  jogo !== null ? `-jogo-${jogo}` : ''
-                }.png`}
-                titulo={`Momentos · ${noiteDaImagem.nome}`}
-                vazio={momentosDaImagem.length === 0}
-              />
+                {/* Setas em vez de menu: funciona com 3 noites ou com 50, e não
+                  tem lista suspensa para o card cortar. */}
+                {noite && (
+                  <div role="group" aria-label="Escolher a noite" className={GRUPO_DO_SELETOR}>
+                    <button
+                      type="button"
+                      aria-label="Noite anterior"
+                      disabled={indiceDaNoite >= noites.length - 1}
+                      onClick={() => irParaNoite(indiceDaNoite + 1)}
+                      className={botaoDoSeletor(false)}
+                    >
+                      <ChevronLeft size={13} />
+                    </button>
+                    <span aria-live="polite" className="px-1.5 text-[11px] font-semibold text-ink">
+                      {noite.nome}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Próxima noite"
+                      disabled={indiceDaNoite <= 0}
+                      onClick={() => irParaNoite(indiceDaNoite - 1)}
+                      className={botaoDoSeletor(false)}
+                    >
+                      <ChevronRight size={13} />
+                    </button>
+                  </div>
+                )}
+                {noite && (
+                  <div
+                    role="group"
+                    aria-label="Quais momentos mostrar"
+                    className={GRUPO_DO_SELETOR}
+                  >
+                    {[null, ...noite.jogos].map((opcao) => (
+                      <button
+                        key={String(opcao)}
+                        type="button"
+                        onClick={() => setJogoEscolhido(opcao)}
+                        aria-pressed={jogo === opcao}
+                        className={botaoDoSeletor(jogo === opcao)}
+                      >
+                        {opcao === null ? 'Noite toda' : `Jogo ${opcao}`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <span className="text-[11px] text-ink-faint">
+                  Imagem: {noiteDaImagem.nome}
+                  {jogo !== null ? ` · Jogo ${jogo}` : ''}
+                </span>
+                <ExportarImagem
+                  gerar={() =>
+                    gerarImagemDosMomentos(momentosDaImagem, {
+                      iconeDoCampeao: resolvedorDeIcone(manifest),
+                      momento: textoDoMomento,
+                      jogo: jogo ?? undefined,
+                    })
+                  }
+                  nomeDoArquivo={`inhouse-lol-momentos-${(momentosDaImagem[0]?.playedAt ?? '').slice(0, 10)}${
+                    jogo !== null ? `-jogo-${jogo}` : ''
+                  }.png`}
+                  titulo={`Momentos · ${noiteDaImagem.nome}`}
+                  vazio={momentosDaImagem.length === 0}
+                />
+              </div>
+            )
+          }
+        >
+          {data.momentos.length === 0 ? (
+            <div className="p-4">
+              <EmptyState label="Nenhum momento registrado ainda." />
+              <p className="mt-2 text-center text-[11px] text-ink-faint">
+                Partidas importadas antes desta tela não trazem esse dado. Rode o agente com{' '}
+                <code className="rounded bg-overlay px-1 py-px">--refresh-all</code> para preencher.
+              </p>
             </div>
-          )
-        }
-      >
-        {data.momentos.length === 0 ? (
-          <div className="p-4">
-            <EmptyState label="Nenhum momento registrado ainda." />
-            <p className="mt-2 text-center text-[11px] text-ink-faint">
-              Partidas importadas antes desta tela não trazem esse dado. Rode o agente com{' '}
-              <code className="rounded bg-overlay px-1 py-px">--refresh-all</code> para preencher.
-            </p>
-          </div>
-        ) : (
-          <LinhaDoTempo momentos={momentosNaTela} />
-        )}
-      </Card>
+          ) : (
+            <LinhaDoTempo momentos={momentosNaTela} />
+          )}
+        </Card>
+      )}
     </div>
   );
 }
