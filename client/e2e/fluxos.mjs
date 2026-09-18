@@ -224,6 +224,11 @@ async function fluxoDosMomentos(pagina) {
   if (noites.length === 0) return 'nenhum momento registrado';
 
   await pagina.goto(`${BASE}/destaques`, { waitUntil: 'networkidle' });
+  // A tela abre em Recordes: os momentos estão na outra aba.
+  await pagina
+    .getByRole('group', { name: 'O que mostrar' })
+    .getByRole('button', { name: 'Momentos' })
+    .click();
   const card = pagina.locator('section', {
     has: pagina.getByRole('group', { name: 'Noite dos momentos' }),
   });
@@ -403,6 +408,50 @@ async function fluxoDosRecordesDeCampeao(pagina) {
   await pagina
     .getByRole('heading', { level: 1, name: primeiro.playerName })
     .waitFor({ timeout: 10000 });
+}
+
+/**
+ * Tabela de campeões e as duas abas de Destaques.
+ *
+ * O seletor "Recordes | Momentos" é controle: renderiza bonito e pode não
+ * trocar nada. E a tabela ordena por presença (pick + ban) -- se a ordem da
+ * tela não for a da API, a leitura vira outra.
+ */
+async function fluxoDosCampeoes(pagina) {
+  const { campeoes, partidas } = await api('GET', '/stats/campeoes');
+  if (campeoes.length === 0) return 'nenhum campeão escolhido ou banido ainda';
+
+  await pagina.goto(`${BASE}/destaques`, { waitUntil: 'networkidle' });
+  const tabela = pagina.locator('section', {
+    has: pagina.getByRole('heading', { name: 'Campeões' }),
+  });
+  await tabela.waitFor({ timeout: 20000 });
+  exigir(
+    (await tabela.innerText()).includes(`${partidas} partida`),
+    'a tabela não diz sobre quantas partidas são as porcentagens'
+  );
+
+  const linhas = tabela.locator('tbody tr');
+  exigir(
+    (await linhas.count()) === campeoes.length,
+    `a tabela mostra ${await linhas.count()} campeões, a API tem ${campeoes.length}`
+  );
+  const primeiraLinha = await linhas.first().innerText();
+  exigir(
+    primeiraLinha.includes(campeoes[0].championName),
+    `a tabela começa em "${primeiraLinha.replace(/\n/g, ' | ')}", a API começa em ${campeoes[0].championName}`
+  );
+  exigir(
+    primeiraLinha.includes(`${campeoes[0].presenca}%`),
+    `a presença de ${campeoes[0].championName} não bate: ${primeiraLinha.replace(/\n/g, ' | ')}`
+  );
+
+  // O seletor troca de verdade: a tabela some e a linha do tempo aparece.
+  const abas = pagina.getByRole('group', { name: 'O que mostrar' });
+  await abas.getByRole('button', { name: 'Momentos' }).click();
+  await tabela.waitFor({ state: 'hidden', timeout: 10000 });
+  await abas.getByRole('button', { name: 'Recordes' }).click();
+  await tabela.waitFor({ timeout: 10000 });
 }
 
 async function fluxoDaAjuda(pagina) {
@@ -1073,6 +1122,7 @@ async function main() {
     ['Ajuda: o "?" leva para "Como funciona"', fluxoDaAjuda],
     ['Perfil: a dupla leva ao perfil do parceiro, com o mesmo placar', fluxoDasDuplas],
     ['Destaques: os recordes de campeão levam ao perfil de quem fez', fluxoDosRecordesDeCampeao],
+    ['Destaques: a tabela de campeões segue a API, e as abas trocam de verdade', fluxoDosCampeoes],
     ['App: o navegador aceita instalar o site na tela inicial', fluxoDoAppInstalavel],
     ['Sorteio: usar os times abre a MD3 e leva para a Série', fluxoDoSorteio],
     [

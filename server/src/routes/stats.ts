@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { getLeaderboard } from '../services/stats.js';
 import { getDestaques } from '../services/highlights.js';
+import { getEstatisticasDeCampeoes } from '../services/campeoes.js';
 import { asyncHandler } from './helpers.js';
 
 export const statsRouter = Router();
@@ -25,5 +26,13 @@ statsRouter.get(
   '/highlights',
   asyncHandler(async (_req, res) => {
     res.json({ success: true, data: await getDestaques() });
+  })
+);
+
+/** GET /api/stats/campeoes -- pick, ban, presenca e aproveitamento por campeao. */
+statsRouter.get(
+  '/campeoes',
+  asyncHandler(async (_req, res) => {
+    res.json({ success: true, data: await getEstatisticasDeCampeoes() });
   })
 );
