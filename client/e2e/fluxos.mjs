@@ -364,6 +364,47 @@ async function fluxoDasDuplas(pagina) {
   );
 }
 
+/**
+ * Recordes de campeão: o bloco "Com um campeão" mostra o que a API elegeu, e
+ * cada cartão leva ao perfil de quem fez. É acumulado, não partida — então o
+ * cartão também tem que dizer de quantos jogos o número saiu.
+ */
+async function fluxoDosRecordesDeCampeao(pagina) {
+  const destaques = await api('GET', '/stats/highlights');
+  const recordes = destaques.recordesDeCampeao ?? [];
+  if (recordes.length === 0) return 'ninguém tem partida com campeão ainda';
+
+  await pagina.goto(`${BASE}/destaques`, { waitUntil: 'networkidle' });
+  const card = pagina.locator('section', {
+    has: pagina.getByRole('heading', { name: 'Com um campeão' }),
+  });
+  await card.waitFor({ timeout: 20000 });
+
+  const cartoes = card.locator('a[href^="/jogadores/"]');
+  exigir(
+    (await cartoes.count()) === recordes.length,
+    `a tela mostra ${await cartoes.count()} recordes de campeão, a API elegeu ${recordes.length}`
+  );
+
+  const primeiro = recordes[0];
+  const cartao = cartoes.first();
+  const texto = await cartao.innerText();
+  exigir(
+    texto.includes(primeiro.playerName) && texto.includes(primeiro.championName),
+    `o primeiro cartão não traz "${primeiro.playerName}" com "${primeiro.championName}": ${texto.replace(/\n/g, ' | ')}`
+  );
+  exigir(
+    texto.includes(primeiro.exibicao),
+    `o cartão não mostra o número ${primeiro.exibicao}: ${texto.replace(/\n/g, ' | ')}`
+  );
+
+  await cartao.click();
+  await pagina.waitForURL(new RegExp(`/jogadores/${primeiro.playerId}$`), { timeout: 10000 });
+  await pagina
+    .getByRole('heading', { level: 1, name: primeiro.playerName })
+    .waitFor({ timeout: 10000 });
+}
+
 async function fluxoDaAjuda(pagina) {
   await pagina.goto(`${BASE}/`, { waitUntil: 'networkidle' });
   await pagina.getByRole('link', { name: 'Ajuda: como funciona' }).click();
@@ -1031,6 +1072,7 @@ async function main() {
     ['Sorteio: capitães escolhidos na mão, draft fecha 5x5', fluxoDosCapitaes],
     ['Ajuda: o "?" leva para "Como funciona"', fluxoDaAjuda],
     ['Perfil: a dupla leva ao perfil do parceiro, com o mesmo placar', fluxoDasDuplas],
+    ['Destaques: os recordes de campeão levam ao perfil de quem fez', fluxoDosRecordesDeCampeao],
     ['App: o navegador aceita instalar o site na tela inicial', fluxoDoAppInstalavel],
     ['Sorteio: usar os times abre a MD3 e leva para a Série', fluxoDoSorteio],
     [

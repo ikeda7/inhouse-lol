@@ -16,6 +16,7 @@
 import { prisma } from '../db/prisma.js';
 import { computeKda, round, safeDivide } from './stats.js';
 import { resolveChampion } from '../lib/ddragon.js';
+import { recordesDeCampeao, type RecordeDeCampeao } from '../lib/recordesDeCampeao.js';
 
 /** Sequencia de abates a partir da qual vale contar como momento. */
 const MIN_SPREE_PARA_MOMENTO = 6;
@@ -127,8 +128,15 @@ export interface Momento extends ContextoDoDestaque {
   peso: number;
 }
 
+/** Recorde de campeao com o icone resolvido, do jeito que a tela precisa. */
+export interface RecordeDeCampeaoNaTela extends RecordeDeCampeao {
+  championIcon: string | null;
+}
+
 export interface Destaques {
   recordes: Recorde[];
+  /** Acumulado por pessoa+campeao, nao por partida (lib/recordesDeCampeao.ts). */
+  recordesDeCampeao: RecordeDeCampeaoNaTela[];
   momentos: Momento[];
   /** Quantas partidas alimentaram esses numeros -- a tela avisa se for pouco. */
   partidas: number;
@@ -329,7 +337,8 @@ export async function getDestaques(): Promise<Destaques> {
     },
   })) as unknown as LinhaCrua[];
 
-  if (linhas.length === 0) return { recordes: [], momentos: [], partidas: 0 };
+  if (linhas.length === 0)
+    return { recordes: [], recordesDeCampeao: [], momentos: [], partidas: 0 };
 
   // Um lookup por campeao, reaproveitado por todos os destaques. Sem isso, um
   // recorde e um momento do mesmo campeao baterlam no Data Dragon duas vezes.
@@ -374,8 +383,23 @@ export async function getDestaques(): Promise<Destaques> {
       new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime() || b.peso - a.peso
   );
 
+  // --- recordes de campeao ---
+  const deCampeao = recordesDeCampeao(
+    linhas.map((linha) => ({
+      playerId: linha.player.id,
+      playerName: linha.player.name,
+      championName: linha.championName,
+      championId: linha.championId,
+      kills: linha.kills,
+      deaths: linha.deaths,
+      assists: linha.assists,
+      win: linha.win,
+    }))
+  ).map((recorde) => ({ ...recorde, championIcon: icone(recorde.championName) }));
+
   return {
     recordes,
+    recordesDeCampeao: deCampeao,
     momentos: momentos.slice(0, MAX_MOMENTOS),
     partidas: new Set(linhas.map((l) => l.match.id)).size,
   };
