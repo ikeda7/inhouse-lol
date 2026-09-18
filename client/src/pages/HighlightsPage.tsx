@@ -26,7 +26,7 @@ import { nomeDaSequencia } from '../lib/lolTerms';
 import { harmonizarNoite } from '../lib/momentos';
 import { useChampions } from '../hooks/useChampions';
 import { ExportarImagem } from '../components/ExportarImagem';
-import { RecordesDeCampeao } from '../components/RecordesDeCampeao';
+import { RecordesDosCampeoes } from '../components/RecordesDosCampeoes';
 import { TabelaDeCampeoes } from '../components/TabelaDeCampeoes';
 import { resolvedorDeIcone } from '../lib/imagem/canvas';
 import { gerarImagemDosRecordes } from '../lib/imagem/destaques';
@@ -192,7 +192,7 @@ export function HighlightsPage() {
             )}
           </Card>
 
-          <RecordesDeCampeao recordes={data.recordesDeCampeao} />
+          {campeoes.data && <RecordesDosCampeoes recordes={campeoes.data.recordes} />}
 
           {campeoes.data && (
             <TabelaDeCampeoes campeoes={campeoes.data.campeoes} partidas={campeoes.data.partidas} />

@@ -1,5 +1,6 @@
 /**
- * Estatisticas por campeao do grupo: pick, ban, presenca e aproveitamento.
+ * Estatisticas e recordes por campeao: pick, ban, presenca, aproveitamento,
+ * KDA e dano -- do campeao, nao de quem jogou.
  *
  * A regra mora em lib/estatisticasDeCampeao.ts (pura). Aqui e so a leitura do
  * banco e a resolucao do icone -- inclusive a do NOME de um ban antigo, que
@@ -10,16 +11,24 @@ import { prisma } from '../db/prisma.js';
 import { resolveChampion } from '../lib/ddragon.js';
 import {
   estatisticasDeCampeao,
+  recordesDosCampeoes,
   type BanimentoDeCampeao,
   type EstatisticaDeCampeao,
+  type RecordeDoCampeao,
 } from '../lib/estatisticasDeCampeao.js';
 
 export interface CampeaoNaTela extends EstatisticaDeCampeao {
   championIcon: string | null;
 }
 
+export interface RecordeNaTela extends RecordeDoCampeao {
+  championIcon: string | null;
+}
+
 export interface EstatisticasDeCampeoes {
   campeoes: CampeaoNaTela[];
+  /** Um por categoria: mais escolhido, mais banido, maior presenca, ... */
+  recordes: RecordeNaTela[];
   /** Denominador do pick/ban rate: a tela avisa quando e pouca partida. */
   partidas: number;
 }
@@ -27,7 +36,17 @@ export interface EstatisticasDeCampeoes {
 export async function getEstatisticasDeCampeoes(): Promise<EstatisticasDeCampeoes> {
   const [escolhas, bans, partidas] = await Promise.all([
     prisma.matchPlayerStat.findMany({
-      select: { championName: true, championId: true, win: true },
+      select: {
+        championName: true,
+        championId: true,
+        win: true,
+        kills: true,
+        deaths: true,
+        assists: true,
+        damage: true,
+        match: { select: { gameDurationSec: true } },
+        player: { select: { id: true, name: true } },
+      },
     }),
     prisma.matchBan.findMany({ select: { championName: true, championId: true } }),
     prisma.match.count(),
@@ -48,16 +67,34 @@ export async function getEstatisticasDeCampeoes(): Promise<EstatisticasDeCampeoe
       championName: escolha.championName,
       championId: escolha.championId,
       win: escolha.win,
+      kills: escolha.kills,
+      deaths: escolha.deaths,
+      assists: escolha.assists,
+      damage: escolha.damage,
+      duracaoEmSegundos: escolha.match.gameDurationSec,
+      playerId: escolha.player.id,
+      playerName: escolha.player.name,
     })),
     banimentos,
     partidas
   );
 
-  const campeoes: CampeaoNaTela[] = [];
+  // Um lookup por campeão, reaproveitado pela tabela e pelos recordes.
+  const icones = new Map<string, string | null>();
   for (const campeao of lista) {
     const asset = await resolveChampion(campeao.championName).catch(() => null);
-    campeoes.push({ ...campeao, championIcon: asset?.id ?? null });
+    icones.set(campeao.championName, asset?.id ?? null);
   }
 
-  return { campeoes, partidas };
+  return {
+    campeoes: lista.map((campeao) => ({
+      ...campeao,
+      championIcon: icones.get(campeao.championName) ?? null,
+    })),
+    recordes: recordesDosCampeoes(lista).map((recorde) => ({
+      ...recorde,
+      championIcon: icones.get(recorde.championName) ?? null,
+    })),
+    partidas,
+  };
 }

@@ -75,6 +75,9 @@ if (PREPARAR && !['localhost', '127.0.0.1', '[::1]'].includes(new URL(BASE).host
 /** Sobras de ensaio e da verificação de telas: nunca entram num elenco de teste. */
 const SOBRA = /^(Conta|Novato|Reserva|Fluxo) /;
 
+/** Quantos colocados saem da tabela porque estão no pódio (PodioDoRanking.tsx). */
+const TAMANHO_DO_PODIO = 3;
+
 async function api(metodo, rota, corpo) {
   const resposta = await fetch(`${BASE}/api${rota}`, {
     method: metodo,
@@ -354,6 +357,23 @@ async function fluxoDoPodio(pagina) {
     `o pódio mostra ${JSON.stringify(nomes)}, a API diz ${JSON.stringify(esperado)}`
   );
 
+  // O pódio carrega a ficha inteira, e é por isso que os três saem da tabela:
+  // se o número sumir do pódio E da tabela, o dado some da tela.
+  const textoDoPodio = await podio.innerText();
+  for (const entrada of ranking.slice(0, TAMANHO_DO_PODIO)) {
+    exigir(
+      textoDoPodio.includes(`${entrada.points} pts`) &&
+        textoDoPodio.includes(`KDA ${entrada.avgKda.toFixed(2)}`),
+      `o pódio não mostra pontos e KDA de ${entrada.name}`
+    );
+  }
+  const naTabela = (await pagina.locator('table tbody tr td:nth-child(2) a').allInnerTexts()).map(
+    (t) => t.trim()
+  );
+  for (const entrada of ranking.slice(0, TAMANHO_DO_PODIO)) {
+    exigir(!naTabela.includes(entrada.name), `${entrada.name} está no pódio e também na tabela`);
+  }
+
   // O do meio é o primeiro colocado: clicar leva ao perfil dele.
   await podio.locator('a[href^="/jogadores/"]').nth(1).click();
   await pagina.waitForURL(new RegExp(`/jogadores/${ranking[0].playerId}$`), { timeout: 10000 });
@@ -397,44 +417,36 @@ async function fluxoDasDuplas(pagina) {
 }
 
 /**
- * Recordes de campeão: o bloco "Com um campeão" mostra o que a API elegeu, e
- * cada cartão leva ao perfil de quem fez. É acumulado, não partida — então o
- * cartão também tem que dizer de quantos jogos o número saiu.
+ * Recordes de campeão: o bloco é do CAMPEÃO, não de quem jogou -- mais
+ * escolhido, mais banido, maior presença. O detalhe embaixo do número diz de
+ * quantos jogos ele saiu, senão "75%" não se distingue de sorte.
  */
-async function fluxoDosRecordesDeCampeao(pagina) {
-  const destaques = await api('GET', '/stats/highlights');
-  const recordes = destaques.recordesDeCampeao ?? [];
-  if (recordes.length === 0) return 'ninguém tem partida com campeão ainda';
+async function fluxoDosRecordesDosCampeoes(pagina) {
+  const { recordes } = await api('GET', '/stats/campeoes');
+  if (recordes.length === 0) return 'nenhum campeão escolhido ou banido ainda';
 
   await pagina.goto(`${BASE}/destaques`, { waitUntil: 'networkidle' });
   const card = pagina.locator('section', {
-    has: pagina.getByRole('heading', { name: 'Com um campeão' }),
+    has: pagina.getByRole('heading', { name: 'Recordes de campeão' }),
   });
   await card.waitFor({ timeout: 20000 });
 
-  const cartoes = card.locator('a[href^="/jogadores/"]');
+  const texto = await card.innerText();
+  for (const recorde of recordes) {
+    exigir(
+      texto.includes(recorde.championName) && texto.includes(recorde.exibicao),
+      `o bloco não traz ${recorde.categoria}: ${recorde.championName} ${recorde.exibicao}`
+    );
+  }
   exigir(
-    (await cartoes.count()) === recordes.length,
-    `a tela mostra ${await cartoes.count()} recordes de campeão, a API elegeu ${recordes.length}`
+    texto.includes(recordes[0].detalhe),
+    `o cartão não diz de onde o número saiu (${recordes[0].detalhe})`
   );
-
-  const primeiro = recordes[0];
-  const cartao = cartoes.first();
-  const texto = await cartao.innerText();
+  // Recorde de campeão não é de ninguém: nenhum cartão vira link de jogador.
   exigir(
-    texto.includes(primeiro.playerName) && texto.includes(primeiro.championName),
-    `o primeiro cartão não traz "${primeiro.playerName}" com "${primeiro.championName}": ${texto.replace(/\n/g, ' | ')}`
+    (await card.locator('a[href^="/jogadores/"]').count()) === 0,
+    'um recorde de campeão está linkando para o perfil de alguém'
   );
-  exigir(
-    texto.includes(primeiro.exibicao),
-    `o cartão não mostra o número ${primeiro.exibicao}: ${texto.replace(/\n/g, ' | ')}`
-  );
-
-  await cartao.click();
-  await pagina.waitForURL(new RegExp(`/jogadores/${primeiro.playerId}$`), { timeout: 10000 });
-  await pagina
-    .getByRole('heading', { level: 1, name: primeiro.playerName })
-    .waitFor({ timeout: 10000 });
 }
 
 /**
@@ -472,6 +484,20 @@ async function fluxoDosCampeoes(pagina) {
     primeiraLinha.includes(`${campeoes[0].presenca}%`),
     `a presença de ${campeoes[0].championName} não bate: ${primeiraLinha.replace(/\n/g, ' | ')}`
   );
+
+  // As colunas que existem para a tabela dizer mais do que "quantas vezes":
+  // em quem o campeão é bom, e na mão de quem ele mais aparece.
+  const jogado = campeoes.find((c) => c.partidas > 0 && c.quemMaisJoga);
+  if (jogado) {
+    const linha = tabela.locator('tbody tr', {
+      has: pagina.getByText(jogado.championName, { exact: true }),
+    });
+    const texto = await linha.first().innerText();
+    exigir(
+      texto.includes(jogado.kda.toFixed(2)) && texto.includes(jogado.quemMaisJoga.name),
+      `a linha de ${jogado.championName} não traz KDA ${jogado.kda.toFixed(2)} e "${jogado.quemMaisJoga.name}": ${texto.replace(/\n/g, ' | ')}`
+    );
+  }
 
   // O seletor troca de verdade: a tabela some e a linha do tempo aparece.
   const abas = pagina.getByRole('group', { name: 'O que mostrar' });
@@ -540,9 +566,11 @@ async function fluxoDaOrdenacao(pagina) {
   const ordens = [];
   for (const [chave] of ORDENACOES) {
     const ranking = await api('GET', `/stats/leaderboard?sortBy=${chave}&minGames=0`);
-    ordens.push(ranking.map((entrada) => entrada.name));
+    // A tabela começa no 4º: os três primeiros estão no pódio, com a ficha
+    // inteira, e não se repetem embaixo.
+    ordens.push(ranking.slice(TAMANHO_DO_PODIO).map((entrada) => entrada.name));
   }
-  if (ordens[0].length < 3) return 'menos de três no ranking';
+  if (ordens[0].length === 0) return 'só o pódio no ranking';
 
   await pagina.goto(`${BASE}/`, { waitUntil: 'networkidle' });
   const grupo = pagina.getByRole('group', { name: 'Ordenar por' });
@@ -1149,7 +1177,10 @@ async function main() {
     ['Sorteio: capitães escolhidos na mão, draft fecha 5x5', fluxoDosCapitaes],
     ['Ajuda: o "?" leva para "Como funciona"', fluxoDaAjuda],
     ['Perfil: a dupla leva ao perfil do parceiro, com o mesmo placar', fluxoDasDuplas],
-    ['Destaques: os recordes de campeão levam ao perfil de quem fez', fluxoDosRecordesDeCampeao],
+    [
+      'Destaques: os recordes são do campeão, com de onde o número saiu',
+      fluxoDosRecordesDosCampeoes,
+    ],
     ['Destaques: a tabela de campeões segue a API, e as abas trocam de verdade', fluxoDosCampeoes],
     ['App: o navegador aceita instalar o site na tela inicial', fluxoDoAppInstalavel],
     ['Sorteio: usar os times abre a MD3 e leva para a Série', fluxoDoSorteio],
