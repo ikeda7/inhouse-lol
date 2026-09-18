@@ -336,6 +336,33 @@ async function fluxoDoRanking(pagina) {
 }
 
 /**
+ * O pódio: os três primeiros da API, na ordem do pódio (2º, 1º, 3º), e cada um
+ * levando ao perfil. A ordem é a única coisa que o pódio diz sem número, e
+ * trocá-la coroaria a pessoa errada.
+ */
+async function fluxoDoPodio(pagina) {
+  const ranking = await api('GET', '/stats/leaderboard?sortBy=wins');
+  if (ranking.length < 3) return 'menos de três colocados';
+
+  await pagina.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  const podio = pagina.getByRole('group', { name: 'Pódio' });
+  await podio.waitFor({ timeout: 20000 });
+  const nomes = await podio.locator('a[href^="/jogadores/"]').allInnerTexts();
+  const esperado = [ranking[1], ranking[0], ranking[2]].map((e) => e.name);
+  exigir(
+    JSON.stringify(nomes.map((n) => n.trim())) === JSON.stringify(esperado),
+    `o pódio mostra ${JSON.stringify(nomes)}, a API diz ${JSON.stringify(esperado)}`
+  );
+
+  // O do meio é o primeiro colocado: clicar leva ao perfil dele.
+  await podio.locator('a[href^="/jogadores/"]').nth(1).click();
+  await pagina.waitForURL(new RegExp(`/jogadores/${ranking[0].playerId}$`), { timeout: 10000 });
+  await pagina
+    .getByRole('heading', { level: 1, name: ranking[0].name })
+    .waitFor({ timeout: 10000 });
+}
+
+/**
  * Duplas no perfil: o parceiro é um link, e clicar nele abre o perfil DELE --
  * com a dupla aparecendo do outro lado também, porque jogar junto é simétrico.
  */
@@ -1115,6 +1142,7 @@ async function main() {
     ['Destaques: o seletor chega em todas as noites e filtra a tela', fluxoDosMomentos],
     ['Histórico: abre série, jogo e jogador; as imagens baixam', fluxoDoHistorico],
     ['Ranking: a imagem baixa', fluxoDoRanking],
+    ['Ranking: o pódio mostra os três primeiros na ordem do pódio', fluxoDoPodio],
     ['Ranking: cada ordenação deixa a tabela na ordem da API', fluxoDaOrdenacao],
     ['Jogadores: cada filtro mostra quantos a API diz que faltam', fluxoDosFiltros],
     ['Sorteio: "tenta outro" traz outros times, nunca uma divisão já vista', fluxoDoSorteioDeNovo],

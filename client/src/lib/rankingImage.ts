@@ -67,14 +67,33 @@ export interface OpcoesDaImagem {
   iconeDoCampeao: ResolverIcone;
   /** Rótulo do critério de ordenação, para a imagem dizer como foi ordenada. */
   ordenadoPor: string;
+  /**
+   * O número que o pódio mostra em cada um dos três -- o mesmo da tela, na
+   * ordenação escolhida. Sem ele o pódio cai nos pontos.
+   */
+  valorDaMetrica?: (entry: LeaderboardEntry) => string;
 }
+
+/**
+ * Altura do bloco do pódio. Só existe com três colocados: com dois, "pódio de
+ * olimpíada" não é pódio, é degrau solto.
+ */
+const ALTURA_PODIO = 300;
+/** Espaço reservado ao cabeçalho da tabela, que desce para depois do pódio. */
+const ESPACO_DO_CABECALHO = 34;
+/** Altura de cada degrau, do primeiro ao terceiro. */
+const DEGRAUS = [88, 62, 46];
+/** Diâmetro da foto no pódio: o primeiro maior, como no lugar mais alto. */
+const AVATAR_NO_PODIO = [76, 60, 60];
 
 export async function gerarImagemDoRanking(
   entries: LeaderboardEntry[],
   opcoes: OpcoesDaImagem
 ): Promise<Blob> {
   const linhas = entries.slice(0, MAX_LINHAS);
-  const altura = ALTURA_CABECALHO + linhas.length * ALTURA_LINHA + ALTURA_RODAPE;
+  const temPodio = entries.length >= 3;
+  const alturaDoPodio = temPodio ? ALTURA_PODIO : 0;
+  const altura = ALTURA_CABECALHO + alturaDoPodio + linhas.length * ALTURA_LINHA + ALTURA_RODAPE;
 
   // Os ícones vêm todos de uma vez: em série, 45 requisições sequenciais
   // deixariam o botão travado por segundos.
@@ -101,10 +120,14 @@ export async function gerarImagemDoRanking(
   await fontesProntas();
   const { canvas, ctx } = criarCanvas(altura);
 
-  desenharCabecalho(ctx, opcoes.ordenadoPor);
+  desenharCabecalho(ctx, opcoes.ordenadoPor, alturaDoPodio);
+
+  if (temPodio) {
+    desenharPodio(ctx, linhas.slice(0, 3), fotos, opcoes);
+  }
 
   linhas.forEach((entry, index) => {
-    desenharLinha(ctx, entry, index, icones, fotos);
+    desenharLinha(ctx, entry, index, icones, fotos, alturaDoPodio);
   });
 
   desenharRodape(ctx, altura, '+3 por mapa vencido · +1 por MD3');
@@ -119,7 +142,19 @@ export async function gerarImagemDoRanking(
   return paraPng(canvas);
 }
 
-function desenharCabecalho(ctx: CanvasRenderingContext2D, ordenadoPor: string) {
+/**
+ * Marca no topo e, logo acima das linhas, os rótulos das colunas.
+ *
+ * Os rótulos descem junto com o pódio (`deslocamento`): eles pertencem à
+ * tabela, e ficar acima do pódio faria "JOGADOR ... PTS" apontar para as fotos
+ * dos três primeiros em vez de para as colunas.
+ */
+function desenharCabecalho(
+  ctx: CanvasRenderingContext2D,
+  ordenadoPor: string,
+  deslocamento: number
+) {
+  const base = ALTURA_CABECALHO + deslocamento;
   desenharMarca(
     ctx,
     `Classificação geral · por ${ordenadoPor.toLowerCase()}`,
@@ -129,20 +164,93 @@ function desenharCabecalho(ctx: CanvasRenderingContext2D, ordenadoPor: string) {
   // Cabeçalho de coluna. Só o essencial: no telefone, coluna a mais é ruído.
   ctx.font = fonte(12, 600);
   ctx.fillStyle = COR.fraco;
-  ctx.fillText('JOGADOR', MARGEM + 44, ALTURA_CABECALHO - 16);
+  ctx.fillText('JOGADOR', MARGEM + 44, base - 16);
   ctx.textAlign = 'right';
-  ctx.fillText('V–D', LARGURA - MARGEM - 300, ALTURA_CABECALHO - 16);
-  ctx.fillText('WR', LARGURA - MARGEM - 210, ALTURA_CABECALHO - 16);
-  ctx.fillText('KDA', LARGURA - MARGEM - 110, ALTURA_CABECALHO - 16);
-  ctx.fillText('PTS', LARGURA - MARGEM, ALTURA_CABECALHO - 16);
+  ctx.fillText('V–D', LARGURA - MARGEM - 300, base - 16);
+  ctx.fillText('WR', LARGURA - MARGEM - 210, base - 16);
+  ctx.fillText('KDA', LARGURA - MARGEM - 110, base - 16);
+  ctx.fillText('PTS', LARGURA - MARGEM, base - 16);
   ctx.textAlign = 'left';
 
   ctx.strokeStyle = COR.linha;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(MARGEM, ALTURA_CABECALHO - 4);
-  ctx.lineTo(LARGURA - MARGEM, ALTURA_CABECALHO - 4);
+  ctx.moveTo(MARGEM, base - 4);
+  ctx.lineTo(LARGURA - MARGEM, base - 4);
   ctx.stroke();
+}
+
+/**
+ * O pódio, como no quadro de medalhas: segundo à esquerda, primeiro no meio e
+ * mais alto, terceiro à direita.
+ *
+ * Os três seguem na tabela abaixo. O pódio responde "quem está ganhando" de
+ * longe, num balão de conversa; a tabela é a conferência, e tirar os três dela
+ * esconderia KDA e dano de justamente quem mais se olha.
+ */
+function desenharPodio(
+  ctx: CanvasRenderingContext2D,
+  tres: LeaderboardEntry[],
+  fotos: Map<string, HTMLImageElement | null>,
+  opcoes: OpcoesDaImagem
+) {
+  // Os degraus terminam logo acima do cabeçalho da tabela, que agora vem
+  // depois do pódio.
+  const base = ALTURA_CABECALHO + ALTURA_PODIO - ESPACO_DO_CABECALHO;
+  const largura = 210;
+  const vao = 24;
+  const inicio = (LARGURA - (largura * 3 + vao * 2)) / 2;
+  const valor = opcoes.valorDaMetrica ?? ((entry: LeaderboardEntry) => String(entry.points));
+
+  // 2º, 1º, 3º: a ordem do pódio, não a da classificação.
+  [1, 0, 2].forEach((posicao, coluna) => {
+    const entry = tres[posicao];
+    if (!entry) return;
+
+    const centro = inicio + coluna * (largura + vao) + largura / 2;
+    const degrau = DEGRAUS[posicao];
+    const topoDoDegrau = base - degrau;
+    const cor = medalha(posicao);
+
+    // Degrau: bloco com a faixa da medalha em cima, o número dentro.
+    ctx.fillStyle = COR.fundoAlterna;
+    caixa(ctx, centro - largura / 2, topoDoDegrau, largura, degrau, 8);
+    ctx.fill();
+    ctx.fillStyle = cor;
+    caixa(ctx, centro - largura / 2, topoDoDegrau, largura, 3, 2);
+    ctx.fill();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = cor;
+    ctx.font = fonte(30, 700);
+    ctx.fillText(String(posicao + 1), centro, topoDoDegrau + 34);
+
+    // Rótulo, número e nome, subindo a partir do degrau.
+    ctx.font = fonte(11, 600);
+    ctx.fillStyle = COR.fraco;
+    ctx.fillText(opcoes.ordenadoPor.toUpperCase(), centro, topoDoDegrau - 12);
+
+    // Dourado só no primeiro: ouro marca quem decide a imagem, não os três.
+    ctx.font = fonte(posicao === 0 ? 30 : 25, 700);
+    ctx.fillStyle = posicao === 0 ? COR.ouro : COR.texto;
+    ctx.fillText(valor(entry), centro, topoDoDegrau - 30);
+
+    ctx.font = fonte(15, 600);
+    ctx.fillStyle = COR.texto;
+    ctx.fillText(cortar(ctx, entry.name, largura - 8), centro, topoDoDegrau - 60);
+
+    const tamanho = AVATAR_NO_PODIO[posicao];
+    desenharAvatar(
+      ctx,
+      entry,
+      fotos.get(entry.playerId),
+      centro,
+      topoDoDegrau - 78 - tamanho / 2,
+      posicao,
+      tamanho
+    );
+    ctx.textAlign = 'left';
+  });
 }
 
 /** Diâmetro do avatar na linha. */
@@ -166,9 +274,10 @@ function desenharAvatar(
   foto: HTMLImageElement | null | undefined,
   cx: number,
   cy: number,
-  index: number
+  index: number,
+  tamanho = TAMANHO_AVATAR
 ) {
-  const raio = TAMANHO_AVATAR / 2;
+  const raio = tamanho / 2;
 
   ctx.save();
   ctx.beginPath();
@@ -187,16 +296,18 @@ function desenharAvatar(
       lado,
       cx - raio,
       cy - raio,
-      TAMANHO_AVATAR,
-      TAMANHO_AVATAR
+      tamanho,
+      tamanho
     );
   } else {
     ctx.fillStyle = hexDeCorDoNome(entry.name);
-    ctx.fillRect(cx - raio, cy - raio, TAMANHO_AVATAR, TAMANHO_AVATAR);
+    ctx.fillRect(cx - raio, cy - raio, tamanho, tamanho);
     ctx.fillStyle = COR.texto;
-    ctx.font = fonte(13, 600);
+    // As iniciais acompanham o círculo: fonte fixa num avatar de 76 sairia
+    // como um carimbo pequeno no meio de um disco colorido.
+    ctx.font = fonte(Math.round(tamanho * 0.38), 600);
     ctx.textAlign = 'center';
-    ctx.fillText(iniciaisDoNome(entry.name), cx, cy + 1);
+    ctx.fillText(iniciaisDoNome(entry.name), cx, cy + Math.round(tamanho * 0.13));
   }
   ctx.restore();
 
@@ -219,9 +330,10 @@ function desenharLinha(
   entry: LeaderboardEntry,
   index: number,
   icones: Map<string, HTMLImageElement | null>,
-  fotos: Map<string, HTMLImageElement | null>
+  fotos: Map<string, HTMLImageElement | null>,
+  deslocamento: number
 ) {
-  const topo = ALTURA_CABECALHO + index * ALTURA_LINHA;
+  const topo = ALTURA_CABECALHO + deslocamento + index * ALTURA_LINHA;
   const meio = topo + ALTURA_LINHA / 2;
 
   // Faixa alternada em vez de linha divisória: em imagem pequena, a faixa

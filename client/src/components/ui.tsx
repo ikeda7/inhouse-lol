@@ -157,6 +157,9 @@ export function Input({
 const TAMANHO_DO_AVATAR = {
   sm: 'h-6 w-6 text-[9px]',
   md: 'h-10 w-10 text-xs',
+  // Entre o `md` da lista e o `lg` do perfil: é o segundo e o terceiro do
+  // pódio, que precisam ser menores que o primeiro sem virar miniatura.
+  ml: 'h-16 w-16 text-lg',
   lg: 'h-24 w-24 text-2xl',
 };
 
@@ -174,7 +177,7 @@ export function Avatar({
 }: {
   photoUrl?: string | null;
   name: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'ml' | 'lg';
   className?: string;
 }) {
   const [quebrou, setQuebrou] = useState(false);
