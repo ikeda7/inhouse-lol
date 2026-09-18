@@ -26,7 +26,7 @@
  *   node companion/inhouse-companion.mjs --noite      importa a ultima noite inteira, em ordem
  *   node companion/inhouse-companion.mjs --list       lista os customs por noite
  *   node companion/inhouse-companion.mjs --last       manda o custom mais recente
- *   node companion/inhouse-companion.mjs --watch      manda sozinho ao fim de cada jogo
+ *   node companion/inhouse-companion.mjs --watch      puxa a noite sozinho ao fim de cada jogo
  *   node companion/inhouse-companion.mjs --refresh-all atualiza as ja registradas
  *   node companion/inhouse-companion.mjs --game 123   manda um gameId especifico
  *
@@ -827,9 +827,12 @@ async function commandWatch() {
 
         if (latest && !alreadySent.has(latest.gameId)) {
           alreadySent.add(latest.gameId);
-          log.info(`Partida ${latest.gameId} terminou. Enviando...`);
-          const detail = (await fetchGameDetail(latest.gameId)) ?? latest;
-          describeResult(await sendGame(detail));
+          log.info(`Partida ${latest.gameId} terminou. Puxando a noite...\n`);
+          // A noite inteira, nao so esta partida: abre a MD3 se ninguem abriu,
+          // importa na ordem e atualiza o que ja entrou. Rodar de novo nao
+          // duplica, entao repetir a cada jogo e seguro.
+          await rodarNoite();
+          log.info('');
         }
       }
     } catch (error) {
@@ -979,12 +982,19 @@ export async function importarNoite({
   return resumo;
 }
 
-async function commandNoite() {
+/**
+ * O trabalho do --noite, sem decidir codigo de saida.
+ *
+ * Separado porque o --watch chama isto ao fim de cada partida: mandar o jogo
+ * cru direto, como ele fazia, nao abria a MD3 da noite nem respeitava a ordem
+ * -- o jogo 1 chegava sem serie e o 3 podia entrar como 2.
+ */
+async function rodarNoite() {
   const jogos = jogosDaUltimaNoite((await fetchRecentGames()).filter(isCustom));
   if (jogos.length === 0) {
     log.warn('Nenhum custom game no historico do cliente.');
     log.info('      Para partidas mais antigas: --replays\n');
-    return;
+    return null;
   }
 
   log.info(
@@ -1013,7 +1023,12 @@ async function commandNoite() {
       (resumo.conferidas ? `, ${resumo.conferidas} conferido(s)` : '') +
       (resumo.md3Abertas.length ? ` · MD3 aberta(s): ${resumo.md3Abertas.join(', ')}` : '')
   );
-  if (resumo.parouEm) process.exitCode = 1;
+  return resumo;
+}
+
+async function commandNoite() {
+  const resumo = await rodarNoite();
+  if (resumo?.parouEm) process.exitCode = 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -1062,7 +1077,7 @@ async function main() {
   log.info('  --game <id>        envia um gameId especifico');
   log.info('  --games <id,id>    envia varios de uma vez');
   log.info('  --refresh-all      atualiza a scoreboard de todas as ja registradas');
-  log.info('  --watch            envia sozinho ao fim de cada jogo');
+  log.info('  --watch            puxa a noite sozinho ao fim de cada jogo');
   log.info('  --who [ids]        mostra os Riot IDs de quem joga os customs');
   log.info('');
   log.info('  Dica: o --list mostra so o que o cliente carregou. A busca por');

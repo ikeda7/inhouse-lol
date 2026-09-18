@@ -289,7 +289,13 @@ LCU client and no API key.
 
 `companion/inhouse-companion.mjs` is the local agent a player runs to push
 their LCU/replay history to the API; it's dependency-free by design (plain
-`node`, no npm install). `--noite` imports the latest night in play order: it
+`node`, no npm install). Two `.bat` files next to it (`vigia-da-noite`,
+`puxar-a-noite`) are the double-click path: they read the group key from
+`companion/chave.txt` (gitignored, asked once) and call the same agent — the
+browser cannot do this itself, because the LCU is HTTPS with a self-signed
+cert and a password in a local file. `--watch` runs the `--noite` flow at the
+end of every game (it used to POST the finished game raw, which opened no MD3
+and ignored play order). `--noite` imports the latest night in play order: it
 refreshes what is already in, opens the night's MD3 (and a second one after
 a 2-0) through `/series/garantir`, and stops at the first refusal so game 3
 never lands as game 2. Its flow (`importarNoite`) takes `enviar`/`abrirMd3` as
