@@ -10,10 +10,30 @@ import { prisma } from '../db/prisma.js';
 import { normalizeRole, type RoleInput } from '../lib/roles.js';
 import type { DraftablePlayer } from '../lib/autoBalance.js';
 
+/** Erro de uso do cadastro. `routes/helpers.ts` traduz para HTTP. */
+export class PlayerError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly status: number
+  ) {
+    super(message);
+    this.name = 'PlayerError';
+  }
+}
+
+/** Conta extra da Riot: o smurf. A principal fica em `PlayerDTO.riotId`. */
+export interface RiotAccountDTO {
+  id: string;
+  riotId: string | null;
+}
+
 export interface PlayerDTO {
   id: string;
   name: string;
   riotId: string | null;
+  /** Contas ALEM da principal. Vazio para quem joga de uma conta só. */
+  riotAccounts: RiotAccountDTO[];
   /** Ordenado por preferencia: o primeiro e a main. */
   roles: RoleInput[];
   internalRating: number;
@@ -50,6 +70,7 @@ type PlayerWithRoles = {
   photoUrl: string | null;
   photoSource: string;
   roles: { role: string; priority: number }[];
+  riotAccounts?: { id: string; riotId: string | null }[];
 };
 
 export function toPlayerDTO(player: PlayerWithRoles): PlayerDTO {
@@ -57,6 +78,10 @@ export function toPlayerDTO(player: PlayerWithRoles): PlayerDTO {
     id: player.id,
     name: player.name,
     riotId: player.riotId,
+    riotAccounts: (player.riotAccounts ?? []).map((conta) => ({
+      id: conta.id,
+      riotId: conta.riotId,
+    })),
     roles: [...player.roles]
       .sort((a, b) => a.priority - b.priority)
       .map((entry) => entry.role as RoleInput),
@@ -84,7 +109,10 @@ export function toDraftablePlayer(player: PlayerDTO): DraftablePlayer {
   };
 }
 
-export const withRoles = { roles: { orderBy: { priority: 'asc' as const } } };
+export const withRoles = {
+  roles: { orderBy: { priority: 'asc' as const } },
+  riotAccounts: { orderBy: { createdAt: 'asc' as const } },
+};
 
 export async function listPlayers(options: { includeInactive?: boolean } = {}) {
   const players = await prisma.player.findMany({
@@ -164,6 +192,39 @@ export async function updatePlayer(id: string, input: Partial<UpsertPlayerInput>
   });
 
   return toPlayerDTO(player);
+}
+
+/**
+ * Liga mais uma conta da Riot ao jogador -- o smurf.
+ *
+ * O PUUID fica null: ele chega sozinho na primeira partida importada dessa
+ * conta, pelo mesmo auto-vinculo da conta principal (services/ingest.ts). Riot
+ * ID repetido bate no UNIQUE do banco e vira 409 em routes/helpers.ts, o que
+ * tambem impede pendurar no Fulano uma conta que ja e do Beltrano.
+ */
+export async function addRiotAccount(playerId: string, riotId: string) {
+  const conta = riotId.trim();
+  const principal = await prisma.player.findUnique({
+    where: { id: playerId },
+    select: { riotId: true },
+  });
+  if (!principal) throw new PlayerError('Jogador não encontrado.', 'PLAYER_NOT_FOUND', 404);
+  if (principal.riotId?.toLowerCase() === conta.toLowerCase()) {
+    throw new PlayerError('Essa já é a conta principal do jogador.', 'CONTA_PRINCIPAL', 409);
+  }
+
+  await prisma.riotAccount.create({ data: { playerId, riotId: conta } });
+  return (await getPlayerById(playerId))!;
+}
+
+/**
+ * Desliga uma conta extra. O historico nao se mexe: as partidas ja importadas
+ * apontam para o jogador, nao para a conta.
+ */
+export async function removeRiotAccount(playerId: string, accountId: string) {
+  const { count } = await prisma.riotAccount.deleteMany({ where: { id: accountId, playerId } });
+  if (count === 0) throw new PlayerError('Conta não encontrada.', 'CONTA_NAO_ENCONTRADA', 404);
+  return (await getPlayerById(playerId))!;
 }
 
 /**

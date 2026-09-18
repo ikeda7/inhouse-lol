@@ -50,9 +50,36 @@ model Player {
   roles PlayerRole[]
   stats MatchPlayerStat[]
 
+  /// Contas extras da Riot (smurf, conta antiga). A principal segue em riotId/puuid.
+  riotAccounts RiotAccount[]
+
   burnedChampions BurnedChampion[]
 
   @@index([active])
+}
+
+/// Conta da Riot ALEM da principal -- o smurf.
+///
+/// Nao confundir com "conta" no sentido de login (Player.email/passwordHash):
+/// aqui e a conta do jogo. Uma pessoa joga do main numa semana e do smurf na
+/// outra, e sem isso a mesma pessoa entrava duas vezes no ranking.
+///
+/// Fica em tabela propria porque `riotId` e `puuid` sao UNIQUE em Player: dois
+/// nicks na mesma linha nao cabem. O vinculo da partida continua sendo o PUUID,
+/// e a importacao procura aqui quando o PUUID nao e o da conta principal.
+model RiotAccount {
+  id       String  @id @default(cuid())
+  playerId String
+  /// "Nick#TAG" da conta extra.
+  riotId   String? @unique
+  /// Preenchido na primeira partida importada dessa conta, como na principal.
+  puuid    String? @unique
+
+  createdAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId])
 }
 
 /// Pool de posicoes de um jogador, normalizado.

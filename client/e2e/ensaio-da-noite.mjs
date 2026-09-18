@@ -875,6 +875,76 @@ await passo('participante desconhecido: recusa dizendo quem falta', async () => 
   exigir(resposta.details?.unmatched?.length === 1, 'a recusa não diz quem falta vincular');
 });
 
+await passo('conta extra: a partida do smurf entra no mesmo jogador', async () => {
+  precisa('jogoLcu', 'serieLcu', 'times');
+
+  // A MD3 anterior fica para trás: o jogo do smurf é o mesmo jogo com outro
+  // nick, e o Fearless barraria os 10 campeões repetidos dentro da mesma série.
+  dados(await api('POST', `/series/${ctx.serieLcu}/finish`), 'fechar a MD3 anterior');
+  const serie = dados(
+    await api('POST', '/series', { name: `Ensaio smurf ${rodada}`, fearless: true }),
+    'abrir'
+  );
+
+  const dono = escalados(ctx.times)[0].player;
+  const nickDoSmurf = `Smurf${rodada}#BR1`;
+  const antes = dados(await api('GET', `/players/${dono.id}/profile`), 'perfil antes');
+  const elencoAntes = dados(await api('GET', '/players?includeInactive=true'), 'elenco antes');
+
+  const comConta = dados(
+    await api('POST', `/players/${dono.id}/contas`, { riotId: nickDoSmurf }),
+    'ligar a conta extra'
+  );
+  exigir(
+    comConta.riotAccounts.some((conta) => conta.riotId === nickDoSmurf),
+    'a conta extra não voltou no jogador'
+  );
+
+  // Mesma partida, mas o dono aparece com o outro nick e outro PUUID -- que é
+  // exatamente o que o cliente do LoL manda quando a pessoa joga do smurf.
+  const jogo = structuredClone(ctx.jogoLcu);
+  jogo.gameId += 7;
+  jogo.participantIdentities[0].player = {
+    puuid: `ensaio-smurf-${rodada}`,
+    gameName: `Smurf${rodada}`,
+    tagLine: 'BR1',
+    summonerName: `Smurf${rodada}`,
+    profileIcon: 1500,
+  };
+
+  const salvo = dados(
+    await api('POST', '/ingest/lcu', { game: jogo, seriesId: serie.id }),
+    'importar a do smurf'
+  );
+  exigir(salvo.saved === true, 'a partida do smurf não entrou');
+
+  const depois = dados(await api('GET', `/players/${dono.id}/profile`), 'perfil depois');
+  exigir(
+    depois.games === antes.games + 1,
+    `o jogo do smurf não caiu em ${dono.name}: ${antes.games} -> ${depois.games}`
+  );
+  const elencoDepois = dados(await api('GET', '/players?includeInactive=true'), 'elenco depois');
+  exigir(
+    elencoDepois.length === elencoAntes.length,
+    `a importação cadastrou ${elencoDepois.length - elencoAntes.length} jogador(es) a mais: o smurf virou outra pessoa`
+  );
+
+  // Desligar a conta não mexe no histórico: a partida é do jogador, não da conta.
+  const conta = comConta.riotAccounts.find((c) => c.riotId === nickDoSmurf);
+  const semConta = dados(
+    await api('DELETE', `/players/${dono.id}/contas/${conta.id}`),
+    'desligar a conta'
+  );
+  exigir(semConta.riotAccounts.length === 0, 'a conta extra não saiu');
+  const aindaTem = dados(await api('GET', `/players/${dono.id}/profile`), 'perfil no fim');
+  exigir(
+    aindaTem.games === depois.games,
+    `desligar a conta apagou partida: ${depois.games} -> ${aindaTem.games}`
+  );
+
+  dados(await api('POST', `/series/${serie.id}/finish`), 'fechar');
+});
+
 await passo('sem MD3 em andamento, a importação avisa em vez de sumir', async () => {
   precisa('jogoLcu');
   // Fecha tudo o que estiver aberto -- inclusive sobras de rodadas anteriores.

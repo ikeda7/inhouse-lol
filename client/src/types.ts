@@ -31,10 +31,18 @@ export interface ApiResponse<T> {
 /** De onde veio a foto do jogador (issue #3). */
 export type PhotoSource = 'LOL_ICON' | 'UPLOAD' | 'NONE';
 
+/** Conta extra da Riot (o smurf). A principal é `Player.riotId`. */
+export interface RiotAccount {
+  id: string;
+  riotId: string | null;
+}
+
 export interface Player {
   id: string;
   name: string;
   riotId: string | null;
+  /** Contas além da principal. Vazio para quem joga de uma conta só. */
+  riotAccounts: RiotAccount[];
   roles: RoleInput[];
   internalRating: number;
   active: boolean;
