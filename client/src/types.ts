@@ -389,24 +389,6 @@ export interface MomentEntry extends HighlightContext {
   win: boolean;
 }
 
-/**
- * Recorde acumulado com um campeão (não de uma partida só): o par pessoa +
- * campeão somado desde sempre.
- */
-export interface RecordeDeCampeao {
-  categoria: string;
-  playerId: string;
-  playerName: string;
-  championName: string;
-  championId: number | null;
-  championIcon: string | null;
-  jogos: number;
-  vitorias: number;
-  valor: number;
-  /** Número já formatado pelo servidor ("75%", "4.50"). */
-  exibicao: string;
-}
-
 /** O campeão em si, no grupo inteiro: escolhido, banido e ganhando. */
 export interface EstatisticaDeCampeao {
   championName: string;
@@ -421,16 +403,33 @@ export interface EstatisticaDeCampeao {
   presenca: number;
   /** Null quando só foi banido: sem jogo não existe aproveitamento. */
   winRate: number | null;
+  kda: number | null;
+  danoPorMinuto: number | null;
+  /** Quem mais jogou esse campeão no grupo. */
+  quemMaisJoga: { playerId: string; name: string; jogos: number } | null;
+}
+
+/** Recorde de um campeão: mais escolhido, mais banido, maior presença... */
+export interface RecordeDoCampeao {
+  categoria: string;
+  championName: string;
+  championId: number | null;
+  championIcon: string | null;
+  valor: number;
+  /** Número já formatado pelo servidor ("75%", "4.50"). */
+  exibicao: string;
+  /** "4 jogos · 3V–1D · 2 bans": de onde o número saiu. */
+  detalhe: string;
 }
 
 export interface EstatisticasDeCampeoes {
   campeoes: EstatisticaDeCampeao[];
+  recordes: RecordeDoCampeao[];
   partidas: number;
 }
 
 export interface Highlights {
   recordes: RecordEntry[];
-  recordesDeCampeao: RecordeDeCampeao[];
   momentos: MomentEntry[];
   partidas: number;
 }

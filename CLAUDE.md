@@ -109,10 +109,11 @@ hand-picked captains drafts to 5x5 (draw and draft are stateless
 calculators, so these run read-only against production too); the
 "?" reaches the help page; a duo partner on a profile links to their
 profile, which shows the same duo with the same record from the other side;
-the "Com um campeão" block shows exactly what the API elected and each card
-opens the profile of whoever set it; Destaques' two tabs actually switch
+the "Recordes de campeão" block shows every champion the API elected with the
+detail line saying where the number came from, and links to nobody's profile
+(the record is the champion's); Destaques' two tabs actually switch
 (Recordes ↔ Momentos) and the champion table follows the API's order and
-count;
+count, with the KDA and the "quem mais joga" of a played champion;
 Chromium itself reports the site as installable
 (`Page.getInstallabilityErrors` over CDP, in a persistent profile, since the
 default Playwright context is incognito and always answers `in-incognito`)
@@ -257,8 +258,7 @@ migration unmodified. Never add a framework import to it.
 |---|---|
 | `lib/autoBalance.ts` | Team draw: Hall's theorem feasibility check + MRV backtracking + cost-based restarts. Picks at random among splits within `ratingTolerance` of the best that put nobody further off-role, and never one in `avoidSplits` (what the screen already showed) |
 | `lib/forca.ts` | A player's strength from history — ranking KDA (log scale) and wins, shrunk toward the group average for players with few games — which is the `rating` the draw balances. `internalRating` is only a manual offset on top (1000 = none). Before this every rating was 1000 and "balance" did nothing |
-| `lib/estatisticasDeCampeao.ts` | The champion itself across the group: pick rate, ban rate, **presence** (picked or banned, over total matches — the competitive metric, since a champion banned every night is strong without ever being played) and winrate. A ban-only champion has `winRate: null`, never 0 |
-| `lib/recordesDeCampeao.ts` | Records per player+champion **accumulated** (the ones in `highlights.ts` are per match): most played, best winrate, best KDA, most kills/assists/deaths. Winrate and KDA need 3 games with that champion, same reason as the duos; a zero is never a record |
+| `lib/estatisticasDeCampeao.ts` | The champion itself across the group — never "someone's": pick rate, ban rate, **presence** (picked or banned, over total matches — the competitive metric, since a champion banned every night is strong without ever being played), winrate, average KDA and damage/min, plus who plays it most. `recordesDosCampeoes` elects one champion per category (most picked, most banned, highest presence, best/worst winrate, best KDA); rate categories need 3 games, and a ban-only champion has `winRate: null`, never 0 |
 | `lib/duplas.ts` | Duos on the profile: teammates are players on the same side of the same match; a duo needs 3 games together; "Ganha mais com" is winrate above 50%, "Perde mais com" below it (zoeira, shown in `loss`, never gold); exactly 50% is in neither |
 | `lib/captainsDraft.ts` | Snake draft, order `1-2-2-2-1` |
 | `lib/lcu.ts` | Parses the LoL client's local match-history API (LCU) |
@@ -523,9 +523,13 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
   on screen, `desenharPodio` in `lib/rankingImage.ts`): 2nd left, 1st center and
   tallest, 3rd right, with the number of the **active sort** under each face
   (`VALOR_DA_METRICA` in `DashboardPage.tsx` feeds both screen and image, so
-  they never disagree). The three stay in the table below — dropping them would
-  hide KDA and DPM of exactly who gets looked at most. Fewer than three
-  players: no podium, a lone step reads as a bug.
+  they never disagree). Each step carries the **whole row** — V–D, winrate, KDA,
+  DPM, CS/min, vision, MD3, points and the champions — and that is why the
+  table (and the image's rows) **starts at 4th**: the same person twice on one
+  screen was the same space spent twice. Fewer than three players: no podium,
+  a lone step reads as a bug. In the podium the stats are centered short lines,
+  not label-left/value-right — that truncated the label ("V…") in a 120px
+  column.
 - Any big stat number is paired with a bar showing it relative to the best in
   the match — a number is only meaningful next to a max.
 - Data Dragon champion/item/spell/rune catalogs are fetched once and cached in
