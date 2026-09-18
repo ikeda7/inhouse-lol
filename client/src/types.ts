@@ -389,8 +389,27 @@ export interface MomentEntry extends HighlightContext {
   win: boolean;
 }
 
+/**
+ * Recorde acumulado com um campeão (não de uma partida só): o par pessoa +
+ * campeão somado desde sempre.
+ */
+export interface RecordeDeCampeao {
+  categoria: string;
+  playerId: string;
+  playerName: string;
+  championName: string;
+  championId: number | null;
+  championIcon: string | null;
+  jogos: number;
+  vitorias: number;
+  valor: number;
+  /** Número já formatado pelo servidor ("75%", "4.50"). */
+  exibicao: string;
+}
+
 export interface Highlights {
   recordes: RecordEntry[];
+  recordesDeCampeao: RecordeDeCampeao[];
   momentos: MomentEntry[];
   partidas: number;
 }

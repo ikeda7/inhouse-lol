@@ -107,6 +107,8 @@ hand-picked captains drafts to 5x5 (draw and draft are stateless
 calculators, so these run read-only against production too); the
 "?" reaches the help page; a duo partner on a profile links to their
 profile, which shows the same duo with the same record from the other side;
+the "Com um campeão" block shows exactly what the API elected and each card
+opens the profile of whoever set it;
 Chromium itself reports the site as installable
 (`Page.getInstallabilityErrors` over CDP, in a persistent profile, since the
 default Playwright context is incognito and always answers `in-incognito`)
@@ -251,6 +253,7 @@ migration unmodified. Never add a framework import to it.
 |---|---|
 | `lib/autoBalance.ts` | Team draw: Hall's theorem feasibility check + MRV backtracking + cost-based restarts. Picks at random among splits within `ratingTolerance` of the best that put nobody further off-role, and never one in `avoidSplits` (what the screen already showed) |
 | `lib/forca.ts` | A player's strength from history — ranking KDA (log scale) and wins, shrunk toward the group average for players with few games — which is the `rating` the draw balances. `internalRating` is only a manual offset on top (1000 = none). Before this every rating was 1000 and "balance" did nothing |
+| `lib/recordesDeCampeao.ts` | Records per player+champion **accumulated** (the ones in `highlights.ts` are per match): most played, best winrate, best KDA, most kills/assists/deaths. Winrate and KDA need 3 games with that champion, same reason as the duos; a zero is never a record |
 | `lib/duplas.ts` | Duos on the profile: teammates are players on the same side of the same match; a duo needs 3 games together; "Ganha mais com" is winrate above 50%, "Perde mais com" below it (zoeira, shown in `loss`, never gold); exactly 50% is in neither |
 | `lib/captainsDraft.ts` | Snake draft, order `1-2-2-2-1` |
 | `lib/lcu.ts` | Parses the LoL client's local match-history API (LCU) |
@@ -286,7 +289,13 @@ LCU client and no API key.
 
 `companion/inhouse-companion.mjs` is the local agent a player runs to push
 their LCU/replay history to the API; it's dependency-free by design (plain
-`node`, no npm install). `--noite` imports the latest night in play order: it
+`node`, no npm install). Two `.bat` files next to it (`vigia-da-noite`,
+`puxar-a-noite`) are the double-click path: they read the group key from
+`companion/chave.txt` (gitignored, asked once) and call the same agent — the
+browser cannot do this itself, because the LCU is HTTPS with a self-signed
+cert and a password in a local file. `--watch` runs the `--noite` flow at the
+end of every game (it used to POST the finished game raw, which opened no MD3
+and ignored play order). `--noite` imports the latest night in play order: it
 refreshes what is already in, opens the night's MD3 (and a second one after
 a 2-0) through `/series/garantir`, and stops at the first refusal so game 3
 never lands as game 2. Its flow (`importarNoite`) takes `enviar`/`abrirMd3` as
