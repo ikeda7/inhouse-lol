@@ -739,6 +739,32 @@ async function fluxoDoCadastro(pagina) {
     `roles na API depois de editar: ${JSON.stringify(jogador.roles)}`
   );
 
+  // Conta extra (o smurf): entra e sai por fora do "Salvar", porque cada conta
+  // é uma linha própria no banco -- é ela que recebe o PUUID na importação.
+  const smurf = `Smurf${sufixo}#BR1`;
+  await pagina.getByRole('button', { name: `Editar ${nome}` }).click();
+  const comConta = pagina.locator('li', { has: pagina.getByRole('button', { name: 'Salvar' }) });
+  await comConta.getByLabel(`Outra conta de ${nome}`).fill(smurf);
+  await comConta.getByRole('button', { name: 'Adicionar' }).click();
+  const desligar = comConta.getByRole('button', {
+    name: `Desligar a conta ${smurf} de ${nome}`,
+  });
+  await desligar.waitFor({ timeout: 20000 });
+  jogador = await daApi();
+  exigir(
+    jogador.riotAccounts.some((conta) => conta.riotId === smurf),
+    `conta extra na API: ${JSON.stringify(jogador.riotAccounts)}`
+  );
+
+  await desligar.click();
+  await desligar.waitFor({ state: 'detached', timeout: 20000 });
+  jogador = await daApi();
+  exigir(
+    jogador.riotAccounts.length === 0,
+    `conta extra ainda na API depois de desligar: ${JSON.stringify(jogador.riotAccounts)}`
+  );
+  await comConta.getByRole('button', { name: 'Cancelar' }).click();
+
   // Desativar tira do Sorteio; a linha continua na lista, marcada.
   await pagina.getByRole('button', { name: `Desativar ${nome}` }).click();
   await linha.getByText('inativo', { exact: true }).waitFor({ timeout: 20000 });
@@ -1012,7 +1038,10 @@ async function main() {
       fluxoDoRegistroManual,
     ],
     ['Sala ao vivo: dois capitães, a vez trava o pote, escolhas sincronizam', fluxoDaSalaAoVivo],
-    ['Jogadores: cadastrar, editar Riot ID e roles, desativar', fluxoDoCadastro],
+    [
+      'Jogadores: cadastrar, editar Riot ID e roles, ligar e desligar o smurf, desativar',
+      fluxoDoCadastro,
+    ],
     ['Conta: criar pela tela, trocar a senha, sair e entrar com a nova', fluxoDaConta],
   ];
   for (const [indice, [nome, fn]] of passos.entries()) {

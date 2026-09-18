@@ -118,6 +118,12 @@ export const playersApi = {
   ) => request<Player>(`/players/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
 
   deactivate: (id: string) => request<Player>(`/players/${id}`, { method: 'DELETE' }),
+
+  /** Liga mais uma conta da Riot (o smurf) ao jogador. */
+  addAccount: (id: string, riotId: string) => post<Player>(`/players/${id}/contas`, { riotId }),
+
+  removeAccount: (id: string, contaId: string) =>
+    request<Player>(`/players/${id}/contas/${contaId}`, { method: 'DELETE' }),
 };
 
 // ---------------------------------------------------------------------------

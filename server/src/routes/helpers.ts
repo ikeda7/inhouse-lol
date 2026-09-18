@@ -6,6 +6,7 @@ import { SeriesError } from '../services/series.js';
 import { LcuError } from '../lib/lcu.js';
 import { AuthError } from '../services/auth.js';
 import { IngestError } from '../services/ingest.js';
+import { PlayerError } from '../services/players.js';
 
 /**
  * Express 4 nao encaminha rejeicao de Promise para o error handler sozinho.
@@ -87,6 +88,13 @@ function translate(error: unknown): ErrorPayload {
     };
     return {
       status: statusByCode[error.code] ?? 502,
+      body: { success: false, error: error.message, code: error.code },
+    };
+  }
+
+  if (error instanceof PlayerError) {
+    return {
+      status: error.status,
       body: { success: false, error: error.message, code: error.code },
     };
   }

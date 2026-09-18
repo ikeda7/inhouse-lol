@@ -120,7 +120,8 @@ phone width): each claims a side and the other sees it taken, the captain
 not on the clock cannot click the pool, every pick leaves the pool on the
 other captain's screen through polling, and both screens close 5x5; and
 Jogadores registers a player with roles in click order, edits Riot ID and
-roles, and deactivates them, checking the API after each step and that the
+roles, links and unlinks a second Riot account (the smurf), and deactivates
+them, checking the API after each step and that the
 Sorteio no longer lists them. Icon-only buttons carry an `aria-label` with
 the player's name ("Editar Fulano"), which is also what the flow clicks.
 The account flow claims a player on screen, changes the password without
@@ -327,6 +328,12 @@ handler for Vercel's serverless runtime. Don't merge these — calling
   these on purpose.
 - Player rows are deactivated, never deleted (deletion cascades and corrupts
   the leaderboard).
+- **A player can have more than one Riot account.** `Player.riotId`/`puuid` are
+  the main one and are `@unique`, so the smurf lives in `RiotAccount` (one row
+  per extra account, same two columns). The ingest indexes both by PUUID and by
+  Riot ID, and fills the PUUID on whichever row matched — a match played on the
+  smurf lands on the same person, instead of a second row in the ranking. This
+  is not the login account (`Player.email`/`passwordHash`): that one is #3.
 - **At most one ongoing MD3.** `POST /series` refuses a second one
   (`SERIES_ONGOING`, 409): with two open, LCU imports landed in the newest and
   games scattered between them. `POST /series/garantir` returns the ongoing

@@ -7,6 +7,7 @@ function jogador(nome: string, extra: Partial<Player> = {}): Player {
     id: nome,
     name: nome,
     riotId: `${nome}#BR1`,
+    riotAccounts: [],
     roles: ['MID'],
     internalRating: 1000,
     active: true,

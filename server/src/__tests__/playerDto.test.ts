@@ -45,6 +45,13 @@ describe('toPlayerDTO', () => {
   it('ordena as roles pela prioridade', () => {
     expect(toPlayerDTO(linha()).roles).toEqual(['TOP', 'MID']);
   });
+
+  it('leva as contas extras, e devolve lista vazia para quem joga de uma só', () => {
+    expect(toPlayerDTO(linha()).riotAccounts).toEqual([]);
+    expect(
+      toPlayerDTO(linha({ riotAccounts: [{ id: 'c1', riotId: 'Smurf#BR1' }] })).riotAccounts
+    ).toEqual([{ id: 'c1', riotId: 'Smurf#BR1' }]);
+  });
 });
 
 describe('toAccountDTO', () => {

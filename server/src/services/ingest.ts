@@ -74,14 +74,23 @@ async function nomearBans(
   );
 }
 
-/** Carrega o cadastro indexado por PUUID e por Riot ID (para o auto-vinculo). */
+/**
+ * Carrega o cadastro indexado por PUUID e por Riot ID (para o auto-vinculo).
+ *
+ * As contas extras (o smurf, `RiotAccount`) entram nos mesmos indices: para a
+ * partida, jogar do main ou do smurf e a mesma pessoa. `contaId` diz em qual
+ * linha gravar o PUUID quando ele chegar.
+ */
 async function loadKnownPlayers() {
   const players = await prisma.player.findMany({
-    include: { roles: { orderBy: { priority: 'asc' } } },
+    include: { roles: { orderBy: { priority: 'asc' } }, riotAccounts: true },
   });
 
   const byPuuid = new Map<string, DraftablePlayer>();
-  const byRiotId = new Map<string, { id: string; name: string; puuid: string | null }>();
+  const byRiotId = new Map<
+    string,
+    { id: string; name: string; puuid: string | null; contaId?: string }
+  >();
 
   for (const player of players) {
     const draftable: DraftablePlayer = {
@@ -97,6 +106,17 @@ async function loadKnownPlayers() {
         name: player.name,
         puuid: player.puuid,
       });
+    }
+    for (const conta of player.riotAccounts) {
+      if (conta.puuid) byPuuid.set(conta.puuid, draftable);
+      if (conta.riotId) {
+        byRiotId.set(conta.riotId.toLowerCase(), {
+          id: player.id,
+          name: player.name,
+          puuid: conta.puuid,
+          contaId: conta.id,
+        });
+      }
     }
   }
 
@@ -141,7 +161,7 @@ async function guardarIcones(
 async function autoVincular(
   participantes: LcuImportedParticipant[],
   byPuuid: Map<string, DraftablePlayer>,
-  byRiotId: Map<string, { id: string; name: string; puuid: string | null }>
+  byRiotId: Map<string, { id: string; name: string; puuid: string | null; contaId?: string }>
 ): Promise<string[]> {
   const linked: string[] = [];
   for (const participant of participantes) {
@@ -150,10 +170,20 @@ async function autoVincular(
       ? byRiotId.get(participant.riotId.toLowerCase())
       : undefined;
     if (candidate && !candidate.puuid) {
-      await prisma.player.update({
-        where: { id: candidate.id },
-        data: { puuid: participant.puuid },
-      });
+      // O Riot ID batido pode ser o da conta principal ou o de uma conta extra:
+      // o PUUID tem que cair na linha certa, senao o UNIQUE de Player.puuid
+      // recusaria o segundo nick da mesma pessoa.
+      if (candidate.contaId) {
+        await prisma.riotAccount.update({
+          where: { id: candidate.contaId },
+          data: { puuid: participant.puuid },
+        });
+      } else {
+        await prisma.player.update({
+          where: { id: candidate.id },
+          data: { puuid: participant.puuid },
+        });
+      }
       linked.push(candidate.name);
     }
   }
@@ -223,13 +253,18 @@ export async function ingestGame(game: LcuGame, options: IngestOptions): Promise
   const linked = options.autoLink
     ? await autoVincular(imported.participants, byPuuid, byRiotId)
     : [];
+
+  // Recarrega ANTES de criar desconhecidos: quem acabou de ser vinculado ainda
+  // nao esta no mapa em memoria, e seria cadastrado de novo -- a mesma pessoa
+  // duas vezes no ranking, que e justamente o que a conta extra evita.
+  const aposVinculo = linked.length > 0 ? (await loadKnownPlayers()).byPuuid : byPuuid;
+
   const created = options.autoCreatePlayers
-    ? await criarDesconhecidos(imported.participants, byPuuid)
+    ? await criarDesconhecidos(imported.participants, aposVinculo)
     : [];
 
   // Recarrega se algo mudou, para o casamento abaixo enxergar os novos vinculos.
-  const known =
-    linked.length > 0 || created.length > 0 ? (await loadKnownPlayers()).byPuuid : byPuuid;
+  const known = created.length > 0 ? (await loadKnownPlayers()).byPuuid : aposVinculo;
 
   const matched: MatchPlayerInput[] = [];
   const unmatched: {
