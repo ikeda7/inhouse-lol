@@ -7,21 +7,32 @@ LoL aberto e pressa.
 
 ## Resposta curta
 
-**Já existe integração ao vivo.** É o agente que roda no seu PC:
+**Sem digitar nada: dois cliques duplos na pasta `companion/`.**
+
+| Arquivo | Quando usar |
+|---|---|
+| `vigia-da-noite.bat` | Abra antes de começar e deixe a janela aberta. A cada jogo que termina, ele puxa a noite sozinho |
+| `puxar-a-noite.bat` | Esqueceu de abrir o vigia? Clique no fim da noite e pronto |
+
+Os dois pedem a chave do grupo **na primeira vez** e guardam em
+`companion/chave.txt`, que fica só na sua máquina (está no `.gitignore` — o
+repositório é público).
+
+O que eles fazem por baixo é o mesmo agente, se você preferir o terminal:
 
 ```bash
 node companion/inhouse-companion.mjs --watch --api https://inhouse-lol.vercel.app/api
-```
-
-Deixe rodando a noite inteira. Ele vigia o cliente do LoL a cada 15 segundos e,
-**quando cada jogo termina, manda o placar sozinho** — build, dano, visão,
-bans, objetivos, tudo. Você não abre o site no meio da noite para nada.
-
-Esqueceu de ligar o vigia? No fim da noite, um comando só resolve:
-
-```bash
 node companion/inhouse-companion.mjs --noite --api https://inhouse-lol.vercel.app/api
 ```
+
+Os dois caminhos passam pelo mesmo fluxo: **abrem a MD3 da noite se ninguém
+abriu**, importam na ordem dos jogos, atualizam o que já tinha entrado e param
+no primeiro nick que não estiver ligado a um jogador. Rodar de novo não
+duplica nada. Você não abre o site no meio da noite para nada.
+
+> Por que não dá para fazer isso pelo site: o navegador não alcança o cliente
+> do LoL. A API local dele é HTTPS com certificado próprio e senha num arquivo
+> (`lockfile`) da sua máquina — página web não lê nem uma coisa nem outra.
 
 O resto deste arquivo é o que fazer em volta disso.
 
