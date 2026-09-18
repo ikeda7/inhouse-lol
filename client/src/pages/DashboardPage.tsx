@@ -9,6 +9,7 @@ import { useChampions } from '../hooks/useChampions';
 import { gerarImagemDoRanking } from '../lib/rankingImage';
 import { resolvedorDeIcone } from '../lib/imagem/canvas';
 import { ExportarImagem } from '../components/ExportarImagem';
+import { PodioDoRanking } from '../components/PodioDoRanking';
 import { ROLE_LABEL, type LeaderboardEntry } from '../types';
 
 type SortKey = 'wins' | 'winRate' | 'avgKda' | 'points';
@@ -18,6 +19,20 @@ const SORT_LABELS: Record<SortKey, string> = {
   winRate: 'Winrate',
   avgKda: 'KDA',
   points: 'Pontos',
+};
+
+/**
+ * O número que o pódio mostra em cada ordenação.
+ *
+ * Fica junto de SORT_LABELS porque os dois andam em par: o rótulo diz o que é,
+ * o valor diz quanto -- e uma ordenação nova sem valor aqui apareceria com o
+ * número errado embaixo do rosto de alguém.
+ */
+const VALOR_DA_METRICA: Record<SortKey, (entry: LeaderboardEntry) => string> = {
+  wins: (entry) => String(entry.wins),
+  winRate: (entry) => `${entry.winRate}%`,
+  avgKda: (entry) => entry.avgKda.toFixed(2),
+  points: (entry) => String(entry.points),
 };
 
 /** Ouro, prata e bronze nos três primeiros; o resto só o número. */
@@ -66,6 +81,8 @@ export function DashboardPage() {
       // sai, só sem os campeões.
       iconeDoCampeao: resolvedorDeIcone(manifest),
       ordenadoPor: SORT_LABELS[sortBy],
+      // O pódio da imagem mostra o mesmo número do pódio da tela.
+      valorDaMetrica: VALOR_DA_METRICA[sortBy],
     });
   };
 
@@ -126,6 +143,15 @@ export function DashboardPage() {
 
         {data && data.length > 0 && (
           <>
+            {/* O pódio vem antes da tabela: na hora em que alguém abre o site,
+                a primeira pergunta é "quem tá ganhando", e a resposta não devia
+                exigir ler uma linha de tabela de 12 colunas. */}
+            <PodioDoRanking
+              entries={data}
+              rotuloDaMetrica={SORT_LABELS[sortBy]}
+              valorDaMetrica={VALOR_DA_METRICA[sortBy]}
+            />
+
             {/* --- celular e tablet --- */}
             <ul className="divide-y divide-line/40 lg:hidden">
               {data.map((entry, index) => (
