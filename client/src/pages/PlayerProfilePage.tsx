@@ -7,6 +7,7 @@ import { Avatar, Card, CardTitle, ErrorState, LoadingState, EmptyState } from '.
 import { ChampionIcon } from '../components/ChampionIcon';
 import { Highlights } from '../components/Highlights';
 import { Duplas } from '../components/Duplas';
+import { Feitos } from '../components/Feitos';
 import { ROLE_LABEL, type PlayerProfile, type RecentMatch } from '../types';
 
 /**
@@ -50,7 +51,11 @@ export function PlayerProfilePage() {
           <Duplas duplas={data.duplas} />
         </div>
 
-        <UltimasPartidas partidas={data.recentMatches} />
+        {/* `min-w-0`: sem ele a coluna cresce até caber a linha mais larga. */}
+        <div className="min-w-0 space-y-5">
+          <Feitos playerId={data.playerId} />
+          <UltimasPartidas partidas={data.recentMatches} />
+        </div>
       </div>
     </div>
   );
