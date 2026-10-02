@@ -449,6 +449,34 @@ async function fluxoDosLinks(pagina) {
     .first()
     .click();
   await chegouNoJogo(recorde.seriesId, recorde.matchNumber, 'recorde');
+
+  // Feitos no perfil: o recorde do dono do recorde leva ao mesmo jogo.
+  await pagina.goto(`${BASE}/jogadores/${recorde.playerId}`, { waitUntil: 'networkidle' });
+  const feitos = pagina.locator('section', {
+    has: pagina.getByRole('heading', { name: 'Feitos' }),
+  });
+  await feitos.waitFor({ timeout: 20000 });
+  await feitos
+    .locator(`a[href="/historico?serie=${recorde.seriesId}&jogo=${recorde.matchNumber}"]`)
+    .first()
+    .click();
+  await chegouNoJogo(recorde.seriesId, recorde.matchNumber, 'feitos do perfil');
+
+  // A faixa do ranking: para a Série se há MD3 em andamento, senão para os
+  // jogos da última noite.
+  const series = await api('GET', '/series?limit=5');
+  const aoVivo = series.find((s) => s.status === 'ONGOING');
+  const ultima = aoVivo ?? series.find((s) => s.matches.length > 0);
+  if (!ultima) return;
+  await pagina.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  await pagina.getByRole('link', { name: aoVivo ? /Em andamento/ : /Última noite/ }).click();
+  await pagina.waitForURL(
+    (url) =>
+      aoVivo
+        ? url.pathname === '/serie'
+        : url.pathname === '/historico' && url.searchParams.get('serie') === ultima.id,
+    { timeout: 10000 }
+  );
 }
 
 async function fluxoDasDuplas(pagina) {
