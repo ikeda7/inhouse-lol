@@ -265,6 +265,9 @@ export const authApi = {
 
   logout: () => post<null>('/auth/logout', {}),
 
+  /** Se este navegador pode usar os controles de admin (vale deslogado também). */
+  permissoes: () => request<{ podeAdministrar: boolean }>('/auth/permissoes'),
+
   /** 401 aqui e resposta esperada (visitante deslogado), nao erro de rede. */
   me: () =>
     request<Account>('/auth/me').catch((error: unknown) => {

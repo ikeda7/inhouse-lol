@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, History, Trash2, TriangleAlert } from 'lucide-react';
 import { seriesApi } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { useChampions } from '../hooks/useChampions';
 import { ExportarImagem } from '../components/ExportarImagem';
 import { resolvedorDeIcone } from '../lib/imagem/canvas';
@@ -38,6 +39,7 @@ import {
 export function HistoryPage() {
   const { data, loading, error, reload } = useAsync(() => seriesApi.list(30));
   const [expanded, setExpanded] = useState<string | null>(null);
+  const { podeAdministrar } = useAuth();
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -83,7 +85,9 @@ export function HistoryPage() {
                     acidente -- um clique a mais em "Abrir nova MD3". O servidor
                     recusa qualquer outra, então a ausência do botão aqui é
                     conveniência, não a garantia. */}
-                {vazia && <DescartarSerie series={series} onDescartada={reload} />}
+                {vazia && podeAdministrar && (
+                  <DescartarSerie series={series} onDescartada={reload} />
+                )}
               </div>
 
               {isOpen && <SeriesDetailPanel seriesId={series.id} />}

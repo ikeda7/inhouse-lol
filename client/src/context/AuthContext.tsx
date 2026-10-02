@@ -15,6 +15,13 @@ interface AuthValue {
   player: Account | null;
   /** true enquanto o /auth/me inicial nao respondeu -- evita piscar "Entrar". */
   loading: boolean;
+  /**
+   * Se a tela deve oferecer os controles de admin (cadastro de jogadores,
+   * registro manual, encerrar a MD3). Só esconde botão: quem recusa de verdade
+   * é o servidor. Enquanto não respondeu é `false`, para o botão não piscar
+   * para quem não pode usar.
+   */
+  podeAdministrar: boolean;
   login: (input: { email: string; password: string }) => Promise<Account>;
   register: (input: { playerId: string; email: string; password: string }) => Promise<Account>;
   logout: () => Promise<void>;
@@ -27,9 +34,25 @@ const AuthContext = createContext<AuthValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [player, setPlayer] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
+  const [podeAdministrar, setPodeAdministrar] = useState(false);
+
+  // Depende de quem está logado, então é refeita a cada entrada e saída. Se a
+  // pergunta falhar, mostra os botões: a tela não decide nada, e esconder por
+  // engano deixaria o admin sem ter onde clicar.
+  const conferirPermissoes = useCallback(async () => {
+    try {
+      return (await authApi.permissoes()).podeAdministrar;
+    } catch {
+      return true;
+    }
+  }, []);
 
   useEffect(() => {
     let cancelado = false;
+
+    conferirPermissoes().then((pode) => {
+      if (!cancelado) setPodeAdministrar(pode);
+    });
 
     authApi
       .me()
@@ -48,30 +71,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [conferirPermissoes]);
 
-  const login = useCallback(async (input: { email: string; password: string }) => {
-    const logado = await authApi.login(input);
-    setPlayer(logado);
-    return logado;
-  }, []);
+  const login = useCallback(
+    async (input: { email: string; password: string }) => {
+      const logado = await authApi.login(input);
+      setPlayer(logado);
+      setPodeAdministrar(await conferirPermissoes());
+      return logado;
+    },
+    [conferirPermissoes]
+  );
 
   const register = useCallback(
     async (input: { playerId: string; email: string; password: string }) => {
       const criado = await authApi.register(input);
       setPlayer(criado);
+      setPodeAdministrar(await conferirPermissoes());
       return criado;
     },
-    []
+    [conferirPermissoes]
   );
 
   const logout = useCallback(async () => {
     await authApi.logout();
     setPlayer(null);
-  }, []);
+    setPodeAdministrar(await conferirPermissoes());
+  }, [conferirPermissoes]);
 
   return (
-    <AuthContext.Provider value={{ player, loading, login, register, logout, setPlayer }}>
+    <AuthContext.Provider
+      value={{ player, loading, podeAdministrar, login, register, logout, setPlayer }}
+    >
       {children}
     </AuthContext.Provider>
   );

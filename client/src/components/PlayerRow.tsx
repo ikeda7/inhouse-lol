@@ -18,8 +18,19 @@ const SELECTABLE_ROLES: RoleInput[] = [...ROLES, 'FILL'];
  * quem.
  *
  * E ele NAO precisa da chave da Riot: o PUUID vem junto com os dados do jogo.
+ *
+ * `podeEditar` falso tira o lapis e o olho: o cadastro e do admin, e o servidor
+ * recusaria o clique de qualquer jeito.
  */
-export function PlayerRow({ player, onChanged }: { player: Player; onChanged: () => void }) {
+export function PlayerRow({
+  player,
+  podeEditar,
+  onChanged,
+}: {
+  player: Player;
+  podeEditar: boolean;
+  onChanged: () => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(player.name);
   const [riotId, setRiotId] = useState(player.riotId ?? '');
@@ -162,24 +173,28 @@ export function PlayerRow({ player, onChanged }: { player: Player; onChanged: ()
 
         {/* Botão só de ícone: o nome acessível leva o nome da pessoa, senão o
             leitor de tela lê quinze "Editar" iguais na lista. */}
-        <button
-          onClick={toggleActive}
-          title={player.active ? 'Desativar (some do sorteio)' : 'Reativar'}
-          aria-label={player.active ? `Desativar ${player.name}` : `Reativar ${player.name}`}
-          // 36px de área para o dedo sem mudar o desenho: o ícone de 15px
-          // sozinho era o alvo, e no celular o toque caía no botão do lado.
-          className="-m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-faint hover:text-gold"
-        >
-          {player.active ? <Eye size={15} /> : <EyeOff size={15} />}
-        </button>
-        <button
-          onClick={() => setEditing(true)}
-          title="Editar"
-          aria-label={`Editar ${player.name}`}
-          className="-m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-faint hover:text-gold"
-        >
-          <Pencil size={15} />
-        </button>
+        {podeEditar && (
+          <>
+            <button
+              onClick={toggleActive}
+              title={player.active ? 'Desativar (some do sorteio)' : 'Reativar'}
+              aria-label={player.active ? `Desativar ${player.name}` : `Reativar ${player.name}`}
+              // 36px de área para o dedo sem mudar o desenho: o ícone de 15px
+              // sozinho era o alvo, e no celular o toque caía no botão do lado.
+              className="-m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-faint hover:text-gold"
+            >
+              {player.active ? <Eye size={15} /> : <EyeOff size={15} />}
+            </button>
+            <button
+              onClick={() => setEditing(true)}
+              title="Editar"
+              aria-label={`Editar ${player.name}`}
+              className="-m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-faint hover:text-gold"
+            >
+              <Pencil size={15} />
+            </button>
+          </>
+        )}
       </li>
     );
   }

@@ -9,6 +9,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { playersApi, riotApi, seriesApi } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { useAction, useAsync } from '../hooks/useAsync';
 import { useChampions } from '../hooks/useChampions';
 import {
@@ -34,11 +35,16 @@ import { ROLES, type Role, type SeriesDetail, type TeamSide } from '../types';
  * sorteados, o registro do jogo que acabou e a MD3 até agora (os jogos somados
  * por jogador, o mesmo bloco do Histórico). Estatistica historica fica no
  * dashboard.
+ *
+ * Abrir a MD3 na mão, registrar jogo pelo formulário, importar por Match ID e
+ * encerrar são do admin; os outros acompanham a noite por aqui, e a MD3 deles
+ * abre pelo "Usar esses times na série" e pelo agente local.
  */
 export function SeriesPage() {
   const series = useAsync(() => seriesApi.current());
   const players = useAsync(() => playersApi.list());
   const { manifest } = useChampions();
+  const { podeAdministrar } = useAuth();
 
   const [registering, setRegistering] = useState(false);
   const [matchIdInput, setMatchIdInput] = useState('');
@@ -54,18 +60,26 @@ export function SeriesPage() {
   if (!series.data) {
     return (
       <Card title="Série em andamento">
-        <EmptyState label="Nenhuma MD3 em andamento." />
-        <div className="flex justify-center">
-          <Button
-            onClick={async () => {
-              if (await createSeries.run({ fearless: true })) series.reload();
-            }}
-            loading={createSeries.loading}
-          >
-            <Play size={16} />
-            Abrir nova MD3
-          </Button>
-        </div>
+        <EmptyState
+          label={
+            podeAdministrar
+              ? 'Nenhuma MD3 em andamento.'
+              : 'Nenhuma MD3 em andamento. Ela abre em "Usar esses times na série", depois do sorteio.'
+          }
+        />
+        {podeAdministrar && (
+          <div className="flex justify-center">
+            <Button
+              onClick={async () => {
+                if (await createSeries.run({ fearless: true })) series.reload();
+              }}
+              loading={createSeries.loading}
+            >
+              <Play size={16} />
+              Abrir nova MD3
+            </Button>
+          </div>
+        )}
         {createSeries.error && (
           <div className="mt-3">
             <ErrorState error={createSeries.error} />
@@ -95,19 +109,21 @@ export function SeriesPage() {
         destaque
         title={<CardTitle icon={Swords}>{current.name ?? 'MD3 em andamento'}</CardTitle>}
         action={
-          <Button
-            variant="ghost"
-            onClick={async () => {
-              await finishSeries.run(current.id);
-              clearActiveDraft();
-              setDraft(null);
-              series.reload();
-            }}
-            loading={finishSeries.loading}
-          >
-            <FlagTriangleRight size={14} />
-            Encerrar
-          </Button>
+          podeAdministrar && (
+            <Button
+              variant="ghost"
+              onClick={async () => {
+                await finishSeries.run(current.id);
+                clearActiveDraft();
+                setDraft(null);
+                series.reload();
+              }}
+              loading={finishSeries.loading}
+            >
+              <FlagTriangleRight size={14} />
+              Encerrar
+            </Button>
+          )
         }
       >
         {/* Placar por ELENCO: blueScore/redScore são o time A e o time B (ver
@@ -125,7 +141,7 @@ export function SeriesPage() {
             : `Próximo: jogo ${nextMatchNumber} · Fearless ${current.fearless ? 'ligado' : 'desligado'}`}
         </p>
 
-        {!registering && nextMatchNumber <= 3 && (
+        {podeAdministrar && !registering && nextMatchNumber <= 3 && (
           <div className="mt-4 flex justify-center">
             <Button onClick={() => setRegistering(true)}>
               <ClipboardList size={16} />
@@ -285,37 +301,39 @@ export function SeriesPage() {
               Use <code className="text-gold">--last</code> para mandar só a última partida.
             </p>
 
-            <div className="mt-4 border-t border-line/40 pt-3">
-              <p className="mb-2 text-[11px] uppercase tracking-wider text-ink-faint">
-                Ou cole o Match ID manualmente
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <input
-                  value={matchIdInput}
-                  onChange={(event) => setMatchIdInput(event.target.value)}
-                  placeholder="BR1_1234567890"
-                  className="min-w-[200px] flex-1 rounded-lg border border-line bg-raised px-3 py-2 text-sm placeholder:text-ink-faint focus:border-gold focus:outline-none"
-                />
-                <Button
-                  onClick={async () => {
-                    if (await importMatch.run(matchIdInput.trim(), current.id, {})) {
-                      setMatchIdInput('');
-                      series.reload();
-                    }
-                  }}
-                  disabled={matchIdInput.trim().length < 3}
-                  loading={importMatch.loading}
-                >
-                  <Download size={16} />
-                  Importar
-                </Button>
-              </div>
-              {importMatch.error && (
-                <div className="mt-3">
-                  <ErrorState error={importMatch.error} />
+            {podeAdministrar && (
+              <div className="mt-4 border-t border-line/40 pt-3">
+                <p className="mb-2 text-[11px] uppercase tracking-wider text-ink-faint">
+                  Ou cole o Match ID manualmente
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    value={matchIdInput}
+                    onChange={(event) => setMatchIdInput(event.target.value)}
+                    placeholder="BR1_1234567890"
+                    className="min-w-[200px] flex-1 rounded-lg border border-line bg-raised px-3 py-2 text-sm placeholder:text-ink-faint focus:border-gold focus:outline-none"
+                  />
+                  <Button
+                    onClick={async () => {
+                      if (await importMatch.run(matchIdInput.trim(), current.id, {})) {
+                        setMatchIdInput('');
+                        series.reload();
+                      }
+                    }}
+                    disabled={matchIdInput.trim().length < 3}
+                    loading={importMatch.loading}
+                  >
+                    <Download size={16} />
+                    Importar
+                  </Button>
                 </div>
-              )}
-            </div>
+                {importMatch.error && (
+                  <div className="mt-3">
+                    <ErrorState error={importMatch.error} />
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
         </div>
       </div>
