@@ -222,9 +222,17 @@ remote: - Changes must be made through a pull request.
 
 Everything reaches them through a PR with green CI (all three jobs — "Testes,
 tipos e build", "Segredos e dependências" and "Telas no navegador" — are
-required checks). Zero
-approvals are required, because there is one maintainer and nobody approves
-their own PR; the gate is the PR plus CI, not review.
+required checks). The maintainer's own PRs need no approval — GitHub lets
+nobody approve their own PR, so for them the gate is the PR plus CI.
+
+Two other people have write access, and with zero approvals either could open
+a PR to `main` and merge it alone, which deploys production. The ruleset
+"Aprovação do dono" closes that: a PR into `develop` or `main` needs the
+approval of a code owner, and `.github/CODEOWNERS` names only the maintainer.
+The repository-admin role bypasses that one ruleset (otherwise the maintainer
+would be locked out of their own PRs); the required checks live in the classic
+branch protection, which admins do **not** bypass. Requiring a *code owner*
+matters: a plain "1 approval" would let one collaborator approve the other.
 
 Branch from `develop` as `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`,
 `test/`; PR back into `develop`. Conventional Commits, body explains *why*
