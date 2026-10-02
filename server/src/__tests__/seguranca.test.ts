@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../lib/env.js';
 import { chaveConfere, signSession, verifySession, versaoDaSenha } from '../lib/auth.js';
 import { criarLimitador } from '../lib/limite.js';
-import { dispensaChave } from '../lib/escritas.js';
+import { dispensaChave, nivelDaEscrita, podeAdministrar } from '../lib/escritas.js';
 
 /**
  * As peças puras da trava de escrita. O repositório e o site são públicos:
@@ -100,5 +100,70 @@ describe('dispensaChave', () => {
     expect(dispensaChave('POST', '/qualquer/coisa/nova')).toBe(false);
     // Uma barra a mais não pode virar brecha.
     expect(dispensaChave('POST', '/auth/login/')).toBe(false);
+  });
+});
+
+describe('nivelDaEscrita', () => {
+  it('o que já era aberto continua aberto', () => {
+    expect(nivelDaEscrita('GET', '/players')).toBe('ABERTA');
+    expect(nivelDaEscrita('POST', '/auth/login')).toBe('ABERTA');
+    expect(nivelDaEscrita('POST', '/draft/captains/pick')).toBe('ABERTA');
+    expect(nivelDaEscrita('POST', '/draft/rooms/ABC23/pick')).toBe('ABERTA');
+  });
+
+  it('a noite de jogo e a própria conta ficam com o grupo', () => {
+    expect(nivelDaEscrita('POST', '/auth/register')).toBe('GRUPO');
+    expect(nivelDaEscrita('PATCH', '/accounts/me')).toBe('GRUPO');
+    expect(nivelDaEscrita('POST', '/accounts/me/password')).toBe('GRUPO');
+    expect(nivelDaEscrita('POST', '/accounts/me/photo/sync-lol')).toBe('GRUPO');
+    expect(nivelDaEscrita('POST', '/series/garantir')).toBe('GRUPO');
+    expect(nivelDaEscrita('POST', '/ingest/lcu')).toBe('GRUPO');
+    expect(nivelDaEscrita('POST', '/ingest/rofl')).toBe('GRUPO');
+    expect(nivelDaEscrita('POST', '/draft/rooms')).toBe('GRUPO');
+  });
+
+  it('mexer no cadastro e no que já foi jogado é só do admin', () => {
+    expect(nivelDaEscrita('POST', '/players')).toBe('ADMIN');
+    expect(nivelDaEscrita('PATCH', '/players/p1')).toBe('ADMIN');
+    expect(nivelDaEscrita('DELETE', '/players/p1')).toBe('ADMIN');
+    expect(nivelDaEscrita('POST', '/players/p1/contas')).toBe('ADMIN');
+    expect(nivelDaEscrita('DELETE', '/players/p1/contas/c1')).toBe('ADMIN');
+    expect(nivelDaEscrita('POST', '/series')).toBe('ADMIN');
+    expect(nivelDaEscrita('POST', '/series/s1/matches')).toBe('ADMIN');
+    expect(nivelDaEscrita('POST', '/series/s1/finish')).toBe('ADMIN');
+    expect(nivelDaEscrita('PATCH', '/series/s1')).toBe('ADMIN');
+    expect(nivelDaEscrita('DELETE', '/series/s1')).toBe('ADMIN');
+    expect(nivelDaEscrita('POST', '/riot/import')).toBe('ADMIN');
+  });
+
+  it('rota nova, que ninguém listou, nasce só do admin', () => {
+    expect(nivelDaEscrita('POST', '/qualquer/coisa/nova')).toBe('ADMIN');
+    // Nem prefixo nem barra a mais rebaixam uma rota para o grupo.
+    expect(nivelDaEscrita('POST', '/series/garantir/')).toBe('ADMIN');
+    expect(nivelDaEscrita('POST', '/accounts/me/../../players')).toBe('ADMIN');
+    expect(nivelDaEscrita('PATCH', '/accounts/outro')).toBe('ADMIN');
+    expect(nivelDaEscrita('POST', '/accounts/me/qualquer-coisa')).toBe('ADMIN');
+  });
+
+  it('a exceção vale para o método dela, não para o caminho inteiro', () => {
+    // Esse cai em DELETE /series/:id, que apaga série.
+    expect(nivelDaEscrita('DELETE', '/series/garantir')).toBe('ADMIN');
+    expect(nivelDaEscrita('PATCH', '/series/garantir')).toBe('ADMIN');
+    expect(nivelDaEscrita('DELETE', '/accounts/me')).toBe('ADMIN');
+    expect(nivelDaEscrita('post', '/series/garantir')).toBe('GRUPO');
+  });
+});
+
+describe('podeAdministrar', () => {
+  it('sem admin configurado, vale a regra antiga: o grupo inteiro pode', () => {
+    expect(podeAdministrar('p1', [])).toBe(true);
+    expect(podeAdministrar(null, [])).toBe(true);
+  });
+
+  it('com admin configurado, só a conta dele passa', () => {
+    expect(podeAdministrar('p1', ['p1', 'p2'])).toBe(true);
+    expect(podeAdministrar('p3', ['p1', 'p2'])).toBe(false);
+    // Chave do grupo sem conta nunca é admin.
+    expect(podeAdministrar(null, ['p1'])).toBe(false);
   });
 });

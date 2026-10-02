@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import type { Request, Response } from 'express';
 import type { LcuGame } from '../lib/lcu.js';
 import { roflToLcuGame, type RoflMetadata } from '../lib/rofl.js';
+import { pedidoPodeAdministrar } from '../middleware/auth.js';
 import { ingestGame, statusDaIngestao } from '../services/ingest.js';
 import { asyncHandler } from './helpers.js';
 
@@ -96,6 +98,29 @@ const roflIngestSchema = z.object({
 });
 
 /**
+ * Importar e do grupo (o agente roda no PC de qualquer um, so com a chave), mas
+ * `autoCreatePlayers` cadastra gente -- e cadastro e do admin. Sem isto a
+ * importacao seria o atalho para criar jogador sem passar pela trava.
+ *
+ * Devolve `false` depois de responder 403; o preview (`dryRun`) nao grava e passa.
+ */
+async function podeCriarJogadores(
+  req: Request,
+  res: Response,
+  opcoes: { autoCreatePlayers: boolean; dryRun?: boolean }
+): Promise<boolean> {
+  if (!opcoes.autoCreatePlayers || opcoes.dryRun || (await pedidoPodeAdministrar(req))) return true;
+
+  res.status(403).json({
+    success: false,
+    error:
+      'Criar jogador pela importação é só do admin do grupo. Cadastre a pessoa em Jogadores e importe de novo.',
+    code: 'ADMIN_REQUIRED',
+  });
+  return false;
+}
+
+/**
  * POST /api/ingest/lcu
  * Jogo cru vindo do historico do cliente do LoL.
  */
@@ -103,6 +128,8 @@ ingestRouter.post(
   '/lcu',
   asyncHandler(async (req, res) => {
     const { game, ...options } = lcuIngestSchema.parse(req.body);
+    if (!(await podeCriarJogadores(req, res, options))) return;
+
     const { criada, data } = await ingestGame(game as unknown as LcuGame, {
       ...options,
       source: 'LCU',
@@ -123,6 +150,7 @@ ingestRouter.post(
     const { metadata, platformId, gameId, playedAtMs, ...options } = roflIngestSchema.parse(
       req.body
     );
+    if (!(await podeCriarJogadores(req, res, options))) return;
 
     const game = roflToLcuGame(metadata as RoflMetadata, { platformId, gameId, playedAtMs });
     const { criada, data } = await ingestGame(game, { ...options, source: 'ROFL' });

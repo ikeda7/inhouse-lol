@@ -70,6 +70,7 @@ migro as 4 partidas que já estão no banco local.
    | `DATABASE_AUTH_TOKEN` | `ey...` |
    | `JWT_SECRET` | `openssl rand -hex 32` — sem ela a API nem sobe em produção |
    | `GROUP_KEY` | a chave do grupo (`openssl rand -hex 12`) — sem ela, qualquer visitante grava e reivindica conta |
+   | `ADMIN_PLAYER_IDS` | o `id` de quem administra, de `/api/players` (vários: separe por vírgula) — sem ela, qualquer um do grupo edita o cadastro e as séries |
 
    A `GROUP_KEY` é a mesma que vai no zap e no `INHOUSE_CHAVE` do agente.
    Depois de salvar, faça um **Redeploy** e confira em `/api/health` que
@@ -113,6 +114,20 @@ precisa da chave. A chave vai no zap e, para o agente, no `INHOUSE_CHAVE`.
 
 Para conferir: `https://SEU-APP.vercel.app/api/health` tem de mostrar
 `"grupoProtegido": true`.
+
+A chave separa o grupo de quem achou o link, mas ela circula no zap. Para
+ninguém do grupo mexer no cadastro e nas séries, **defina também a
+`ADMIN_PLAYER_IDS`** com o seu `id` (o campo `id` do seu jogador em
+`/api/players`), só no ambiente Production: os ids são de cada banco. A partir
+daí, cadastrar/editar/desativar jogador, abrir e encerrar MD3 na mão, registrar
+jogo pelo formulário e importar por Match ID exigem que você esteja **logado na
+sua conta**; a chave do grupo não basta. O grupo continua abrindo a MD3 da
+noite pelo "Usar esses times na série", importando pelo agente e usando a sala
+do draft. O `/api/health` passa a mostrar `"adminProtegido": true`.
+
+Crie a sua conta **antes** de pôr o id na variável: jogador nomeado admin não
+pode mais ser reivindicado pelo site, justamente para ninguém com a chave do
+grupo criar a conta do admin no lugar dele.
 
 Alguém reivindicou o jogador errado? Rode, com as credenciais do Turso no
 ambiente:
