@@ -119,9 +119,10 @@ export function AjudaPage() {
             jogarem.
           </Item>
           <Item titulo="O admin, para gravar">
-            O site é aberto para ver, sortear e draftar. Gravar é com o admin do grupo, logado na
-            conta dele: cadastrar e editar jogador, abrir e encerrar a MD3, registrar jogo na mão e
-            abrir a sala do draft ao vivo.
+            O site é aberto para ver. O resto é com o admin do grupo, logado na conta dele: sortear
+            os times, conduzir o draft, cadastrar e editar jogador, abrir e encerrar a MD3 e
+            registrar jogo na mão. No draft ao vivo, ele abre a sala e manda o link: os capitães
+            escolhem por lá e todo mundo acompanha.
           </Item>
           <Item titulo="Um PC com o LoL, para importar os jogos">
             A Riot não deixa ninguém puxar custom game pela internet: quem sabe dos jogos é o

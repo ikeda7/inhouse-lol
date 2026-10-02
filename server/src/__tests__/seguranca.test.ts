@@ -107,8 +107,23 @@ describe('nivelDaEscrita', () => {
   it('o que já era aberto continua aberto', () => {
     expect(nivelDaEscrita('GET', '/players')).toBe('ABERTA');
     expect(nivelDaEscrita('POST', '/auth/login')).toBe('ABERTA');
-    expect(nivelDaEscrita('POST', '/draft/captains/pick')).toBe('ABERTA');
+    expect(nivelDaEscrita('POST', '/auth/logout')).toBe('ABERTA');
+  });
+
+  it('o draft ao vivo é o que sobra para quem não é admin: o link da sala', () => {
+    expect(nivelDaEscrita('GET', '/draft/rooms/ABC23')).toBe('ABERTA');
+    expect(nivelDaEscrita('POST', '/draft/rooms/ABC23/claim')).toBe('ABERTA');
     expect(nivelDaEscrita('POST', '/draft/rooms/ABC23/pick')).toBe('ABERTA');
+    expect(nivelDaEscrita('POST', '/draft/rooms/ABC23/release')).toBe('ABERTA');
+  });
+
+  it('sortear e draftar não gravam, mas com admin são dele', () => {
+    expect(nivelDaEscrita('POST', '/draft/auto-balance')).toBe('ADMIN');
+    expect(nivelDaEscrita('POST', '/draft/captains/start')).toBe('ADMIN');
+    expect(nivelDaEscrita('POST', '/draft/captains/pick')).toBe('ADMIN');
+    // Sem admin nomeado seguem dispensando a chave, como sempre.
+    expect(dispensaChave('POST', '/draft/auto-balance')).toBe(true);
+    expect(dispensaChave('POST', '/draft/captains/start')).toBe(true);
   });
 
   it('quem tem conta mexe na própria conta', () => {
