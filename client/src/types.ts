@@ -129,6 +129,21 @@ export interface SeriesSummary {
   burnedCount: number;
 }
 
+/** Quem jogou de um lado da série: só o que a lista precisa para dar nome ao time. */
+export interface JogadorDoElenco {
+  id: string;
+  name: string;
+}
+
+/**
+ * Uma série como a LISTA devolve: o resumo mais os dois elencos, em ordem de
+ * role. `a` é o time A do placar (`blueScore`), `b` o time B -- a âncora é o
+ * elenco do primeiro jogo, não a cor. Vazios numa série sem jogo.
+ */
+export interface SeriesListItem extends SeriesSummary {
+  elencos: { a: JogadorDoElenco[]; b: JogadorDoElenco[] };
+}
+
 export interface MatchStat {
   id: string;
   playerId: string;

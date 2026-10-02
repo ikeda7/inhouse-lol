@@ -3,7 +3,7 @@
  */
 
 import { prisma } from '../db/prisma.js';
-import { isRole, type Role, type TeamSide } from '../lib/roles.js';
+import { ROLES, isRole, type Role, type TeamSide } from '../lib/roles.js';
 import { resolveChampion } from '../lib/ddragon.js';
 
 /** Vitorias necessarias para fechar uma melhor de 3. */
@@ -804,7 +804,22 @@ export async function listSeries(limit = 20) {
     include: {
       matches: {
         orderBy: { matchNumber: 'asc' },
-        select: { id: true, matchNumber: true, winner: true, gameDurationSec: true },
+        select: {
+          id: true,
+          matchNumber: true,
+          winner: true,
+          gameDurationSec: true,
+          // Só o necessário para dizer QUEM é cada time na lista: nome e role.
+          // A foto fica de fora de propósito -- pode ser uma `data:` URI de
+          // centenas de KB, e a lista traz 30 séries.
+          stats: {
+            select: {
+              teamSide: true,
+              rolePlayed: true,
+              player: { select: { id: true, name: true } },
+            },
+          },
+        },
       },
       _count: { select: { burnedChampions: true } },
     },
@@ -821,7 +836,40 @@ export async function listSeries(limit = 20) {
     blueScore: entry.blueScore,
     redScore: entry.redScore,
     fearless: entry.fearless,
-    matches: entry.matches,
+    matches: entry.matches.map(({ stats: _stats, ...resumo }) => resumo),
+    elencos: elencosDaSerie(entry.matches),
     burnedCount: entry._count.burnedChampions,
   }));
+}
+
+type JogoComElenco = {
+  matchNumber: number;
+  stats: { teamSide: string; rolePlayed: string; player: { id: string; name: string } }[];
+};
+
+/**
+ * Quem é o time A e o time B de uma série, para a lista do Histórico.
+ *
+ * A mesma âncora do placar: o elenco do PRIMEIRO jogo com scoreboard, azul = A
+ * e vermelho = B (blueScore/redScore são A/B, não cor). Série sem nenhum jogo
+ * devolve os dois vazios. Em ordem de role, que é como a galera lê um time.
+ */
+function elencosDaSerie(matches: JogoComElenco[]): {
+  a: { id: string; name: string }[];
+  b: { id: string; name: string }[];
+} {
+  const primeiro = matches.find((match) => match.stats.length > 0);
+  if (!primeiro) return { a: [], b: [] };
+
+  const ordem = (role: string) => {
+    const indice = (ROLES as readonly string[]).indexOf(role);
+    return indice < 0 ? ROLES.length : indice;
+  };
+  const doLado = (lado: TeamSide) =>
+    primeiro.stats
+      .filter((stat) => stat.teamSide === lado)
+      .sort((x, y) => ordem(x.rolePlayed) - ordem(y.rolePlayed))
+      .map((stat) => stat.player);
+
+  return { a: doLado('BLUE'), b: doLado('RED') };
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { calcularMaximos, MatchPlayerDetail } from '../components/MatchPlayerDetail';
 import type { MatchStat } from '../types';
 
@@ -68,12 +69,15 @@ function linha(mudanca: Partial<MatchStat> = {}): MatchStat {
 }
 
 function montar(stat: MatchStat, outros: MatchStat[], gameDurationSec: number | null = 1800) {
+  // O nome do jogador é um link para o perfil, então precisa de um roteador.
   render(
-    <MatchPlayerDetail
-      stat={stat}
-      gameDurationSec={gameDurationSec}
-      maximos={calcularMaximos([stat, ...outros])}
-    />
+    <MemoryRouter>
+      <MatchPlayerDetail
+        stat={stat}
+        gameDurationSec={gameDurationSec}
+        maximos={calcularMaximos([stat, ...outros])}
+      />
+    </MemoryRouter>
   );
 }
 
