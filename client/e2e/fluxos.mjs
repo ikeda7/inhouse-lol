@@ -94,6 +94,51 @@ async function api(metodo, rota, corpo) {
   return json.data;
 }
 
+/**
+ * Motivo para pular um fluxo que usa controle de admin, ou null se dá para
+ * rodar. Em produção há admin nomeado e este navegador entra como visitante:
+ * o Sorteio vira um aviso e os filtros de Jogadores somem, de propósito. Sem
+ * isto os três fluxos morriam em "Timeout 20000ms" procurando um botão que a
+ * tela, com razão, não mostra -- e falha que não é falha ensina a ignorar a
+ * lista.
+ */
+let ehVisitante;
+async function soDoAdmin() {
+  ehVisitante ??= !(await api('GET', '/auth/permissoes')).podeAdministrar;
+  return ehVisitante ? 'tela só do admin, e este navegador é visitante' : null;
+}
+
+/**
+ * O outro lado: como visitante, as telas não oferecem o que o servidor
+ * recusaria. Só roda onde há admin nomeado (em produção); no CI todo mundo
+ * administra e quem cobre isso são os testes de componente.
+ */
+async function fluxoDoVisitante(pagina) {
+  if (!(await soDoAdmin())) return 'sem admin nomeado: aqui todo mundo administra';
+
+  await pagina.goto(`${BASE}/sorteio`, { waitUntil: 'networkidle' });
+  await pagina.getByText(/conduz o draft é o admin do grupo/).waitFor({ timeout: 20000 });
+  exigir(
+    (await pagina.getByRole('button', { name: /Sortear times/ }).count()) === 0,
+    'o Sorteio mostrou o botão de sortear a um visitante'
+  );
+
+  await pagina.goto(`${BASE}/jogadores`, { waitUntil: 'networkidle' });
+  await pagina.getByText(/cadastra e edita jogadores é o admin/).waitFor({ timeout: 20000 });
+  exigir(
+    (await pagina.getByText('Novo jogador').count()) === 0 &&
+      (await pagina.getByRole('button', { name: /^(Editar|Desativar) / }).count()) === 0,
+    'Jogadores mostrou cadastro ou edição a um visitante'
+  );
+
+  await pagina.goto(`${BASE}/entrar`, { waitUntil: 'networkidle' });
+  await pagina.getByRole('button', { name: 'Entrar' }).waitFor({ timeout: 20000 });
+  exigir(
+    (await pagina.getByRole('link', { name: /Criar a sua/ }).count()) === 0,
+    'Entrar ofereceu criar conta com o cadastro fechado'
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Cenário (--preparar)
 // ---------------------------------------------------------------------------
@@ -710,6 +755,8 @@ async function fluxoDaOrdenacao(pagina) {
 }
 
 async function fluxoDosFiltros(pagina) {
+  const pular = await soDoAdmin();
+  if (pular) return pular;
   const jogadores = await api('GET', '/players?includeInactive=true');
   const filtros = [
     ['Todos', jogadores.length],
@@ -764,6 +811,8 @@ async function marcarVeteranos(pagina) {
 }
 
 async function fluxoDoSorteioDeNovo(pagina) {
+  const pular = await soDoAdmin();
+  if (pular) return pular;
   await pagina.goto(`${BASE}/sorteio`, { waitUntil: 'networkidle' });
   await marcarVeteranos(pagina);
   // O aviso de cobertura é a tela dizendo que o sorteio vai recusar -- e com
@@ -815,6 +864,8 @@ async function fluxoDoSorteioDeNovo(pagina) {
 }
 
 async function fluxoDosCapitaes(pagina) {
+  const pular = await soDoAdmin();
+  if (pular) return pular;
   await pagina.goto(`${BASE}/sorteio`, { waitUntil: 'networkidle' });
   const nomes = await marcarVeteranos(pagina);
 
@@ -1300,6 +1351,7 @@ async function main() {
     ['Jogadores: cada filtro mostra quantos a API diz que faltam', fluxoDosFiltros],
     ['Sorteio: "tenta outro" traz outros times, nunca uma divisão já vista', fluxoDoSorteioDeNovo],
     ['Sorteio: capitães escolhidos na mão, draft fecha 5x5', fluxoDosCapitaes],
+    ['Visitante: as telas não oferecem o que é só do admin', fluxoDoVisitante],
     ['Ajuda: o "?" leva para "Como funciona"', fluxoDaAjuda],
     ['Perfil: a dupla leva ao perfil do parceiro, com o mesmo placar', fluxoDasDuplas],
     ['Navegação: perfil e recorde levam ao jogo, e o jogo leva ao perfil', fluxoDosLinks],

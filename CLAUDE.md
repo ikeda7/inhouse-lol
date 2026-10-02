@@ -106,8 +106,13 @@ Sorteio's "tenta outro" brings a different team split twice in a row, never
 one already shown (a new seed alone gave the same teams once strength came
 from history), and captains mode with two
 hand-picked captains drafts to 5x5 (draw and draft are stateless
-calculators and write nothing, but in production they are admin-only, so
-these two only run where no admin is named); the
+calculators and write nothing, but in production they are admin-only: there
+the flows that use an admin control skip with that reason — `soDoAdmin` asks
+`/auth/permissoes` — instead of dying on a timeout looking for a button the
+screen rightly hides, and the "Visitante" flow checks the other side, that
+Sorteio, Jogadores and Entrar offer a visitor nothing the server would refuse.
+Run without `--preparar` against production it writes nothing, and is the
+quickest check after a deploy); the
 "?" reaches the help page; a duo partner on a profile links to their
 profile, which shows the same duo with the same record from the other side;
 the "Recordes de campeão" block shows every champion the API elected with the
