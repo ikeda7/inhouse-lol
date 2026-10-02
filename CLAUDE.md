@@ -106,7 +106,8 @@ Sorteio's "tenta outro" brings a different team split twice in a row, never
 one already shown (a new seed alone gave the same teams once strength came
 from history), and captains mode with two
 hand-picked captains drafts to 5x5 (draw and draft are stateless
-calculators, so these run read-only against production too); the
+calculators and write nothing, but in production they are admin-only, so
+these two only run where no admin is named); the
 "?" reaches the help page; a duo partner on a profile links to their
 profile, which shows the same duo with the same record from the other side;
 the "Recordes de campeão" block shows every champion the API elected with the
@@ -448,8 +449,9 @@ with it anyone could claim a friend's unclaimed player or POST a forged game.
 So a write is one of four levels (`nivelDaEscrita` in `lib/escritas.ts`), and
 **admin is the default** — a new write route is born admin-only:
 
-- **open** — reads, login/logout, the stateless draft calculators, picks
-  inside a live room;
+- **open** — reads, login/logout, and what happens inside a live draft room
+  (claim a side, pick, release): the room's link is the one thing a non-admin
+  takes part in;
 - **account** — `/accounts/me/*`: whoever already has an account edits their
   own profile, password and photo;
 - **agent** — `POST /series/garantir` and `POST /ingest/lcu|rofl`: the admin's
@@ -460,7 +462,11 @@ So a write is one of four levels (`nivelDaEscrita` in `lib/escritas.ts`), and
   admin session;
 - **admin** — everything else, by session only: players, their Riot accounts
   and photos, opening/renaming/finishing/discarding a series, the manual match
-  form, Match-ID import, creating a live draft room.
+  form, Match-ID import, creating a live draft room — and the draw and the
+  captains draft (`CALCULOS_DO_ADMIN`). Those two write nothing and still skip
+  the key when no admin is named, but one person draws the night's teams: a
+  second draw on someone's phone becomes "mine gave different teams". The
+  Sorteio tab shows a non-admin only a notice.
 
 `exigirAdmin` is mounted right after `exigirGrupo` and answers
 `ADMIN_REQUIRED` (403); in this mode a visitor is never asked for the key.

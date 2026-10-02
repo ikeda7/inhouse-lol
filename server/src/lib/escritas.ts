@@ -50,6 +50,19 @@ const ESCRITAS_DO_AGENTE: Regra[] = [
   ['POST', /^\/ingest\/(lcu|rofl)$/],
 ];
 
+/**
+ * O sorteio e o draft de capitães não gravam nada, e por isso dispensam a
+ * chave no modo sem admin. Com admin eles são dele mesmo assim: quem tira os
+ * times da noite é uma pessoa só, e um segundo sorteio rodando no celular de
+ * alguém vira "mas no meu deu outro time". Para os outros sobra o draft ao
+ * vivo, pelo link da sala que o admin abre (as jogadas dentro dela continuam
+ * abertas, em ESCRITAS_ABERTAS).
+ */
+const CALCULOS_DO_ADMIN: Regra[] = [
+  ['POST', /^\/draft\/auto-balance$/],
+  ['POST', /^\/draft\/captains\/(start|pick)$/],
+];
+
 export type NivelDeEscrita = 'ABERTA' | 'CONTA' | 'AGENTE' | 'ADMIN';
 
 /** `caminho` relativo a /api, como o Express entrega num middleware montado lá. */
@@ -64,12 +77,14 @@ export function dispensaChave(metodo: string, caminho: string): boolean {
  * valem, e fica a regra antiga de `dispensaChave` (chave do grupo ou conta).
  */
 export function nivelDaEscrita(metodo: string, caminho: string): NivelDeEscrita {
-  if (dispensaChave(metodo, caminho)) return 'ABERTA';
   // O método entra na regra: `DELETE /series/garantir` cai na rota de apagar
   // série, não na de garantir, e não pode pegar carona na exceção.
   const esta = (regras: Regra[]) =>
     regras.some(([doMetodo, regra]) => doMetodo === metodo.toUpperCase() && regra.test(caminho));
 
+  // Antes do "dispensa a chave": esses dois dispensam, mas com admin são dele.
+  if (esta(CALCULOS_DO_ADMIN)) return 'ADMIN';
+  if (dispensaChave(metodo, caminho)) return 'ABERTA';
   if (esta(ESCRITAS_DA_CONTA)) return 'CONTA';
   return esta(ESCRITAS_DO_AGENTE) ? 'AGENTE' : 'ADMIN';
 }

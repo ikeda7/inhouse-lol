@@ -13,7 +13,10 @@ import type { Account } from '../types';
 
 interface AuthValue {
   player: Account | null;
-  /** true enquanto o /auth/me inicial nao respondeu -- evita piscar "Entrar". */
+  /**
+   * true enquanto o /auth/me e as permissoes iniciais nao responderam -- evita
+   * piscar "Entrar" e evita mostrar "so o admin" ao proprio admin.
+   */
   loading: boolean;
   /**
    * Se a tela deve oferecer os controles de admin (cadastro de jogadores,
@@ -57,23 +60,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelado = false;
 
-    conferirPermissoes().then((atuais) => {
-      if (!cancelado) setPermissoes(atuais);
-    });
+    // Servidor fora do ar nao deve travar o app inteiro numa tela de erro: as
+    // telas publicas (ranking, historico) continuam funcionando.
+    const quemSou = authApi.me().catch(() => null);
 
-    authApi
-      .me()
-      .then((atual) => {
-        if (!cancelado) setPlayer(atual);
-      })
-      .catch(() => {
-        // Servidor fora do ar nao deve travar o app inteiro numa tela de erro:
-        // as telas publicas (ranking, historico) continuam funcionando.
-        if (!cancelado) setPlayer(null);
-      })
-      .finally(() => {
-        if (!cancelado) setLoading(false);
-      });
+    // `loading` so cai quando as duas respostas chegaram: uma tela que e
+    // inteira do admin (o Sorteio) nao pode mostrar "so o admin" ao proprio
+    // admin enquanto a permissao dele ainda esta a caminho.
+    Promise.all([quemSou, conferirPermissoes()]).then(([atual, atuais]) => {
+      if (cancelado) return;
+      setPlayer(atual);
+      setPermissoes(atuais);
+      setLoading(false);
+    });
 
     return () => {
       cancelado = true;

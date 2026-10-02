@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { UsarTimesNaSerie } from '../components/UsarTimesNaSerie';
+import { DraftPage } from '../pages/DraftPage';
 import { LoginPage } from '../pages/LoginPage';
 import { PlayersPage } from '../pages/PlayersPage';
 import { SeriesPage } from '../pages/SeriesPage';
@@ -114,6 +115,23 @@ describe('levar os times para a série', () => {
     expect(
       await screen.findByRole('button', { name: /Usar esses times na série/ })
     ).toBeInTheDocument();
+  });
+});
+
+describe('Sorteio', () => {
+  it('quem não é admin vê o aviso, sem lista para marcar nem botão de sortear', async () => {
+    montar(<DraftPage />, false);
+
+    expect(await screen.findByText(/conduz o draft é o admin do grupo/)).toBeInTheDocument();
+    expect(screen.queryByText('Quem veio hoje')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('o admin tem a tela inteira', async () => {
+    montar(<DraftPage />, true);
+
+    expect(await screen.findByText('Quem veio hoje')).toBeInTheDocument();
+    expect(screen.queryByText(/conduz o draft é o admin do grupo/)).not.toBeInTheDocument();
   });
 });
 
