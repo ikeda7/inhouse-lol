@@ -3,6 +3,7 @@ import { ChevronRight, Crown, History, Swords } from 'lucide-react';
 import { playersApi, statsApi } from '../api/client';
 import { linkDaSerie } from '../lib/links';
 import { useAsync } from '../hooks/useAsync';
+import { useTituloDaPagina } from '../hooks/useTituloDaPagina';
 import { Avatar, Card, CardTitle, ErrorState, LoadingState, EmptyState } from '../components/ui';
 import { ChampionIcon } from '../components/ChampionIcon';
 import { Highlights } from '../components/Highlights';
@@ -27,6 +28,9 @@ export function PlayerProfilePage() {
   // O lugar no ranking vem de outra rota e é só um enfeite do cabeçalho: se
   // falhar, o perfil abre sem ele em vez de virar tela de erro.
   const ranking = useAsync(() => statsApi.leaderboard('points'), []);
+  // A aba do navegador leva o nome da pessoa: com dois perfis abertos lado a
+  // lado, "Jogador" nas duas não dizia qual era qual.
+  useTituloDaPagina(data?.name);
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
