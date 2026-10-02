@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { HistoryPage } from '../pages/HistoryPage';
@@ -136,6 +137,50 @@ describe('Histórico', () => {
     expect(jogo2.className).toContain('border-gold');
     expect(jogo1?.className).not.toContain('border-gold');
     expect(rolar.mock.contexts.at(-1)).toBe(jogo2);
+  });
+});
+
+describe('Histórico no celular', () => {
+  const telaDe = (estreita: boolean) =>
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: estreita }))
+    );
+  const botaoDoJogo = (numero: number) => screen.getByRole('button', { name: `Jogo ${numero}` });
+
+  it('os jogos abrem recolhidos, menos o que o link pediu', async () => {
+    telaDe(true);
+    montar(<HistoryPage />, linkDaSerie('s1', 2));
+
+    await screen.findByRole('heading', { name: 'Jogo 2' });
+    expect(botaoDoJogo(2)).toHaveAttribute('aria-expanded', 'true');
+    expect(botaoDoJogo(1)).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('tocar no jogo abre e fecha', async () => {
+    telaDe(true);
+    const usuario = userEvent.setup();
+    montar(<HistoryPage />, linkDaSerie('s1'));
+
+    await screen.findByRole('heading', { name: 'Jogo 1' });
+    expect(botaoDoJogo(1)).toHaveAttribute('aria-expanded', 'false');
+
+    await usuario.click(botaoDoJogo(1));
+    expect(botaoDoJogo(1)).toHaveAttribute('aria-expanded', 'true');
+    // Só com o jogo aberto aparece a imagem dele para baixar.
+    expect(screen.getAllByRole('button', { name: /Baixar/ }).length).toBeGreaterThan(0);
+
+    await usuario.click(botaoDoJogo(1));
+    expect(botaoDoJogo(1)).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('no desktop tudo continua aberto', async () => {
+    telaDe(false);
+    montar(<HistoryPage />, linkDaSerie('s1'));
+
+    await screen.findByRole('heading', { name: 'Jogo 1' });
+    expect(botaoDoJogo(1)).toHaveAttribute('aria-expanded', 'true');
+    expect(botaoDoJogo(2)).toHaveAttribute('aria-expanded', 'true');
   });
 });
 
