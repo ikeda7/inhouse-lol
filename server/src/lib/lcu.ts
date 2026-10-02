@@ -178,6 +178,17 @@ export const SUMMONERS_RIFT_MAP_ID = 11;
 /** Modo padrao 5x5. Qualquer outro (ARAM, URF, KIWI...) fica de fora. */
 export const ALLOWED_GAME_MODES = ['CLASSIC', 'TOURNAMENT'] as const;
 
+/**
+ * Menos que isto nao foi jogo: foi o saguao que deu errado e todo mundo saiu
+ * para refazer. O cliente guarda essa partida como qualquer outra, com
+ * vencedor e 10 campeoes, e importada ela contaria vitoria e derrota para os
+ * dez, queimaria 10 campeoes no Fearless e derrubaria toda media por minuto.
+ * Cinco minutos fica bem abaixo de qualquer jogo de verdade (a rendicao mais
+ * cedo e aos 15) e bem acima de um saguao refeito. O agente usa o mesmo corte
+ * (companion/inhouse-companion.mjs) para nem mandar.
+ */
+export const MIN_GAME_DURATION_SEC = 300;
+
 /** Rotulos amigaveis para a mensagem de erro. */
 const MAP_NAMES: Record<number, string> = {
   11: 'Summoner’s Rift',
@@ -663,6 +674,17 @@ export function mapLcuGame(
       `Modo de jogo não suportado: ${game.gameMode}. O InHouse registra só o 5x5 clássico.`,
       'UNSUPPORTED_GAME_MODE',
       { gameId: game.gameId, gameMode: game.gameMode, mapId: game.mapId }
+    );
+  }
+
+  // Duracao 0 ou ausente e "a origem nao sabe" (replay sem gameLength), nao
+  // "durou zero": so recusa quando ha um numero e ele e curto.
+  if (game.gameDuration && game.gameDuration < MIN_GAME_DURATION_SEC) {
+    throw new LcuError(
+      `A partida ${game.gameId} durou ${game.gameDuration}s: foi encerrada antes de virar jogo ` +
+        `(saguão refeito) e não entra no InHouse.`,
+      'GAME_TOO_SHORT',
+      { gameId: game.gameId, gameDuration: game.gameDuration }
     );
   }
 

@@ -96,7 +96,7 @@ export function AjudaPage() {
             <strong className="text-ink">Abrir nova MD3</strong>.
           </Passo>
           <Passo n={3} titulo="Joguem">
-            Alguém que está jogando deixa o agente rodando no PC (veja{' '}
+            O admin, que está jogando, deixa o agente rodando no PC (veja{' '}
             <a href="#precisa" className="font-medium text-ink underline decoration-line">
               O que precisa
             </a>
@@ -118,15 +118,15 @@ export function AjudaPage() {
             <strong className="text-ink">sem Riot ID</strong>, e o Sorteio avisa antes de vocês
             jogarem.
           </Item>
-          <Item titulo="A chave do grupo, para gravar">
-            Abrir a MD3 da noite e importar os jogos pedem a chave do grupo (está no zap). O site
-            pede uma vez e guarda no navegador. Quem entrou na conta não precisa. Cadastrar e editar
-            jogador, registrar jogo na mão e encerrar a MD3 ficam com o admin do grupo, quando há
-            um.
+          <Item titulo="O admin, para gravar">
+            O site é aberto para ver, sortear e draftar. Gravar é com o admin do grupo, logado na
+            conta dele: cadastrar e editar jogador, abrir e encerrar a MD3, registrar jogo na mão e
+            abrir a sala do draft ao vivo.
           </Item>
           <Item titulo="Um PC com o LoL, para importar os jogos">
             A Riot não deixa ninguém puxar custom game pela internet: quem sabe dos jogos é o
-            cliente do LoL. Por isso existe um agente que roda no PC de quem joga. Precisa do{' '}
+            cliente do LoL. Por isso existe um agente que roda no PC do admin, que precisa ter
+            jogado a partida. Precisa do{' '}
             <a
               href="https://nodejs.org"
               target="_blank"
@@ -146,16 +146,15 @@ export function AjudaPage() {
             </a>
             . No PowerShell, na pasta do arquivo:
             <Comando>
-              {`$env:INHOUSE_CHAVE = "a-chave-do-grupo"\nnode inhouse-companion.mjs --watch --api ${API}`}
+              {`$env:INHOUSE_CHAVE = "a-chave-do-agente"\nnode inhouse-companion.mjs --watch --api ${API}`}
             </Comando>
-            Deixe a janela aberta a noite toda. Qualquer um dos dez pode rodar, não precisa ser quem
-            criou a sala; se dois rodarem, o segundo envio é ignorado.
+            Deixe a janela aberta a noite toda. A chave do agente fica só com o admin: ela abre a
+            MD3 da noite e importa os jogos, e mais nada.
           </Item>
-          <Item titulo="Conta é opcional">
-            Serve para pôr foto e ter seu perfil. Em <Aba to="/entrar">Entrar</Aba> → Criar conta,
-            escolha seu nome na lista e o seu histórico já vem junto. A foto padrão é o seu ícone do
-            LoL, que entra sozinho. Você fica logado 30 dias no mesmo navegador; trocar a senha
-            desloga todos os aparelhos.
+          <Item titulo="Não precisa de conta">
+            Ninguém precisa entrar para usar o site, e não dá mais para criar conta. A foto de cada
+            um é o ícone do LoL, que entra sozinho com os jogos. Quem já tinha conta continua
+            entrando, e fica logado 30 dias no mesmo navegador.
           </Item>
         </ul>
       </Secao>
@@ -184,7 +183,7 @@ export function AjudaPage() {
             desempenho por role. Os filtros Sem Riot ID e Sem conta mostram quem falta.
           </AbaExplicada>
           <AbaExplicada to="/entrar" icone={LogIn} nome="Conta">
-            sua foto e sua senha.
+            entrada do admin e de quem já tinha conta.
           </AbaExplicada>
         </ul>
       </Secao>
@@ -227,8 +226,8 @@ export function AjudaPage() {
             Histórico → jogo → jogador mostra itens, runas e feitiços do jogo, mesmo semanas depois.
           </Item>
           <Item titulo="Foto sem fazer nada">
-            Quando um jogo entra, o ícone do LoL de cada um vira a foto no site. Quem subiu foto
-            própria não perde a dela.
+            Quando um jogo entra, o ícone do LoL de cada um vira a foto no site, e acompanha quando
+            a pessoa troca de ícone no jogo.
           </Item>
         </ul>
       </Secao>
@@ -250,8 +249,8 @@ export function AjudaPage() {
             <Aba to="/serie">Série</Aba> → <strong className="text-ink">Registrar jogo</strong>,
             digitando o placar. Não é gambiarra: é um caminho normal.
           </Item>
-          <Item titulo="O site pediu uma chave">
-            É a chave do grupo, a do zap. Digite uma vez e o navegador guarda.
+          <Item titulo="“Só o admin do grupo pode fazer isso”">
+            A ação grava no site, e gravar é com o admin. Peça para ele, ou entre com a conta dele.
           </Item>
           <Item titulo="Quer testar sem gravar nada">
             Acrescente <code>--dry-run</code> a qualquer comando do agente.

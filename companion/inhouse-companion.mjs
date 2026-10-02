@@ -557,7 +557,8 @@ async function commandList() {
       minute: '2-digit',
     });
     log.info(
-      `     ${game.gameId}  ${hora}  ${String(Math.round((game.gameDuration ?? 0) / 60)).padStart(2)}min`
+      `     ${game.gameId}  ${hora}  ${String(Math.round((game.gameDuration ?? 0) / 60)).padStart(2)}min` +
+        (curtaDemais(game) ? '  (saguão refeito: não entra)' : '')
     );
   }
 
@@ -884,9 +885,24 @@ export function nomeDaNoite(ms) {
   return `${DIAS[dia.getDay()]} ${dd}/${mm}`;
 }
 
-/** Os customs da noite mais recente do histórico, na ordem em que foram jogados. */
+/**
+ * Menos que isto foi saguão refeito, não jogo. O mesmo corte do servidor
+ * (MIN_GAME_DURATION_SEC, em server/src/lib/lcu.ts), repetido aqui porque o
+ * agente não depende de nada do projeto.
+ */
+const DURACAO_MINIMA_SEG = 300;
+
+/** Duração desconhecida não é curta: só descarta quando o histórico diz o número. */
+const curtaDemais = (jogo) => Boolean(jogo.gameDuration) && jogo.gameDuration < DURACAO_MINIMA_SEG;
+
+/**
+ * Os customs da noite mais recente do histórico, na ordem em que foram jogados.
+ *
+ * Partida de segundos fica de fora: o servidor a recusaria, e uma recusa PARA a
+ * noite (ver importarNoite) -- o jogo de verdade, logo depois, nunca entraria.
+ */
 export function jogosDaUltimaNoite(customs) {
-  const comData = customs.filter((jogo) => jogo.gameCreation);
+  const comData = customs.filter((jogo) => jogo.gameCreation && !curtaDemais(jogo));
   if (comData.length === 0) return [];
   const ultima = comData
     .map((jogo) => chaveDaNoite(jogo.gameCreation))

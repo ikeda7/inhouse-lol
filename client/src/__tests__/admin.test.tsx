@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
+import { UsarTimesNaSerie } from '../components/UsarTimesNaSerie';
+import { LoginPage } from '../pages/LoginPage';
 import { PlayersPage } from '../pages/PlayersPage';
 import { SeriesPage } from '../pages/SeriesPage';
 
@@ -40,7 +42,12 @@ function montar(pagina: React.ReactNode, podeAdministrar: boolean) {
     'fetch',
     vi.fn((entrada: string) => {
       if (entrada.includes('/auth/permissoes')) {
-        return responder(200, { success: true, data: { podeAdministrar } });
+        // Em produção os dois andam juntos: com admin nomeado, quem não é ele
+        // não administra e o cadastro de contas fica fechado.
+        return responder(200, {
+          success: true,
+          data: { podeAdministrar, cadastroAberto: podeAdministrar },
+        });
       }
       if (entrada.includes('/auth/me')) {
         return responder(401, { success: false, error: 'Não autenticado.' });
@@ -82,7 +89,7 @@ describe('Série', () => {
   it('quem não é admin não abre MD3 na mão', async () => {
     montar(<SeriesPage />, false);
 
-    expect(await screen.findByText(/Usar esses times na série/)).toBeInTheDocument();
+    expect(await screen.findByText(/Quem abre a MD3 é o admin/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Abrir nova MD3/ })).not.toBeInTheDocument();
   });
 
@@ -90,5 +97,37 @@ describe('Série', () => {
     montar(<SeriesPage />, true);
 
     expect(await screen.findByRole('button', { name: /Abrir nova MD3/ })).toBeInTheDocument();
+  });
+});
+
+describe('levar os times para a série', () => {
+  it('quem não é admin vê o aviso no lugar do botão', async () => {
+    montar(<UsarTimesNaSerie salvar={() => {}} />, false);
+
+    expect(await screen.findByText(/abre a MD3 é o admin do grupo/)).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('o admin tem o botão', async () => {
+    montar(<UsarTimesNaSerie salvar={() => {}} />, true);
+
+    expect(
+      await screen.findByRole('button', { name: /Usar esses times na série/ })
+    ).toBeInTheDocument();
+  });
+});
+
+describe('criar conta', () => {
+  it('com o cadastro fechado, Entrar não oferece criar conta', async () => {
+    montar(<LoginPage />, false);
+
+    expect(await screen.findByText(/Não precisa de conta para ver o site/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Criar a sua/ })).not.toBeInTheDocument();
+  });
+
+  it('com o cadastro aberto, oferece', async () => {
+    montar(<LoginPage />, true);
+
+    expect(await screen.findByRole('link', { name: /Criar a sua/ })).toBeInTheDocument();
   });
 });

@@ -440,28 +440,51 @@ the site before the variable exists; production logs a warning and
 localStorage and `ErrorState` asks for it on `GROUP_KEY_REQUIRED`; the
 companion reads `INHOUSE_CHAVE`.
 
-**Admin.** The key circulates in the group chat and every account counts as
-it, so "is from the group" is not enough to edit the roster. With
-`ADMIN_PLAYER_IDS` set (comma-separated `Player.id`s), a write is one of three
-levels (`nivelDaEscrita` in `lib/escritas.ts`): open, group, or **admin** —
-and admin is the default, so a new write route is born admin-only. The group
-keeps only game night and one's own account: `/auth/register`,
-`/accounts/me/*`, `/series/garantir`, `/ingest/lcu|rofl`, `POST /draft/rooms`.
-Everything else (players and their Riot accounts, opening/renaming/finishing/
-discarding a series by hand, the manual match form, Match-ID import) needs the
-**session** of an admin — the group key never grants it. `exigirAdmin` is
-mounted right after `exigirGrupo` and answers `ADMIN_REQUIRED` (403). Empty
-`ADMIN_PLAYER_IDS` means no admin and the old behavior (fail-open, same reason
-as the key); `/api/health` reports `adminProtegido`. The screen only hides
-what the server would refuse: `GET /auth/permissoes` (public, never 401)
-feeds `podeAdministrar` in `AuthContext`. Only name a player who **already
-has an account**: a named admin can no longer be claimed through
-`/auth/register` (`ADMIN_CLAIM_REFUSED`), otherwise whoever held the group key
-would create the admin's account first — so after `conta:liberar` on an admin,
-take the id out, re-claim, put it back. Known limit: `/ingest/lcu` stays at
-group level because the companion runs on anyone's PC with just the key, so a
-key holder can still POST a crafted game there or rewrite a scoreboard with
-`refreshStats`; only `autoCreatePlayers` is refused without an admin session.
+**Admin: with `ADMIN_PLAYER_IDS` set, the site is read-only for everyone
+else.** This is how production runs. The paragraphs above describe the mode
+without an admin (CI, a fresh clone), where "group" still means key or
+account. A shared key was not enough: it circulated in the group chat, and
+with it anyone could claim a friend's unclaimed player or POST a forged game.
+So a write is one of four levels (`nivelDaEscrita` in `lib/escritas.ts`), and
+**admin is the default** — a new write route is born admin-only:
+
+- **open** — reads, login/logout, the stateless draft calculators, picks
+  inside a live room;
+- **account** — `/accounts/me/*`: whoever already has an account edits their
+  own profile, password and photo;
+- **agent** — `POST /series/garantir` and `POST /ingest/lcu|rofl`: the admin's
+  session **or** the key. The companion has no browser to log in with, so
+  `GROUP_KEY` became the agent's key, kept only on the admin's PC
+  (`companion/chave.txt`). It opens nothing else: leaked, the damage is an
+  imported game, not the roster — and `autoCreatePlayers` still needs the
+  admin session;
+- **admin** — everything else, by session only: players, their Riot accounts
+  and photos, opening/renaming/finishing/discarding a series, the manual match
+  form, Match-ID import, creating a live draft room.
+
+`exigirAdmin` is mounted right after `exigirGrupo` and answers
+`ADMIN_REQUIRED` (403); in this mode a visitor is never asked for the key.
+Account creation is **closed** (`REGISTRATION_CLOSED`, and `/auth/claimable`
+lists nobody), so the admin's account must exist **before** the id goes into
+the variable; the accounts that already exist keep working. With no accounts
+to change their own photo, the admin does it: `POST /players/:id/photo/sync-lol`
+("Usar ícone do LoL" in the player's edit panel) puts the LoL icon back, and
+from then on every import keeps it current. The screen only hides what the
+server would refuse: `GET /auth/permissoes` (public, never 401) feeds
+`podeAdministrar` and `cadastroAberto` in `AuthContext`. Empty
+`ADMIN_PLAYER_IDS` is the old behavior (fail-open, same reason as the key);
+`/api/health` reports `adminProtegido`.
+
+The price is that the admin is the single point of game night: nobody else
+opens the MD3, and the LCU only lists games the admin played in. A night
+without them needs a second id in `ADMIN_PLAYER_IDS` and the agent key on that
+person's PC.
+
+A game under five minutes is refused (`GAME_TOO_SHORT`,
+`MIN_GAME_DURATION_SEC` in `lib/lcu.ts`): a lobby that went wrong, everyone
+left and remade. The client keeps it like any other game, with a winner and
+ten champions. The companion applies the same cut in `jogosDaUltimaNoite`, or
+the refusal would stop the night before the real game 1.
 
 Sessions are bound to the password: the JWT carries
 `v = sha256(passwordHash)[:16]` and `validarSessao` checks it against the DB
@@ -568,9 +591,10 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
 - **Set `GROUP_KEY` in production.** Without it every write is open to any
   visitor (see "Write protection" above). It is optional only so a deploy
   never locks the site before the variable exists.
-- **Set `ADMIN_PLAYER_IDS` in production.** Without it anyone with the group
-  key or an account edits the roster and the series. The ids are per database,
-  so Production and Preview/Development need different values.
+- **Set `ADMIN_PLAYER_IDS` in production.** Without it anyone with the key or
+  an account writes everything. With it, only the admin writes and `GROUP_KEY`
+  is the agent's key, not something to share. The ids are per database, so
+  Production and Preview/Development need different values.
 - **`JWT_SECRET` is required only when `NODE_ENV=production`.** Elsewhere it
   falls back to a constant, so CI and a fresh clone run with no `.env` at
   all. On Vercel `NODE_ENV` *is* production, so the variable must exist there

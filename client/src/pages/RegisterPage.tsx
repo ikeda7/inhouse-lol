@@ -24,7 +24,7 @@ import {
  * historico de partidas da pessoa.
  */
 export function RegisterPage() {
-  const { player, loading, register } = useAuth();
+  const { player, loading, register, cadastroAberto } = useAuth();
   const navegar = useNavigate();
 
   const disponiveis = useAsync(() => authApi.claimable());
@@ -54,7 +54,15 @@ export function RegisterPage() {
         ) : disponiveis.error ? (
           <ErrorState error={disponiveis.error} onRetry={disponiveis.reload} />
         ) : disponiveis.data?.length === 0 ? (
-          <EmptyState label="Todo mundo do elenco já tem conta. Se você é novo no grupo, peça para alguém te cadastrar na aba Jogadores primeiro." />
+          // Lista vazia tem dois motivos: o cadastro foi fechado pelo admin (o
+          // servidor nem lista ninguém) ou todo mundo já reivindicou o seu.
+          <EmptyState
+            label={
+              cadastroAberto
+                ? 'Todo mundo do elenco já tem conta. Se você é novo no grupo, peça para alguém te cadastrar na aba Jogadores primeiro.'
+                : 'O cadastro de contas está fechado: o site é só para ver, e quem grava é o admin do grupo. Quem já tem conta continua entrando normalmente.'
+            }
+          />
         ) : (
           <form onSubmit={enviar} className="space-y-4">
             <div>

@@ -10,7 +10,7 @@ import {
 import {
   SESSION_COOKIE,
   SESSION_COOKIE_OPTIONS,
-  nomeadoAdmin,
+  cadastroAberto,
   pedidoPodeAdministrar,
   requireAuth,
 } from '../middleware/auth.js';
@@ -22,14 +22,12 @@ export const authRouter = Router();
 /**
  * GET /api/auth/claimable - jogadores sem conta ainda, para o Select de cadastro.
  *
- * Admin sem conta não aparece: ele não pode ser reivindicado por aqui (ver o
- * register, logo abaixo).
+ * Com o cadastro fechado (ver o register, logo abaixo) ninguém é reivindicável.
  */
 authRouter.get(
   '/claimable',
   asyncHandler(async (_req, res) => {
-    const semConta = await listClaimablePlayers();
-    res.json({ success: true, data: semConta.filter((player) => !nomeadoAdmin(player.id)) });
+    res.json({ success: true, data: cadastroAberto() ? await listClaimablePlayers() : [] });
   })
 );
 
@@ -46,21 +44,22 @@ const registerSchema = z.object({
  * em app.ts). Sem isso, qualquer visitante do site publico reivindicava o
  * jogador de qualquer amigo antes dele.
  *
- * Jogador nomeado admin não se reivindica: reivindicar só pede a chave do
- * grupo, e quem chegasse primeiro ganhava a conta de admin. A conta do admin
- * tem de existir ANTES de o id entrar em ADMIN_PLAYER_IDS.
+ * Com admin nomeado o cadastro FECHA, para todo mundo: reivindicar só pedia a
+ * chave do grupo, e quem a tivesse virava o jogador de um amigo sem conta --
+ * ou o próprio admin, se a conta dele ainda não existisse. Por isso a conta do
+ * admin tem de existir ANTES de o id entrar em ADMIN_PLAYER_IDS. As contas que
+ * já existem continuam valendo.
  */
 authRouter.post(
   '/register',
   limitar({ maximo: 5, janelaMs: 60 * 60_000 }),
   asyncHandler(async (req, res) => {
     const input = registerSchema.parse(req.body);
-    if (nomeadoAdmin(input.playerId)) {
+    if (!cadastroAberto()) {
       res.status(403).json({
         success: false,
-        error:
-          'Esse jogador é admin e não pode ser reivindicado por aqui. Tire o id dele de ADMIN_PLAYER_IDS, crie a conta e coloque de volta.',
-        code: 'ADMIN_CLAIM_REFUSED',
+        error: 'O cadastro de contas está fechado. Fale com o admin do grupo.',
+        code: 'REGISTRATION_CLOSED',
       });
       return;
     }
@@ -105,7 +104,13 @@ authRouter.post('/logout', (_req, res) => {
 authRouter.get(
   '/permissoes',
   asyncHandler(async (req, res) => {
-    res.json({ success: true, data: { podeAdministrar: await pedidoPodeAdministrar(req) } });
+    res.json({
+      success: true,
+      data: {
+        podeAdministrar: await pedidoPodeAdministrar(req),
+        cadastroAberto: cadastroAberto(),
+      },
+    });
   })
 );
 
