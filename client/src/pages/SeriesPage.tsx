@@ -26,6 +26,7 @@ import { MatchForm, type PrefilledSlot } from '../components/MatchForm';
 import { clearActiveDraft, loadActiveDraft } from '../lib/activeDraft';
 import { elencoDoTimeA, ladoDoTimeA } from '../lib/timeDaSerie';
 import { NaSerie } from '../components/NaSerie';
+import { UltimaNoite } from '../components/UltimaNoite';
 import { ROLES, type Role, type SeriesDetail, type TeamSide } from '../types';
 
 /**
@@ -58,33 +59,38 @@ export function SeriesPage() {
 
   if (!series.data) {
     return (
-      <Card title="Série em andamento">
-        <EmptyState
-          label={
-            podeAdministrar
-              ? 'Nenhuma MD3 em andamento.'
-              : 'Nenhuma MD3 em andamento. Quem abre a MD3 é o admin do grupo.'
-          }
-        />
-        {podeAdministrar && (
-          <div className="flex justify-center">
-            <Button
-              onClick={async () => {
-                if (await createSeries.run({ fearless: true })) series.reload();
-              }}
-              loading={createSeries.loading}
-            >
-              <Play size={16} />
-              Abrir nova MD3
-            </Button>
+      <div className="space-y-6">
+        {/* Uma faixa, não um cartão de estado vazio com meia tela de altura: fora
+            da noite de jogo este é o estado normal, e o assunto da página passa
+            a ser a última noite, logo abaixo. */}
+        <Card title="Série em andamento">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-ink-muted">
+              {podeAdministrar
+                ? 'Nenhuma MD3 em andamento.'
+                : 'Nenhuma MD3 em andamento. Quem abre a MD3 é o admin do grupo.'}
+            </p>
+            {podeAdministrar && (
+              <Button
+                onClick={async () => {
+                  if (await createSeries.run({ fearless: true })) series.reload();
+                }}
+                loading={createSeries.loading}
+              >
+                <Play size={16} />
+                Abrir nova MD3
+              </Button>
+            )}
           </div>
-        )}
-        {createSeries.error && (
-          <div className="mt-3">
-            <ErrorState error={createSeries.error} />
-          </div>
-        )}
-      </Card>
+          {createSeries.error && (
+            <div className="mt-3">
+              <ErrorState error={createSeries.error} />
+            </div>
+          )}
+        </Card>
+
+        <UltimaNoite />
+      </div>
     );
   }
 

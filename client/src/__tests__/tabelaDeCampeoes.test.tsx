@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { TabelaDeCampeoes } from '../components/TabelaDeCampeoes';
 import type { EstatisticaDeCampeao } from '../types';
@@ -68,5 +69,55 @@ describe('Tabela de campeões', () => {
     renderizar([], 0);
     expect(screen.getByText(/Nenhum campeão escolhido ou banido/)).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  describe('lista longa', () => {
+    // 15 campeões, na ordem em que a API manda (os mais presentes primeiro).
+    const quinze = Array.from({ length: 15 }, (_, indice) =>
+      campeao({ championName: indice === 14 ? "Kai'Sa" : `Campeão ${indice + 1}` })
+    );
+    const linhasDeCampeao = () => screen.getAllByRole('row').length - 1; // menos o cabeçalho
+
+    it('abre com os 12 mais presentes e o botão traz o resto', async () => {
+      const usuario = userEvent.setup();
+      renderizar(quinze);
+
+      expect(linhasDeCampeao()).toBe(12);
+      expect(screen.queryByRole('row', { name: /Kai'Sa/ })).not.toBeInTheDocument();
+
+      await usuario.click(screen.getByRole('button', { name: 'Ver os outros 3 campeões' }));
+      expect(linhasDeCampeao()).toBe(15);
+      expect(screen.getByRole('row', { name: /Kai'Sa/ })).toBeInTheDocument();
+
+      await usuario.click(screen.getByRole('button', { name: /Mostrar só os 12/ }));
+      expect(linhasDeCampeao()).toBe(12);
+    });
+
+    it('a busca acha quem está escondido, sem acento nem apóstrofo', async () => {
+      const usuario = userEvent.setup();
+      renderizar(quinze);
+
+      await usuario.type(screen.getByRole('searchbox', { name: 'Buscar campeão' }), 'kaisa');
+
+      expect(linhasDeCampeao()).toBe(1);
+      expect(screen.getByRole('row', { name: /Kai'Sa/ })).toBeInTheDocument();
+      // Buscando, o botão de expandir sai: ele não diria nada de útil.
+      expect(screen.queryByRole('button', { name: /Ver os outros/ })).not.toBeInTheDocument();
+    });
+
+    it('busca sem resultado explica, em vez de uma tabela só com cabeçalho', async () => {
+      const usuario = userEvent.setup();
+      renderizar(quinze);
+
+      await usuario.type(screen.getByRole('searchbox', { name: 'Buscar campeão' }), 'teemo');
+
+      expect(screen.getByText(/Nenhum campeão com “teemo”/)).toBeInTheDocument();
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    });
+
+    it('com poucos campeões não há o que expandir', () => {
+      renderizar([campeao()]);
+      expect(screen.queryByRole('button', { name: /Ver os outros/ })).not.toBeInTheDocument();
+    });
   });
 });

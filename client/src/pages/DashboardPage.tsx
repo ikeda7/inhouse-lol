@@ -4,6 +4,7 @@ import { Trophy } from 'lucide-react';
 import { statsApi } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { Avatar, Card, CardTitle, EmptyState, ErrorState, LoadingState } from '../components/ui';
+import { FaixaDaNoite } from '../components/FaixaDaNoite';
 import { ChampionIcon } from '../components/ChampionIcon';
 import { useChampions } from '../hooks/useChampions';
 import { gerarImagemDoRanking } from '../lib/rankingImage';
@@ -97,6 +98,8 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-5">
+      <FaixaDaNoite />
+
       <Card
         destaque
         padding={false}

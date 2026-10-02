@@ -571,6 +571,25 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
 - Match history is three levels deep behind clicks (series → game → player);
   the player level exists specifically so post-game stats don't require the
   LoL client to still be open.
+- **A game has one address**: `/historico?serie=<id>&jogo=<n>`, built only by
+  `lib/links.ts` (`linkDaSerie`). The open series and the focused game live in
+  the URL, not in component state, so the profile's recent matches, the
+  records and the moments all land on the same place — the series open in
+  Histórico, scrolled to that game, which gets the gold rule — and a night is
+  linkable in the group chat. From the game, a player's name in the detail
+  panel leads to their profile; that is the way back, since records and
+  moments point at the game (a feat happened in a game), not at the person.
+  The Histórico list shows both rosters per series (`elencos` on the list
+  payload, names only — photos can be `data:` URIs) and marks who won.
+- The Série tab is never a dead end: with no ongoing MD3 it shows the last
+  night played (`components/UltimaNoite.tsx`), score and per-player sums, with
+  the link to its games.
+- To run the browser checks locally, point `CHROME_PATH` at the system Edge
+  (the downloaded Chromium revision goes stale against `playwright-core`) and
+  build the client with `VITE_API_URL=/api`: the repo `.env` bakes
+  `localhost:3333` into the bundle, and from Git Bash set that variable in
+  PowerShell, because MSYS rewrites a value starting with `/` into a Windows
+  path.
 - The ranking opens with an **Olympic podium** (`components/PodioDoRanking.tsx`
   on screen, `desenharPodio` in `lib/rankingImage.ts`): 2nd left, 1st center and
   tallest, 3rd right, with the number of the **active sort** under each face

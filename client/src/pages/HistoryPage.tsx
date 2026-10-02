@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronRight, History, Trash2, TriangleAlert } from 'lucide-react';
 import { seriesApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +20,7 @@ import {
   ROLE_LABEL,
   type MatchStat,
   type SeriesDetail,
+  type SeriesListItem,
   type SeriesSummary,
   type TeamSide,
 } from '../types';
@@ -38,8 +40,19 @@ import {
  */
 export function HistoryPage() {
   const { data, loading, error, reload } = useAsync(() => seriesApi.list(30));
-  const [expanded, setExpanded] = useState<string | null>(null);
   const { podeAdministrar } = useAuth();
+
+  // A série aberta e o jogo em foco moram no ENDEREÇO (?serie=&jogo=), não em
+  // estado: é o que deixa o perfil, os recordes e os momentos mandarem a pessoa
+  // direto ao jogo, e o link de uma noite ser colável no zap.
+  const [consulta, setConsulta] = useSearchParams();
+  const expanded = consulta.get('serie');
+  const jogoEmFoco = Number(consulta.get('jogo')) || null;
+
+  const alternar = (seriesId: string) => {
+    // `replace`: abrir e fechar séries não pode encher o "voltar" do navegador.
+    setConsulta(expanded === seriesId ? {} : { serie: seriesId }, { replace: true });
+  };
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -57,28 +70,36 @@ export function HistoryPage() {
             <li key={series.id}>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setExpanded(isOpen ? null : series.id)}
+                  onClick={() => alternar(series.id)}
                   aria-expanded={isOpen}
-                  className="flex min-w-0 flex-1 items-center gap-3 py-3.5 text-left hover:text-gold"
+                  className="group min-w-0 flex-1 py-3.5 text-left"
                 >
-                  {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  {/* Cor explícita de propósito: esta linha é o nome da noite, o
+                  <span className="flex items-center gap-3">
+                    <span className="shrink-0 text-ink-faint transition group-hover:text-gold">
+                      {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    </span>
+                    {/* Cor explícita de propósito: esta linha é o nome da noite, o
                     item mais importante da tela, e ela ficava INVISÍVEL porque
                     `text-base` pintava com a cor de fundo (ver index.css). Se
                     depender de herança, um acidente desses volta calado. */}
-                  <span className="flex-1 text-[17px] font-semibold text-ink">
-                    {series.name ?? new Date(series.date).toLocaleDateString('pt-BR')}
-                  </span>
-                  {/* Tinta, não dourado: numa lista em que toda linha tem placar, dourado
+                    <span className="min-w-0 flex-1 truncate text-[17px] font-semibold text-ink transition group-hover:text-gold">
+                      {series.name ?? new Date(series.date).toLocaleDateString('pt-BR')}
+                    </span>
+                    {/* "encerrada" saiu: era o estado de quase todas as linhas, e
+                      rótulo que se repete em todas não informa. Só a exceção fala. */}
+                    {series.status === 'ONGOING' && (
+                      <span className="shrink-0 rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-amber-400">
+                        em andamento
+                      </span>
+                    )}
+                    {/* Tinta, não dourado: numa lista em que toda linha tem placar, dourado
                     em todas deixa de apontar qualquer coisa (direção "Placar"). */}
-                  <span className="tabular text-lg font-bold text-ink">{series.scoreline}</span>
-                  <span
-                    className={`w-28 text-right text-[13px] ${
-                      series.status === 'ONGOING' ? 'text-amber-400' : 'text-ink-faint'
-                    }`}
-                  >
-                    {series.status === 'ONGOING' ? 'em andamento' : 'encerrada'}
+                    <span className="tabular shrink-0 text-lg font-bold text-ink">
+                      {series.scoreline}
+                    </span>
                   </span>
+
+                  <ResumoDaSerie series={series} />
                 </button>
 
                 {/* Só aparece em série sem NENHUM jogo, que por definição é
@@ -90,12 +111,67 @@ export function HistoryPage() {
                 )}
               </div>
 
-              {isOpen && <SeriesDetailPanel seriesId={series.id} />}
+              {isOpen && <SeriesDetailPanel seriesId={series.id} jogoEmFoco={jogoEmFoco} />}
             </li>
           );
         })}
       </ul>
     </Card>
+  );
+}
+
+/**
+ * A linha de baixo de cada série na lista: quem jogou contra quem.
+ *
+ * "Quinta 01/10 · 2-0" sozinho não dizia de quem era o 2: para saber quem
+ * ganhou a noite era preciso abrir a série. Os dois elencos vêm na ordem do
+ * placar (time A, depois time B) e o vencedor leva a tinta e o selo -- os
+ * times não têm nome nem cor fixa, então o que identifica um time é a gente.
+ */
+function ResumoDaSerie({ series }: { series: SeriesListItem }) {
+  const { a, b } = series.elencos;
+  if (a.length === 0 && b.length === 0) {
+    return <span className="mt-1 block pl-7 text-xs text-ink-faint">Nenhum jogo registrado.</span>;
+  }
+
+  const vencedor =
+    series.blueScore === series.redScore ? null : series.blueScore > series.redScore ? 'A' : 'B';
+  const minutos = Math.round(
+    series.matches.reduce((soma, match) => soma + (match.gameDurationSec ?? 0), 0) / 60
+  );
+  const jogos = series.matches.length;
+
+  return (
+    <span className="mt-1.5 block space-y-1 pl-7">
+      {(['A', 'B'] as const).map((time) => {
+        const venceu = vencedor === time;
+        const elenco = time === 'A' ? a : b;
+        return (
+          <span key={time} className="flex min-w-0 items-baseline gap-2 text-[13px]">
+            <span
+              className={`tabular w-3 shrink-0 text-[11px] font-bold ${
+                venceu ? 'text-ink' : 'text-ink-faint'
+              }`}
+            >
+              {time}
+            </span>
+            <span className={`min-w-0 truncate ${venceu ? 'text-ink' : 'text-ink-muted'}`}>
+              {elenco.map((jogador) => jogador.name).join(' · ')}
+            </span>
+            {venceu && (
+              <span className="shrink-0 rounded bg-win/15 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-win">
+                venceu
+              </span>
+            )}
+          </span>
+        );
+      })}
+      <span className="block text-[11px] text-ink-faint">
+        {jogos} jogo{jogos === 1 ? '' : 's'}
+        {minutos > 0 && ` · ${minutos} min de jogo`}
+        {series.fearless && ' · Fearless'}
+      </span>
+    </span>
   );
 }
 
@@ -165,12 +241,34 @@ function DescartarSerie({
  * Carrega o detalhe sob demanda: a lista traz só o resumo, e puxar as
  * scoreboards de 30 séries de uma vez seria desperdício.
  */
-function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
+function SeriesDetailPanel({
+  seriesId,
+  jogoEmFoco,
+}: {
+  seriesId: string;
+  jogoEmFoco: number | null;
+}) {
   const { data, loading, error } = useAsync<SeriesDetail>(
     () => seriesApi.get(seriesId),
     [seriesId]
   );
   const { manifest } = useChampions();
+  const painel = useRef<HTMLDivElement>(null);
+
+  // Quem chegou por um link (perfil, recorde, momento) cai numa lista de
+  // séries com a certa aberta lá embaixo: rola até o jogo pedido, ou até o
+  // começo da série. Só quando os dados chegam -- antes disso não há o que
+  // mostrar -- e uma vez por série/jogo, para não brigar com a rolagem de
+  // quem já está lendo.
+  const carregou = data !== null && data !== undefined;
+  useEffect(() => {
+    if (!carregou) return;
+    const alvo =
+      (jogoEmFoco && painel.current?.querySelector(`[data-jogo="${jogoEmFoco}"]`)) ||
+      painel.current;
+    // `?.()`: nem todo ambiente tem scrollIntoView (o jsdom dos testes não tem).
+    alvo?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+  }, [carregou, jogoEmFoco, seriesId]);
 
   if (loading) return <LoadingState label="Carregando jogos..." />;
   if (error) return <ErrorState error={error} />;
@@ -178,7 +276,7 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
 
   const serie = data;
   return (
-    <div className="space-y-4 pb-4 sm:pl-7">
+    <div ref={painel} className="scroll-mt-20 space-y-4 pb-4 sm:pl-7">
       {serie.matches.length > 0 && (
         <div className="flex items-center justify-end gap-2">
           <span className="text-[11px] text-ink-faint">Imagem da série</span>
@@ -193,7 +291,12 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
       <NaSerie serie={serie} />
 
       {serie.matches.map((match) => (
-        <MatchCard key={match.id} match={match} nomeDaSerie={serie.name} />
+        <MatchCard
+          key={match.id}
+          match={match}
+          nomeDaSerie={serie.name}
+          emFoco={match.matchNumber === jogoEmFoco}
+        />
       ))}
 
       {data.burnedChampions.length > 0 && (
@@ -207,7 +310,16 @@ function SeriesDetailPanel({ seriesId }: { seriesId: string }) {
 
 type Match = SeriesDetail['matches'][number];
 
-function MatchCard({ match, nomeDaSerie }: { match: Match; nomeDaSerie: string | null }) {
+function MatchCard({
+  match,
+  nomeDaSerie,
+  emFoco,
+}: {
+  match: Match;
+  nomeDaSerie: string | null;
+  /** O jogo que um link pediu: ganha o fio dourado para o olho achar na série. */
+  emFoco: boolean;
+}) {
   // Um jogador aberto por vez na partida. Dois painéis abertos juntos empurram
   // o time de baixo para fora da tela e a comparação, que é o ponto, se perde.
   const [aberto, setAberto] = useState<string | null>(null);
@@ -218,7 +330,14 @@ function MatchCard({ match, nomeDaSerie }: { match: Match; nomeDaSerie: string |
   const statAberto = match.stats.find((stat) => stat.id === aberto) ?? null;
 
   return (
-    <div className="rounded-lg border border-line/50 bg-raised/30 p-3 sm:p-4">
+    <div
+      data-jogo={match.matchNumber}
+      // scroll-mt: o cabeçalho é fixo, e sem a folga o título do jogo parava
+      // escondido atrás dele.
+      className={`scroll-mt-20 rounded-lg border bg-raised/30 p-3 sm:p-4 ${
+        emFoco ? 'border-gold/60' : 'border-line/50'
+      }`}
+    >
       <div className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-faint">
         {/* Subtítulo do bloco, não rótulo miúdo: é o que separa um jogo do outro
             numa MD3 aberta. */}

@@ -14,6 +14,7 @@ import { AccountPage } from './pages/AccountPage';
 import { AjudaPage } from './pages/AjudaPage';
 import { useAuth } from './context/AuthContext';
 import { Avatar } from './components/ui';
+import { EfeitosDeNavegacao } from './components/EfeitosDeNavegacao';
 
 const NAV = [
   { to: '/', label: 'Ranking', short: 'Ranking', icon: Trophy, end: true },
@@ -21,7 +22,9 @@ const NAV = [
   { to: '/serie', label: 'Série', short: 'Série', icon: Swords, end: false },
   { to: '/destaques', label: 'Destaques', short: 'Destaques', icon: Flame, end: false },
   { to: '/historico', label: 'Histórico', short: 'Histórico', icon: History, end: false },
-  { to: '/jogadores', label: 'Jogadores', short: 'Jogadores', icon: Users, end: true },
+  // Sem `end`: o perfil (/jogadores/:id) é parte desta aba, e com `end` nenhuma
+  // aba ficava acesa quando se abria o perfil de alguém.
+  { to: '/jogadores', label: 'Jogadores', short: 'Jogadores', icon: Users, end: false },
 ];
 
 /**
@@ -80,6 +83,16 @@ function AtalhoDaConta() {
 export function App() {
   return (
     <div className="min-h-screen pb-20 sm:pb-0">
+      <EfeitosDeNavegacao />
+      {/* Para quem navega por teclado ou leitor de tela: sem isto, cada tela
+          começa atravessando o cabeçalho inteiro de novo. Invisível até
+          receber foco. */}
+      <a
+        href="#conteudo"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-gold focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-canvas"
+      >
+        Pular para o conteúdo
+      </a>
       <header className="sticky top-0 z-30 border-b border-line/50 bg-canvas/85 backdrop-blur-xl">
         {/* Mais baixo no celular: com a barra de baixo, os dois somavam 21% de
             uma tela de 568px. */}
@@ -150,7 +163,12 @@ export function App() {
           monitor de 1080p sobrava meia tela vazia dos dois lados -- parecia
           layout de celular esticado. As paginas preenchem essa largura
           ganhando COLUNA, nao esticando a mesma coluna. */}
-      <main className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      {/* tabIndex -1: o "Pular para o conteúdo" precisa de um alvo focável. */}
+      <main
+        id="conteudo"
+        tabIndex={-1}
+        className="mx-auto max-w-screen-2xl px-4 py-6 focus:outline-none sm:px-6 sm:py-8 lg:px-8"
+      >
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/sorteio" element={<DraftPage />} />
@@ -172,7 +190,17 @@ export function App() {
           <Route
             path="*"
             element={
-              <p className="py-16 text-center text-sm text-ink-faint">Página não encontrada.</p>
+              // Link velho ou digitado errado: a tela diz o que houve e oferece
+              // a saída, em vez de deixar a pessoa com o botão voltar.
+              <div className="py-16 text-center">
+                <p className="text-sm text-ink-muted">Essa página não existe.</p>
+                <NavLink
+                  to="/"
+                  className="mt-3 inline-block text-sm font-semibold text-gold hover:underline"
+                >
+                  Ir para o ranking
+                </NavLink>
+              </div>
             }
           />
         </Routes>

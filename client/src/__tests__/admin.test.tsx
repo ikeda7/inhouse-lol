@@ -53,6 +53,12 @@ function montar(pagina: React.ReactNode, podeAdministrar: boolean) {
       if (entrada.includes('/auth/me')) {
         return responder(401, { success: false, error: 'Não autenticado.' });
       }
+      if (entrada.includes('/stats/leaderboard')) {
+        return responder(200, {
+          success: true,
+          data: [{ playerId: 'p1', name: 'Ikeda', wins: 6, losses: 4, winRate: 60, points: 21 }],
+        });
+      }
       if (entrada.includes('/players')) return responder(200, { success: true, data: [JOGADOR] });
       if (entrada.includes('/series/current')) return responder(200, { success: true, data: null });
       return responder(404, { success: false, error: 'Rota não encontrada.' });
@@ -75,6 +81,12 @@ describe('Jogadores', () => {
     expect(screen.queryByText('Novo jogador')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Editar Ikeda' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Desativar Ikeda' })).not.toBeInTheDocument();
+    // O que era do cadastro sai junto: selo de conta e filtros de pendência.
+    expect(screen.queryByText('conta')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Filtrar jogadores' })).not.toBeInTheDocument();
+    // E o que interessa a todo mundo entra: o placar e os pontos de cada um.
+    expect(await screen.findByText('6–4')).toBeInTheDocument();
+    expect(screen.getByText('21 pts')).toBeInTheDocument();
   });
 
   it('o admin cadastra, edita e desativa', async () => {

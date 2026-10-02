@@ -240,7 +240,8 @@ async function fluxoDosMomentos(pagina) {
   const titulos = async () =>
     (await card.locator('h3').allInnerTexts()).map((t) => t.split('\n')[0].trim());
   const jogosDosCartoes = async () =>
-    (await card.locator('a[href^="/jogadores/"]').allInnerTexts())
+    // Cada cartão de momento é um link para o jogo em que ele aconteceu.
+    (await card.locator('a[href^="/historico?serie="]').allInnerTexts())
       .map((t) => /Jogo (\d+)/.exec(t)?.[1])
       .filter(Boolean)
       .map(Number);
@@ -386,6 +387,98 @@ async function fluxoDoPodio(pagina) {
  * Duplas no perfil: o parceiro é um link, e clicar nele abre o perfil DELE --
  * com a dupla aparecendo do outro lado também, porque jogar junto é simétrico.
  */
+/**
+ * Onde as telas levam. Um jogo aparece no perfil, nos recordes e nos momentos,
+ * e os três têm de cair no MESMO lugar: a série aberta no Histórico, com
+ * aquele jogo na tela. De lá, o nome de um jogador leva ao perfil dele -- o
+ * caminho de volta, que os recordes deixaram de ter quando passaram a apontar
+ * para o jogo.
+ */
+async function fluxoDosLinks(pagina) {
+  const ranking = await api('GET', '/stats/leaderboard?sortBy=wins&minGames=1');
+  if (ranking.length === 0) return 'ninguém com partida registrada';
+  const perfil = await api('GET', `/players/${ranking[0].playerId}/profile`);
+  const partida = perfil.recentMatches[0];
+  if (!partida) return 'o líder não tem partida recente';
+
+  const chegouNoJogo = async (seriesId, jogo, deOnde) => {
+    await pagina.waitForURL(
+      (url) =>
+        url.pathname === '/historico' &&
+        url.searchParams.get('serie') === seriesId &&
+        url.searchParams.get('jogo') === String(jogo),
+      { timeout: 10000 }
+    );
+    const cartao = pagina.locator(`[data-jogo="${jogo}"]`);
+    await cartao.waitFor({ timeout: 20000 });
+    exigir(
+      (await cartao.getByRole('heading', { name: `Jogo ${jogo}` }).count()) === 1,
+      `${deOnde}: o Histórico abriu, mas sem o jogo ${jogo} na tela`
+    );
+    return cartao;
+  };
+
+  // Perfil -> jogo.
+  await pagina.goto(`${BASE}/jogadores/${perfil.playerId}`, { waitUntil: 'networkidle' });
+  const ultimas = pagina.locator('section', {
+    has: pagina.getByRole('heading', { name: 'Últimas partidas' }),
+  });
+  await ultimas
+    .getByRole('link', { name: /ver o jogo$/ })
+    .first()
+    .click();
+  const cartao = await chegouNoJogo(partida.seriesId, partida.matchNumber, 'perfil');
+
+  // Jogo -> perfil: abre um jogador do jogo e segue o nome dele.
+  const linha = cartao.locator('button[aria-expanded]').first();
+  await linha.click();
+  const doPainel = cartao.locator('a[title^="Ver o perfil de"]');
+  await doPainel.waitFor({ timeout: 10000 });
+  const nome = (await doPainel.innerText()).trim();
+  await doPainel.click();
+  await pagina.waitForURL(/\/jogadores\/[^/]+$/, { timeout: 10000 });
+  await pagina.getByRole('heading', { level: 1, name: nome }).waitFor({ timeout: 10000 });
+
+  // Recorde -> jogo.
+  const { recordes } = await api('GET', '/stats/highlights');
+  if (recordes.length === 0) return;
+  await pagina.goto(`${BASE}/destaques`, { waitUntil: 'networkidle' });
+  const recorde = recordes[0];
+  await pagina
+    .locator(`a[href="/historico?serie=${recorde.seriesId}&jogo=${recorde.matchNumber}"]`)
+    .first()
+    .click();
+  await chegouNoJogo(recorde.seriesId, recorde.matchNumber, 'recorde');
+
+  // Feitos no perfil: o recorde do dono do recorde leva ao mesmo jogo.
+  await pagina.goto(`${BASE}/jogadores/${recorde.playerId}`, { waitUntil: 'networkidle' });
+  const feitos = pagina.locator('section', {
+    has: pagina.getByRole('heading', { name: 'Feitos' }),
+  });
+  await feitos.waitFor({ timeout: 20000 });
+  await feitos
+    .locator(`a[href="/historico?serie=${recorde.seriesId}&jogo=${recorde.matchNumber}"]`)
+    .first()
+    .click();
+  await chegouNoJogo(recorde.seriesId, recorde.matchNumber, 'feitos do perfil');
+
+  // A faixa do ranking: para a Série se há MD3 em andamento, senão para os
+  // jogos da última noite.
+  const series = await api('GET', '/series?limit=5');
+  const aoVivo = series.find((s) => s.status === 'ONGOING');
+  const ultima = aoVivo ?? series.find((s) => s.matches.length > 0);
+  if (!ultima) return;
+  await pagina.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  await pagina.getByRole('link', { name: aoVivo ? /Em andamento/ : /Última noite/ }).click();
+  await pagina.waitForURL(
+    (url) =>
+      aoVivo
+        ? url.pathname === '/serie'
+        : url.pathname === '/historico' && url.searchParams.get('serie') === ultima.id,
+    { timeout: 10000 }
+  );
+}
+
 async function fluxoDasDuplas(pagina) {
   const ranking = await api('GET', '/stats/leaderboard?sortBy=wins&minGames=3');
   let comDupla = null;
@@ -470,11 +563,32 @@ async function fluxoDosCampeoes(pagina) {
     'a tabela não diz sobre quantas partidas são as porcentagens'
   );
 
+  // De saída vêm só os mais presentes; o resto fica atrás de um botão, e ele
+  // tem de trazer TODOS os que a API tem -- nem um a menos.
+  const INICIAIS = 12;
   const linhas = tabela.locator('tbody tr');
   exigir(
-    (await linhas.count()) === campeoes.length,
-    `a tabela mostra ${await linhas.count()} campeões, a API tem ${campeoes.length}`
+    (await linhas.count()) === Math.min(INICIAIS, campeoes.length),
+    `a tabela abre com ${await linhas.count()} campeões, esperava ${Math.min(INICIAIS, campeoes.length)}`
   );
+  if (campeoes.length > INICIAIS) {
+    // Buscar acha quem está escondido lá embaixo, sem abrir a lista.
+    const escondido = campeoes.at(-1);
+    const busca = tabela.getByRole('searchbox', { name: 'Buscar campeão' });
+    await busca.fill(escondido.championName.toLowerCase());
+    await tabela
+      .locator('tbody tr', { has: pagina.getByText(escondido.championName, { exact: true }) })
+      .first()
+      .waitFor({ timeout: 10000 });
+    await busca.fill('');
+
+    await tabela.getByRole('button', { name: /Ver os outros \d+ campeões/ }).click();
+    await linhas.nth(campeoes.length - 1).waitFor({ timeout: 10000 });
+    exigir(
+      (await linhas.count()) === campeoes.length,
+      `"ver os outros" mostrou ${await linhas.count()} campeões, a API tem ${campeoes.length}`
+    );
+  }
   const primeiraLinha = await linhas.first().innerText();
   exigir(
     primeiraLinha.includes(campeoes[0].championName),
@@ -1188,6 +1302,7 @@ async function main() {
     ['Sorteio: capitães escolhidos na mão, draft fecha 5x5', fluxoDosCapitaes],
     ['Ajuda: o "?" leva para "Como funciona"', fluxoDaAjuda],
     ['Perfil: a dupla leva ao perfil do parceiro, com o mesmo placar', fluxoDasDuplas],
+    ['Navegação: perfil e recorde levam ao jogo, e o jogo leva ao perfil', fluxoDosLinks],
     [
       'Destaques: os recordes são do campeão, com de onde o número saiu',
       fluxoDosRecordesDosCampeoes,
