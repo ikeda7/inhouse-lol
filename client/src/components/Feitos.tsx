@@ -165,7 +165,10 @@ function SeloDeMomento({ grupo }: { grupo: GrupoDeMomentos }) {
       className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-bold tracking-wide transition hover:brightness-125 ${grupo.classe}`}
     >
       {grupo.titulo}
-      {grupo.vezes > 1 && <span className="tabular font-semibold opacity-80">×{grupo.vezes}</span>}
+      {/* Sem opacidade: com `opacity-80` o "×4" caía para 4.02:1 nos selos de
+          tinta fraca, abaixo do AA (a verificação de telas do CI pegou). O peso
+          menor já separa a contagem do nome. */}
+      {grupo.vezes > 1 && <span className="tabular font-medium">×{grupo.vezes}</span>}
     </Link>
   );
 }
