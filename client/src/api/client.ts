@@ -125,6 +125,9 @@ export const playersApi = {
 
   removeAccount: (id: string, contaId: string) =>
     request<Player>(`/players/${id}/contas/${contaId}`, { method: 'DELETE' }),
+
+  /** Troca a foto pelo ícone do LoL que veio na última partida importada. */
+  usarIconeDoLol: (id: string) => post<Player>(`/players/${id}/photo/sync-lol`, {}),
 };
 
 // ---------------------------------------------------------------------------
@@ -266,7 +269,8 @@ export const authApi = {
   logout: () => post<null>('/auth/logout', {}),
 
   /** Se este navegador pode usar os controles de admin (vale deslogado também). */
-  permissoes: () => request<{ podeAdministrar: boolean }>('/auth/permissoes'),
+  permissoes: () =>
+    request<{ podeAdministrar: boolean; cadastroAberto: boolean }>('/auth/permissoes'),
 
   /** 401 aqui e resposta esperada (visitante deslogado), nao erro de rede. */
   me: () =>

@@ -1,12 +1,18 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Link2, Pencil, Plus, X, EyeOff, Eye, UserCheck } from 'lucide-react';
+import { Check, ImageDown, Link2, Pencil, Plus, X, EyeOff, Eye, UserCheck } from 'lucide-react';
 import { playersApi } from '../api/client';
 import { useAction } from '../hooks/useAsync';
 import { Avatar, Button, ErrorState, RoleBadge } from './ui';
 import { ROLE_LABEL, ROLES, type Player, type RoleInput } from '../types';
 
 const SELECTABLE_ROLES: RoleInput[] = [...ROLES, 'FILL'];
+
+const ORIGEM_DA_FOTO: Record<Player['photoSource'], string> = {
+  LOL_ICON: 'ícone do LoL',
+  UPLOAD: 'foto enviada',
+  NONE: 'sem foto',
+};
 
 /**
  * Linha de jogador com edicao inline.
@@ -41,6 +47,11 @@ export function PlayerRow({
   const update = useAction(playersApi.update);
   const addAccount = useAction(playersApi.addAccount);
   const removeAccount = useAction(playersApi.removeAccount);
+  const usarIcone = useAction(playersApi.usarIconeDoLol);
+
+  const trocarPeloIcone = async () => {
+    if (await usarIcone.run(player.id)) onChanged();
+  };
 
   const adicionarConta = async () => {
     if (!(await addAccount.run(player.id, novaConta.trim()))) return;
@@ -151,7 +162,7 @@ export function PlayerRow({
             ) : (
               <span
                 className="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-semibold uppercase text-ink-muted"
-                title="Ainda não criou a conta. É em Entrar → Criar conta."
+                title="Não tem conta no InHouse"
               >
                 sem conta
               </span>
@@ -299,6 +310,34 @@ export function PlayerRow({
             );
           })}
         </div>
+      </div>
+
+      {/* Foto. Sem conta para cada um trocar a sua, quem padroniza é o admin: o
+          ícone é o que o cliente do LoL mandou na última partida da pessoa, e
+          volta a se atualizar sozinho a cada importação. Grava na hora, fora do
+          "Salvar", como as contas extras. */}
+      <div className="mt-2">
+        <p className="text-[11px] text-ink-faint">Foto</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <Avatar photoUrl={player.photoUrl} name={player.name} size="sm" />
+          <Button
+            variant="ghost"
+            onClick={trocarPeloIcone}
+            loading={usarIcone.loading}
+            aria-label={`Usar o ícone do LoL como foto de ${player.name}`}
+          >
+            <ImageDown size={14} />
+            Usar ícone do LoL
+          </Button>
+          <span className="text-[11px] text-ink-muted">
+            Hoje: {ORIGEM_DA_FOTO[player.photoSource]}
+          </span>
+        </div>
+        {usarIcone.error && (
+          <div className="mt-2">
+            <ErrorState error={usarIcone.error} />
+          </div>
+        )}
       </div>
 
       <div className="mt-3 flex gap-2">

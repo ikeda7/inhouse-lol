@@ -334,9 +334,9 @@ e `npm start` sobem API e front juntos. Na rede local, o pessoal acessa pelo
 seu IP; o PC só precisa estar ligado.
 
 > **Escrita protegida.** Com a `GROUP_KEY` definida, toda escrita exige a chave
-> do grupo ou uma conta logada; leitura é pública. Com `ADMIN_PLAYER_IDS`,
-> mexer no cadastro e nas séries exige a conta de um admin, e o grupo fica só
-> com a noite de jogo. Detalhes em [DEPLOY.md](DEPLOY.md).
+> do grupo ou uma conta logada; leitura é pública. Com `ADMIN_PLAYER_IDS`, o
+> site fica só de leitura para todo mundo menos o admin, e a chave passa a
+> servir só ao agente que importa os jogos. Detalhes em [DEPLOY.md](DEPLOY.md).
 
 ---
 

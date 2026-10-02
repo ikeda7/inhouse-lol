@@ -115,19 +115,28 @@ precisa da chave. A chave vai no zap e, para o agente, no `INHOUSE_CHAVE`.
 Para conferir: `https://SEU-APP.vercel.app/api/health` tem de mostrar
 `"grupoProtegido": true`.
 
-A chave separa o grupo de quem achou o link, mas ela circula no zap. Para
-ninguém do grupo mexer no cadastro e nas séries, **defina também a
-`ADMIN_PLAYER_IDS`** com o seu `id` (o campo `id` do seu jogador em
-`/api/players`), só no ambiente Production: os ids são de cada banco. A partir
-daí, cadastrar/editar/desativar jogador, abrir e encerrar MD3 na mão, registrar
-jogo pelo formulário e importar por Match ID exigem que você esteja **logado na
-sua conta**; a chave do grupo não basta. O grupo continua abrindo a MD3 da
-noite pelo "Usar esses times na série", importando pelo agente e usando a sala
-do draft. O `/api/health` passa a mostrar `"adminProtegido": true`.
+Uma chave compartilhada separa o grupo de quem achou o link, mas ela circula
+no zap, e com ela dá para reivindicar o jogador de um amigo e mandar partida
+forjada. Para o site ficar **só de leitura para todo mundo menos você**,
+defina também a `ADMIN_PLAYER_IDS` com o seu `id` (o campo `id` do seu jogador
+em `/api/players`), só no ambiente Production: os ids são de cada banco. A
+partir daí:
 
-Crie a sua conta **antes** de pôr o id na variável: jogador nomeado admin não
-pode mais ser reivindicado pelo site, justamente para ninguém com a chave do
-grupo criar a conta do admin no lugar dele.
+- gravar exige que você esteja **logado na sua conta**: jogadores, séries,
+  registro de jogo, sala do draft ao vivo;
+- a `GROUP_KEY` deixa de ser "do grupo" e vira a **chave do agente**: só abre
+  a MD3 da noite e importa jogos. Troque por uma nova, que não tenha ido para
+  o zap, e deixe só no `companion/chave.txt` do seu PC;
+- criar conta fica fechado. As contas que já existem continuam entrando, mas
+  só mexem no próprio perfil;
+- o `/api/health` passa a mostrar `"adminProtegido": true`.
+
+Crie a sua conta **antes** de pôr o id na variável: com o cadastro fechado, ela
+não pode mais ser criada pelo site.
+
+O preço: sem você logado ninguém abre a MD3, e o cliente do LoL só lista
+partida de quem jogou. Numa noite em que você não joga, ponha um segundo `id`
+na variável e a chave do agente no PC dessa pessoa.
 
 Alguém reivindicou o jogador errado? Rode, com as credenciais do Turso no
 ambiente:

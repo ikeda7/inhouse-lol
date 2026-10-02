@@ -22,6 +22,8 @@ interface AuthValue {
    * para quem não pode usar.
    */
   podeAdministrar: boolean;
+  /** Se ainda dá para criar conta pelo site (com admin nomeado, não dá). */
+  cadastroAberto: boolean;
   login: (input: { email: string; password: string }) => Promise<Account>;
   register: (input: { playerId: string; email: string; password: string }) => Promise<Account>;
   logout: () => Promise<void>;
@@ -29,29 +31,34 @@ interface AuthValue {
   setPlayer: (player: Account) => void;
 }
 
+type Permissoes = Pick<AuthValue, 'podeAdministrar' | 'cadastroAberto'>;
+
+const SEM_RESPOSTA: Permissoes = { podeAdministrar: false, cadastroAberto: false };
+const TUDO_LIBERADO: Permissoes = { podeAdministrar: true, cadastroAberto: true };
+
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [player, setPlayer] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
-  const [podeAdministrar, setPodeAdministrar] = useState(false);
+  const [permissoes, setPermissoes] = useState(SEM_RESPOSTA);
 
   // Depende de quem está logado, então é refeita a cada entrada e saída. Se a
   // pergunta falhar, mostra os botões: a tela não decide nada, e esconder por
   // engano deixaria o admin sem ter onde clicar.
   const conferirPermissoes = useCallback(async () => {
     try {
-      return (await authApi.permissoes()).podeAdministrar;
+      return await authApi.permissoes();
     } catch {
-      return true;
+      return TUDO_LIBERADO;
     }
   }, []);
 
   useEffect(() => {
     let cancelado = false;
 
-    conferirPermissoes().then((pode) => {
-      if (!cancelado) setPodeAdministrar(pode);
+    conferirPermissoes().then((atuais) => {
+      if (!cancelado) setPermissoes(atuais);
     });
 
     authApi
@@ -77,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (input: { email: string; password: string }) => {
       const logado = await authApi.login(input);
       setPlayer(logado);
-      setPodeAdministrar(await conferirPermissoes());
+      setPermissoes(await conferirPermissoes());
       return logado;
     },
     [conferirPermissoes]
@@ -87,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (input: { playerId: string; email: string; password: string }) => {
       const criado = await authApi.register(input);
       setPlayer(criado);
-      setPodeAdministrar(await conferirPermissoes());
+      setPermissoes(await conferirPermissoes());
       return criado;
     },
     [conferirPermissoes]
@@ -96,12 +103,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await authApi.logout();
     setPlayer(null);
-    setPodeAdministrar(await conferirPermissoes());
+    setPermissoes(await conferirPermissoes());
   }, [conferirPermissoes]);
 
   return (
     <AuthContext.Provider
-      value={{ player, loading, podeAdministrar, login, register, logout, setPlayer }}
+      value={{ player, loading, ...permissoes, login, register, logout, setPlayer }}
     >
       {children}
     </AuthContext.Provider>

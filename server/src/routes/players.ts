@@ -9,6 +9,7 @@ import {
   removeRiotAccount,
   updatePlayer,
 } from '../services/players.js';
+import { syncLolPhoto } from '../services/auth.js';
 import { getPlayerProfile } from '../services/stats.js';
 import { asyncHandler } from './helpers.js';
 
@@ -115,6 +116,23 @@ playersRouter.delete(
       success: true,
       data: await removeRiotAccount(req.params.id, req.params.contaId),
     });
+  })
+);
+
+/**
+ * POST /api/players/:id/photo/sync-lol - poe o icone do LoL como foto de
+ * qualquer jogador.
+ *
+ * E o mesmo "Usar icone do LoL" da propria conta, na mao do admin: com o
+ * cadastro de contas fechado ninguem mais troca a propria foto, e sem isto as
+ * fotos enviadas antes ficariam para sempre ao lado de icones. Devolve o
+ * jogador publico -- o DTO de conta carrega o e-mail, que so o dono ve.
+ */
+playersRouter.post(
+  '/:id/photo/sync-lol',
+  asyncHandler(async (req, res) => {
+    await syncLolPhoto(req.params.id);
+    res.json({ success: true, data: await getPlayerById(req.params.id) });
   })
 );
 

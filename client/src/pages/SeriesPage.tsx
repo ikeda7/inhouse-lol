@@ -36,9 +36,8 @@ import { ROLES, type Role, type SeriesDetail, type TeamSide } from '../types';
  * por jogador, o mesmo bloco do Histórico). Estatistica historica fica no
  * dashboard.
  *
- * Abrir a MD3 na mão, registrar jogo pelo formulário, importar por Match ID e
- * encerrar são do admin; os outros acompanham a noite por aqui, e a MD3 deles
- * abre pelo "Usar esses times na série" e pelo agente local.
+ * Abrir a MD3, registrar jogo pelo formulário, importar por Match ID e
+ * encerrar são do admin; os outros acompanham a noite por aqui.
  */
 export function SeriesPage() {
   const series = useAsync(() => seriesApi.current());
@@ -64,7 +63,7 @@ export function SeriesPage() {
           label={
             podeAdministrar
               ? 'Nenhuma MD3 em andamento.'
-              : 'Nenhuma MD3 em andamento. Ela abre em "Usar esses times na série", depois do sorteio.'
+              : 'Nenhuma MD3 em andamento. Quem abre a MD3 é o admin do grupo.'
           }
         />
         {podeAdministrar && (

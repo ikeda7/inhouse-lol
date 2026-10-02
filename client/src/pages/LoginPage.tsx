@@ -6,7 +6,7 @@ import { useAction } from '../hooks/useAsync';
 import { Button, Card, ErrorState, Input } from '../components/ui';
 
 export function LoginPage() {
-  const { player, loading, login } = useAuth();
+  const { player, loading, login, cadastroAberto } = useAuth();
   const navegar = useNavigate();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
@@ -54,12 +54,18 @@ export function LoginPage() {
         </form>
       </Card>
 
-      <p className="mt-4 text-center text-xs text-ink-muted">
-        Ainda não tem conta?{' '}
-        <Link to="/criar-conta" className="font-semibold text-gold hover:underline">
-          Criar a sua
-        </Link>
-      </p>
+      {cadastroAberto ? (
+        <p className="mt-4 text-center text-xs text-ink-muted">
+          Ainda não tem conta?{' '}
+          <Link to="/criar-conta" className="font-semibold text-gold hover:underline">
+            Criar a sua
+          </Link>
+        </p>
+      ) : (
+        <p className="mt-4 text-center text-xs text-ink-muted">
+          Não precisa de conta para ver o site. Entrar é para o admin e para quem já tinha conta.
+        </p>
+      )}
     </div>
   );
 }
