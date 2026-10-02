@@ -106,8 +106,13 @@ Sorteio's "tenta outro" brings a different team split twice in a row, never
 one already shown (a new seed alone gave the same teams once strength came
 from history), and captains mode with two
 hand-picked captains drafts to 5x5 (draw and draft are stateless
-calculators and write nothing, but in production they are admin-only, so
-these two only run where no admin is named); the
+calculators and write nothing, but in production they are admin-only: there
+the flows that use an admin control skip with that reason — `soDoAdmin` asks
+`/auth/permissoes` — instead of dying on a timeout looking for a button the
+screen rightly hides, and the "Visitante" flow checks the other side, that
+Sorteio, Jogadores and Entrar offer a visitor nothing the server would refuse.
+Run without `--preparar` against production it writes nothing, and is the
+quickest check after a deploy); the
 "?" reaches the help page; a duo partner on a profile links to their
 profile, which shows the same duo with the same record from the other side;
 the "Recordes de campeão" block shows every champion the API elected with the
@@ -217,9 +222,17 @@ remote: - Changes must be made through a pull request.
 
 Everything reaches them through a PR with green CI (all three jobs — "Testes,
 tipos e build", "Segredos e dependências" and "Telas no navegador" — are
-required checks). Zero
-approvals are required, because there is one maintainer and nobody approves
-their own PR; the gate is the PR plus CI, not review.
+required checks). The maintainer's own PRs need no approval — GitHub lets
+nobody approve their own PR, so for them the gate is the PR plus CI.
+
+Two other people have write access, and with zero approvals either could open
+a PR to `main` and merge it alone, which deploys production. The ruleset
+"Aprovação do dono" closes that: a PR into `develop` or `main` needs the
+approval of a code owner, and `.github/CODEOWNERS` names only the maintainer.
+The repository-admin role bypasses that one ruleset (otherwise the maintainer
+would be locked out of their own PRs); the required checks live in the classic
+branch protection, which admins do **not** bypass. Requiring a *code owner*
+matters: a plain "1 approval" would let one collaborator approve the other.
 
 Branch from `develop` as `feat/`, `fix/`, `chore/`, `docs/`, `refactor/`,
 `test/`; PR back into `develop`. Conventional Commits, body explains *why*
@@ -581,6 +594,11 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
   moments point at the game (a feat happened in a game), not at the person.
   The Histórico list shows both rosters per series (`elencos` on the list
   payload, names only — photos can be `data:` URIs) and marks who won.
+  On a phone (below `md`) each game of an open series starts **collapsed** to
+  one line — kills per side and who won — except the game a link asked for; a
+  three-game MD3 used to be 4000+ px of scrolling. The toggle is a button
+  inside the game's `h3`, so a selector for player rows must be
+  `li > button[aria-expanded]`, not the card's first `aria-expanded` button.
 - The Série tab is never a dead end: with no ongoing MD3 it shows the last
   night played (`components/UltimaNoite.tsx`), score and per-player sums, with
   the link to its games.

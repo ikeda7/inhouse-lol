@@ -94,6 +94,51 @@ async function api(metodo, rota, corpo) {
   return json.data;
 }
 
+/**
+ * Motivo para pular um fluxo que usa controle de admin, ou null se dá para
+ * rodar. Em produção há admin nomeado e este navegador entra como visitante:
+ * o Sorteio vira um aviso e os filtros de Jogadores somem, de propósito. Sem
+ * isto os três fluxos morriam em "Timeout 20000ms" procurando um botão que a
+ * tela, com razão, não mostra -- e falha que não é falha ensina a ignorar a
+ * lista.
+ */
+let ehVisitante;
+async function soDoAdmin() {
+  ehVisitante ??= !(await api('GET', '/auth/permissoes')).podeAdministrar;
+  return ehVisitante ? 'tela só do admin, e este navegador é visitante' : null;
+}
+
+/**
+ * O outro lado: como visitante, as telas não oferecem o que o servidor
+ * recusaria. Só roda onde há admin nomeado (em produção); no CI todo mundo
+ * administra e quem cobre isso são os testes de componente.
+ */
+async function fluxoDoVisitante(pagina) {
+  if (!(await soDoAdmin())) return 'sem admin nomeado: aqui todo mundo administra';
+
+  await pagina.goto(`${BASE}/sorteio`, { waitUntil: 'networkidle' });
+  await pagina.getByText(/conduz o draft é o admin do grupo/).waitFor({ timeout: 20000 });
+  exigir(
+    (await pagina.getByRole('button', { name: /Sortear times/ }).count()) === 0,
+    'o Sorteio mostrou o botão de sortear a um visitante'
+  );
+
+  await pagina.goto(`${BASE}/jogadores`, { waitUntil: 'networkidle' });
+  await pagina.getByText(/cadastra e edita jogadores é o admin/).waitFor({ timeout: 20000 });
+  exigir(
+    (await pagina.getByText('Novo jogador').count()) === 0 &&
+      (await pagina.getByRole('button', { name: /^(Editar|Desativar) / }).count()) === 0,
+    'Jogadores mostrou cadastro ou edição a um visitante'
+  );
+
+  await pagina.goto(`${BASE}/entrar`, { waitUntil: 'networkidle' });
+  await pagina.getByRole('button', { name: 'Entrar' }).waitFor({ timeout: 20000 });
+  exigir(
+    (await pagina.getByRole('link', { name: /Criar a sua/ }).count()) === 0,
+    'Entrar ofereceu criar conta com o cadastro fechado'
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Cenário (--preparar)
 // ---------------------------------------------------------------------------
@@ -430,7 +475,9 @@ async function fluxoDosLinks(pagina) {
   const cartao = await chegouNoJogo(partida.seriesId, partida.matchNumber, 'perfil');
 
   // Jogo -> perfil: abre um jogador do jogo e segue o nome dele.
-  const linha = cartao.locator('button[aria-expanded]').first();
+  // `li >`: o primeiro botão com aria-expanded do cartão é o que recolhe o
+  // próprio jogo, e clicar nele some com os jogadores.
+  const linha = cartao.locator('li > button[aria-expanded]').first();
   await linha.click();
   const doPainel = cartao.locator('a[title^="Ver o perfil de"]');
   await doPainel.waitFor({ timeout: 10000 });
@@ -464,6 +511,29 @@ async function fluxoDosLinks(pagina) {
 
   // A faixa do ranking: para a Série se há MD3 em andamento, senão para os
   // jogos da última noite.
+  // No celular o jogo abre recolhido, menos o que o link pediu; tocar abre.
+  const comDoisJogos = (await api('GET', '/series?limit=30')).find((s) => s.matches.length >= 2);
+  if (comDoisJogos) {
+    await pagina.setViewportSize({ width: 390, height: 844 });
+    await pagina.goto(`${BASE}/historico?serie=${comDoisJogos.id}&jogo=2`, {
+      waitUntil: 'networkidle',
+    });
+    const sanfona = (jogo) => pagina.locator(`[data-jogo="${jogo}"] h3 > button`);
+    await sanfona(2).waitFor({ timeout: 20000 });
+    exigir(
+      (await sanfona(2).getAttribute('aria-expanded')) === 'true' &&
+        (await sanfona(1).getAttribute('aria-expanded')) === 'false',
+      'no celular, o jogo pedido não veio aberto ou o outro não veio recolhido'
+    );
+    await sanfona(1).click();
+    exigir(
+      (await sanfona(1).getAttribute('aria-expanded')) === 'true' &&
+        (await pagina.locator('[data-jogo="1"] li > button[aria-expanded]').count()) > 0,
+      'tocar no jogo recolhido não mostrou os jogadores'
+    );
+    await pagina.setViewportSize({ width: 1280, height: 900 });
+  }
+
   const series = await api('GET', '/series?limit=5');
   const aoVivo = series.find((s) => s.status === 'ONGOING');
   const ultima = aoVivo ?? series.find((s) => s.matches.length > 0);
@@ -710,6 +780,8 @@ async function fluxoDaOrdenacao(pagina) {
 }
 
 async function fluxoDosFiltros(pagina) {
+  const pular = await soDoAdmin();
+  if (pular) return pular;
   const jogadores = await api('GET', '/players?includeInactive=true');
   const filtros = [
     ['Todos', jogadores.length],
@@ -764,6 +836,8 @@ async function marcarVeteranos(pagina) {
 }
 
 async function fluxoDoSorteioDeNovo(pagina) {
+  const pular = await soDoAdmin();
+  if (pular) return pular;
   await pagina.goto(`${BASE}/sorteio`, { waitUntil: 'networkidle' });
   await marcarVeteranos(pagina);
   // O aviso de cobertura é a tela dizendo que o sorteio vai recusar -- e com
@@ -815,6 +889,8 @@ async function fluxoDoSorteioDeNovo(pagina) {
 }
 
 async function fluxoDosCapitaes(pagina) {
+  const pular = await soDoAdmin();
+  if (pular) return pular;
   await pagina.goto(`${BASE}/sorteio`, { waitUntil: 'networkidle' });
   const nomes = await marcarVeteranos(pagina);
 
@@ -1300,6 +1376,7 @@ async function main() {
     ['Jogadores: cada filtro mostra quantos a API diz que faltam', fluxoDosFiltros],
     ['Sorteio: "tenta outro" traz outros times, nunca uma divisão já vista', fluxoDoSorteioDeNovo],
     ['Sorteio: capitães escolhidos na mão, draft fecha 5x5', fluxoDosCapitaes],
+    ['Visitante: as telas não oferecem o que é só do admin', fluxoDoVisitante],
     ['Ajuda: o "?" leva para "Como funciona"', fluxoDaAjuda],
     ['Perfil: a dupla leva ao perfil do parceiro, com o mesmo placar', fluxoDasDuplas],
     ['Navegação: perfil e recorde levam ao jogo, e o jogo leva ao perfil', fluxoDosLinks],
