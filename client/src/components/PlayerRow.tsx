@@ -8,6 +8,41 @@ import { ROLE_LABEL, ROLES, type Player, type RoleInput } from '../types';
 
 const SELECTABLE_ROLES: RoleInput[] = [...ROLES, 'FILL'];
 
+/** O que a lista mostra de cada um: o mesmo que o ranking sabe. */
+export interface ResumoDoJogador {
+  lugar: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  points: number;
+}
+
+/**
+ * Os números à direita da linha. A lista era só cadastro (nome, Riot ID,
+ * roles) e respondia "quem é do grupo", mas não "como ele está" -- para isso
+ * era preciso abrir perfil por perfil. O placar é o número grande; o resto
+ * fica em tinta fraca. Pontos em dourado: é o número que decide o ranking.
+ */
+function NumerosDoJogador({ resumo }: { resumo: ResumoDoJogador | null }) {
+  if (!resumo) {
+    return <span className="shrink-0 text-xs text-ink-faint">sem jogos</span>;
+  }
+
+  return (
+    <div className="shrink-0 text-right">
+      <p className="tabular text-sm font-semibold text-ink">
+        {resumo.wins}–{resumo.losses}
+        <span className={`ml-1.5 text-xs ${resumo.winRate >= 50 ? 'text-win' : 'text-loss'}`}>
+          {resumo.winRate}%
+        </span>
+      </p>
+      <p className="tabular text-[11px] text-ink-faint">
+        {resumo.lugar}º · <span className="font-semibold text-gold">{resumo.points} pts</span>
+      </p>
+    </div>
+  );
+}
+
 const ORIGEM_DA_FOTO: Record<Player['photoSource'], string> = {
   LOL_ICON: 'ícone do LoL',
   UPLOAD: 'foto enviada',
@@ -31,10 +66,19 @@ const ORIGEM_DA_FOTO: Record<Player['photoSource'], string> = {
 export function PlayerRow({
   player,
   podeEditar,
+  mostrarConta,
+  resumo,
   onChanged,
 }: {
   player: Player;
   podeEditar: boolean;
+  /** O selo "conta / sem conta": só faz sentido enquanto dá para criar conta. */
+  mostrarConta: boolean;
+  /**
+   * Os números do jogador no ranking. `null` = nunca jogou; `undefined` = o
+   * ranking ainda não chegou (ou falhou), e a coluna simplesmente não aparece.
+   */
+  resumo?: ResumoDoJogador | null;
   onChanged: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -115,7 +159,7 @@ export function PlayerRow({
           <div className="flex flex-wrap items-center gap-2">
             <Link
               to={`/jogadores/${player.id}`}
-              className="py-1 text-sm font-medium hover:text-gold hover:underline"
+              className="py-1 text-[15px] font-semibold text-ink hover:text-gold hover:underline"
             >
               {player.name}
             </Link>
@@ -150,23 +194,25 @@ export function PlayerRow({
 
             {/* Quem já tem conta ganha o selo; quem não tem aparece com um
                 lembrete neutro -- não é erro, é convite. O e-mail nunca vem
-                para cá: a lista é pública. */}
-            {player.hasAccount ? (
-              <span
-                className="flex items-center gap-1 text-[10px] font-semibold uppercase text-win"
-                title="Já criou a conta no InHouse"
-              >
-                <UserCheck size={11} />
-                conta
-              </span>
-            ) : (
-              <span
-                className="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-semibold uppercase text-ink-muted"
-                title="Não tem conta no InHouse"
-              >
-                sem conta
-              </span>
-            )}
+                para cá: a lista é pública. Com o cadastro fechado ninguém cria
+                conta, e "sem conta" em 12 de 17 linhas era só ruído. */}
+            {mostrarConta &&
+              (player.hasAccount ? (
+                <span
+                  className="flex items-center gap-1 text-[10px] font-semibold uppercase text-win"
+                  title="Já criou a conta no InHouse"
+                >
+                  <UserCheck size={11} />
+                  conta
+                </span>
+              ) : (
+                <span
+                  className="rounded bg-overlay px-1.5 py-0.5 text-[10px] font-semibold uppercase text-ink-muted"
+                  title="Não tem conta no InHouse"
+                >
+                  sem conta
+                </span>
+              ))}
 
             {!player.active && (
               <span className="rounded bg-slate-500/20 px-1.5 py-0.5 text-[10px] uppercase text-slate-400">
@@ -181,6 +227,8 @@ export function PlayerRow({
             ))}
           </div>
         </div>
+
+        {resumo !== undefined && <NumerosDoJogador resumo={resumo} />}
 
         {/* Botão só de ícone: o nome acessível leva o nome da pessoa, senão o
             leitor de tela lê quinze "Editar" iguais na lista. */}

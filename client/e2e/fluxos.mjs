@@ -535,11 +535,32 @@ async function fluxoDosCampeoes(pagina) {
     'a tabela não diz sobre quantas partidas são as porcentagens'
   );
 
+  // De saída vêm só os mais presentes; o resto fica atrás de um botão, e ele
+  // tem de trazer TODOS os que a API tem -- nem um a menos.
+  const INICIAIS = 12;
   const linhas = tabela.locator('tbody tr');
   exigir(
-    (await linhas.count()) === campeoes.length,
-    `a tabela mostra ${await linhas.count()} campeões, a API tem ${campeoes.length}`
+    (await linhas.count()) === Math.min(INICIAIS, campeoes.length),
+    `a tabela abre com ${await linhas.count()} campeões, esperava ${Math.min(INICIAIS, campeoes.length)}`
   );
+  if (campeoes.length > INICIAIS) {
+    // Buscar acha quem está escondido lá embaixo, sem abrir a lista.
+    const escondido = campeoes.at(-1);
+    const busca = tabela.getByRole('searchbox', { name: 'Buscar campeão' });
+    await busca.fill(escondido.championName.toLowerCase());
+    await tabela
+      .locator('tbody tr', { has: pagina.getByText(escondido.championName, { exact: true }) })
+      .first()
+      .waitFor({ timeout: 10000 });
+    await busca.fill('');
+
+    await tabela.getByRole('button', { name: /Ver os outros \d+ campeões/ }).click();
+    await linhas.nth(campeoes.length - 1).waitFor({ timeout: 10000 });
+    exigir(
+      (await linhas.count()) === campeoes.length,
+      `"ver os outros" mostrou ${await linhas.count()} campeões, a API tem ${campeoes.length}`
+    );
+  }
   const primeiraLinha = await linhas.first().innerText();
   exigir(
     primeiraLinha.includes(campeoes[0].championName),

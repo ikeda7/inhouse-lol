@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { UserPlus, Save } from 'lucide-react';
-import { playersApi } from '../api/client';
+import { playersApi, statsApi } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useAction, useAsync } from '../hooks/useAsync';
 import { Button, Card, CardTitle, ErrorState, LoadingState } from '../components/ui';
-import { PlayerRow } from '../components/PlayerRow';
+import { PlayerRow, type ResumoDoJogador } from '../components/PlayerRow';
 import { ROLE_LABEL, ROLES, type Player, type RoleInput } from '../types';
 import { contarPorFiltro, filtrarJogadores, type FiltroDeJogadores } from '../lib/filtroJogadores';
 
@@ -22,7 +22,24 @@ const SELECTABLE_ROLES: RoleInput[] = [...ROLES, 'FILL'];
  */
 export function PlayersPage() {
   const { data: players, loading, error, reload } = useAsync(() => playersApi.list(true));
-  const { podeAdministrar } = useAuth();
+  const { podeAdministrar, cadastroAberto } = useAuth();
+  // Os números de cada um vêm do ranking. É enfeite da lista: se a busca
+  // falhar, a lista abre sem a coluna em vez de virar tela de erro.
+  const ranking = useAsync(() => statsApi.leaderboard('points'), []);
+  const resumos = ranking.data
+    ? new Map<string, ResumoDoJogador>(
+        ranking.data.map((linha, indice) => [
+          linha.playerId,
+          {
+            lugar: indice + 1,
+            wins: linha.wins,
+            losses: linha.losses,
+            winRate: linha.winRate,
+            points: linha.points,
+          },
+        ])
+      )
+    : null;
 
   const [name, setName] = useState('');
   const [riotId, setRiotId] = useState('');
@@ -57,6 +74,14 @@ export function PlayersPage() {
   };
 
   const canSubmit = name.trim().length > 0 && roles.length > 0;
+
+  // Quem não administra vê quem JOGA: inativo é assunto de cadastro. A ordem é
+  // a do alfabeto de gente -- "amar dps" depois de "Vini" e "Ígor" no fim da
+  // lista era a ordem do código do caractere, não a de um nome.
+  const doGrupo = (players ?? []).filter((player) => podeAdministrar || player.active);
+  const naTela = filtrarJogadores(doGrupo, filtro).sort((a, b) =>
+    a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+  );
 
   return (
     <div className="space-y-6">
@@ -128,33 +153,50 @@ export function PlayersPage() {
 
       <Card
         destaque
-        title={`Jogadores (${players?.length ?? 0})`}
+        title={`Jogadores (${doGrupo.length})`}
+        // Conta e vínculo são pendências de CADASTRO: interessam a quem cuida
+        // dele. Para o resto do grupo a lista é a galera, não um painel de
+        // pendências dos outros.
         action={
-          <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[11px]">
-            <span className="text-ink-muted">
-              {comConta} de {ativos.length} com conta
+          podeAdministrar && (
+            <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[11px]">
+              {cadastroAberto && (
+                <span className="text-ink-muted">
+                  {comConta} de {ativos.length} com conta
+                </span>
+              )}
+              {missingRiotId > 0 ? (
+                <span className="text-amber-400/80">
+                  {missingRiotId} sem Riot ID -- a importação automática não identifica essas
+                  pessoas
+                </span>
+              ) : (
+                <span className="text-emerald-400/70">todos vinculados</span>
+              )}
             </span>
-            {missingRiotId > 0 ? (
-              <span className="text-amber-400/80">
-                {missingRiotId} sem Riot ID -- a importação automática não identifica essas pessoas
-              </span>
-            ) : (
-              <span className="text-emerald-400/70">todos vinculados</span>
-            )}
-          </span>
+          )
         }
       >
         {loading && <LoadingState />}
         {error && <ErrorState error={error} onRetry={reload} />}
         {players && (
           <>
-            <FiltroDaLista players={players} filtro={filtro} onChange={setFiltro} />
+            {podeAdministrar && (
+              <FiltroDaLista
+                players={players}
+                filtro={filtro}
+                comConta={cadastroAberto}
+                onChange={setFiltro}
+              />
+            )}
             <ul className="divide-y divide-line/40">
-              {filtrarJogadores(players, filtro).map((player) => (
+              {naTela.map((player) => (
                 <PlayerRow
                   key={player.id}
                   player={player}
                   podeEditar={podeAdministrar}
+                  mostrarConta={cadastroAberto}
+                  resumo={resumos ? (resumos.get(player.id) ?? null) : undefined}
                   onChanged={reload}
                 />
               ))}
@@ -164,7 +206,7 @@ export function PlayersPage() {
                 Quem cadastra e edita jogadores é o admin do grupo.
               </p>
             )}
-            {filtrarJogadores(players, filtro).length === 0 && (
+            {naTela.length === 0 && (
               <p className="py-3 text-center text-xs text-ink-muted">
                 Ninguém nessa lista: todo mundo em dia.
               </p>
@@ -186,16 +228,22 @@ const ROTULO_DO_FILTRO: Record<FiltroDeJogadores, string> = {
 function FiltroDaLista({
   players,
   filtro,
+  comConta,
   onChange,
 }: {
   players: Player[];
   filtro: FiltroDeJogadores;
+  /** "Sem conta" só é pendência enquanto dá para criar conta. */
+  comConta: boolean;
   onChange: (filtro: FiltroDeJogadores) => void;
 }) {
   const contagem = contarPorFiltro(players);
+  const opcoes = (Object.keys(ROTULO_DO_FILTRO) as FiltroDeJogadores[]).filter(
+    (opcao) => comConta || opcao !== 'sem-conta'
+  );
   return (
     <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label="Filtrar jogadores">
-      {(Object.keys(ROTULO_DO_FILTRO) as FiltroDeJogadores[]).map((opcao) => (
+      {opcoes.map((opcao) => (
         <button
           key={opcao}
           type="button"
