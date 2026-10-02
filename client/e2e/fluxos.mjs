@@ -908,6 +908,17 @@ async function fluxoDoCadastro(pagina) {
     jogador.riotAccounts.length === 0,
     `conta extra ainda na API depois de desligar: ${JSON.stringify(jogador.riotAccounts)}`
   );
+
+  // Foto pelo ícone do LoL. Quem acabou de ser cadastrado nunca teve partida
+  // importada, então não há ícone guardado: o botão tem de chegar ao servidor
+  // e a tela mostrar a recusa dele, sem mexer na foto.
+  await comConta.getByRole('button', { name: `Usar o ícone do LoL como foto de ${nome}` }).click();
+  await comConta.getByText(/Ainda não temos o seu ícone do LoL/).waitFor({ timeout: 20000 });
+  jogador = await daApi();
+  exigir(
+    jogador.photoSource === 'NONE' && jogador.photoUrl === null,
+    `a foto mudou sem haver ícone: ${jogador.photoSource}`
+  );
   await comConta.getByRole('button', { name: 'Cancelar' }).click();
 
   // Desativar tira do Sorteio; a linha continua na lista, marcada.

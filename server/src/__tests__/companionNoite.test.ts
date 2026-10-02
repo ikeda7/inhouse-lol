@@ -11,7 +11,7 @@ import * as agente from '../../../companion/inhouse-companion.mjs';
  * da API de verdade (`/ingest/lcu` e `/series/garantir`).
  */
 
-type Jogo = { gameId: number; gameCreation: number };
+type Jogo = { gameId: number; gameCreation: number; gameDuration?: number };
 type Resposta = { ok: boolean; payload: { code?: string; data?: Record<string, unknown> } };
 
 // Quinta 10/09/2026, horário local da máquina que roda o teste.
@@ -76,6 +76,18 @@ describe('noite no agente local', () => {
       { gameId: 7, gameCreation: 0 },
     ]);
     expect(jogos.map((j: Jogo) => j.gameId)).toEqual([1, 2, 3]);
+  });
+
+  it('saguão refeito (partida de segundos) não entra na noite', () => {
+    // 01/10/2026: os dez saíram aos 44s e refizeram. Mandada, ela viraria o
+    // jogo 1; recusada pelo servidor, pararia a noite antes do jogo de verdade.
+    const jogos = agente.jogosDaUltimaNoite([
+      { gameId: 1, gameCreation: quinta(21), gameDuration: 44 },
+      { gameId: 2, gameCreation: quinta(22), gameDuration: 1716 },
+      // Sem duração no histórico: não dá para dizer que foi curta.
+      { gameId: 3, gameCreation: quinta(23) },
+    ]);
+    expect(jogos.map((j: Jogo) => j.gameId)).toEqual([2, 3]);
   });
 
   it('com a MD3 aberta, grava tudo na ordem', async () => {

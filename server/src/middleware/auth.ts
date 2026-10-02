@@ -94,6 +94,19 @@ export async function exigirGrupo(req: Request, res: Response, next: NextFunctio
       return;
     }
 
+    // Com admin nomeado a chave não é mais "do grupo": pedir a chave a um
+    // visitante seria convidá-lo a procurar o que não é para ele ter.
+    if (env.adminPlayerIds.length > 0) {
+      if (nivelDaEscrita(req.method, req.path) === 'CONTA') {
+        res
+          .status(401)
+          .json({ success: false, error: 'Não autenticado.', code: 'NOT_AUTHENTICATED' });
+        return;
+      }
+      recusarPorAdmin(res);
+      return;
+    }
+
     res.status(401).json({
       success: false,
       error: 'Essa ação é só para quem é do grupo: entre na sua conta ou informe a chave do grupo.',
@@ -104,9 +117,12 @@ export async function exigirGrupo(req: Request, res: Response, next: NextFunctio
   }
 }
 
-/** Se o jogador está nomeado admin em ADMIN_PLAYER_IDS. */
-export function nomeadoAdmin(playerId: string): boolean {
-  return env.adminPlayerIds.includes(playerId);
+/**
+ * Se ainda dá para reivindicar um jogador pelo site. Com admin nomeado, não:
+ * criar conta só pedia a chave do grupo, e quem a tivesse virava "o Fulano".
+ */
+export function cadastroAberto(): boolean {
+  return env.adminPlayerIds.length === 0;
 }
 
 /** Se quem fez o pedido pode administrar -- o mesmo critério que `exigirAdmin` aplica. */
@@ -115,26 +131,39 @@ export async function pedidoPodeAdministrar(req: Request): Promise<boolean> {
   return podeAdministrar(await jogadorDaSessao(req), env.adminPlayerIds);
 }
 
+function recusarPorAdmin(res: Response): void {
+  res.status(403).json({
+    success: false,
+    error: 'Só o admin do grupo pode fazer isso. Peça para ele, ou entre com a conta dele.',
+    code: 'ADMIN_REQUIRED',
+  });
+}
+
 /**
- * Escrita de admin so com a conta de um admin.
+ * Com admin nomeado, so ele grava.
  *
  * Fica depois do `exigirGrupo` (app.ts) e, como ele, vale para todas as rotas:
- * o que nao esta na lista do grupo em lib/escritas.ts e do admin, entao rota
- * nova nasce trancada. A chave do grupo NUNCA basta aqui -- ela circula; o
- * admin prova quem e pela conta.
+ * o que nao esta nas duas listas de lib/escritas.ts e do admin, entao rota nova
+ * nasce trancada. A propria conta passa (as rotas dela exigem sessao). A chave
+ * so abre o que o agente local faz -- abrir a MD3 da noite e importar --,
+ * porque ele nao tem navegador para logar; para o resto, so a conta do admin.
  */
 export async function exigirAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    if (nivelDaEscrita(req.method, req.path) !== 'ADMIN' || (await pedidoPodeAdministrar(req))) {
+    const nivel = nivelDaEscrita(req.method, req.path);
+    const liberado =
+      nivel === 'ABERTA' ||
+      nivel === 'CONTA' ||
+      (await pedidoPodeAdministrar(req)) ||
+      (nivel === 'AGENTE' &&
+        env.groupKey !== null &&
+        chaveConfere(req.get(GROUP_KEY_HEADER), env.groupKey));
+
+    if (liberado) {
       next();
       return;
     }
-
-    res.status(403).json({
-      success: false,
-      error: 'Só o admin do grupo pode fazer isso. Peça para ele, ou entre com a conta dele.',
-      code: 'ADMIN_REQUIRED',
-    });
+    recusarPorAdmin(res);
   } catch (erro) {
     next(erro);
   }

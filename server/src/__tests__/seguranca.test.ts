@@ -111,15 +111,22 @@ describe('nivelDaEscrita', () => {
     expect(nivelDaEscrita('POST', '/draft/rooms/ABC23/pick')).toBe('ABERTA');
   });
 
-  it('a noite de jogo e a própria conta ficam com o grupo', () => {
-    expect(nivelDaEscrita('POST', '/auth/register')).toBe('GRUPO');
-    expect(nivelDaEscrita('PATCH', '/accounts/me')).toBe('GRUPO');
-    expect(nivelDaEscrita('POST', '/accounts/me/password')).toBe('GRUPO');
-    expect(nivelDaEscrita('POST', '/accounts/me/photo/sync-lol')).toBe('GRUPO');
-    expect(nivelDaEscrita('POST', '/series/garantir')).toBe('GRUPO');
-    expect(nivelDaEscrita('POST', '/ingest/lcu')).toBe('GRUPO');
-    expect(nivelDaEscrita('POST', '/ingest/rofl')).toBe('GRUPO');
-    expect(nivelDaEscrita('POST', '/draft/rooms')).toBe('GRUPO');
+  it('quem tem conta mexe na própria conta', () => {
+    expect(nivelDaEscrita('PATCH', '/accounts/me')).toBe('CONTA');
+    expect(nivelDaEscrita('POST', '/accounts/me/password')).toBe('CONTA');
+    expect(nivelDaEscrita('POST', '/accounts/me/photo')).toBe('CONTA');
+    expect(nivelDaEscrita('POST', '/accounts/me/photo/sync-lol')).toBe('CONTA');
+  });
+
+  it('o agente abre a MD3 da noite e importa, e mais nada', () => {
+    expect(nivelDaEscrita('POST', '/series/garantir')).toBe('AGENTE');
+    expect(nivelDaEscrita('POST', '/ingest/lcu')).toBe('AGENTE');
+    expect(nivelDaEscrita('POST', '/ingest/rofl')).toBe('AGENTE');
+  });
+
+  it('criar conta e abrir sala deixaram de ser do grupo', () => {
+    expect(nivelDaEscrita('POST', '/auth/register')).toBe('ADMIN');
+    expect(nivelDaEscrita('POST', '/draft/rooms')).toBe('ADMIN');
   });
 
   it('mexer no cadastro e no que já foi jogado é só do admin', () => {
@@ -128,6 +135,7 @@ describe('nivelDaEscrita', () => {
     expect(nivelDaEscrita('DELETE', '/players/p1')).toBe('ADMIN');
     expect(nivelDaEscrita('POST', '/players/p1/contas')).toBe('ADMIN');
     expect(nivelDaEscrita('DELETE', '/players/p1/contas/c1')).toBe('ADMIN');
+    expect(nivelDaEscrita('POST', '/players/p1/photo/sync-lol')).toBe('ADMIN');
     expect(nivelDaEscrita('POST', '/series')).toBe('ADMIN');
     expect(nivelDaEscrita('POST', '/series/s1/matches')).toBe('ADMIN');
     expect(nivelDaEscrita('POST', '/series/s1/finish')).toBe('ADMIN');
@@ -138,7 +146,7 @@ describe('nivelDaEscrita', () => {
 
   it('rota nova, que ninguém listou, nasce só do admin', () => {
     expect(nivelDaEscrita('POST', '/qualquer/coisa/nova')).toBe('ADMIN');
-    // Nem prefixo nem barra a mais rebaixam uma rota para o grupo.
+    // Nem prefixo nem barra a mais rebaixam uma rota.
     expect(nivelDaEscrita('POST', '/series/garantir/')).toBe('ADMIN');
     expect(nivelDaEscrita('POST', '/accounts/me/../../players')).toBe('ADMIN');
     expect(nivelDaEscrita('PATCH', '/accounts/outro')).toBe('ADMIN');
@@ -150,7 +158,7 @@ describe('nivelDaEscrita', () => {
     expect(nivelDaEscrita('DELETE', '/series/garantir')).toBe('ADMIN');
     expect(nivelDaEscrita('PATCH', '/series/garantir')).toBe('ADMIN');
     expect(nivelDaEscrita('DELETE', '/accounts/me')).toBe('ADMIN');
-    expect(nivelDaEscrita('post', '/series/garantir')).toBe('GRUPO');
+    expect(nivelDaEscrita('post', '/series/garantir')).toBe('AGENTE');
   });
 });
 
@@ -163,7 +171,7 @@ describe('podeAdministrar', () => {
   it('com admin configurado, só a conta dele passa', () => {
     expect(podeAdministrar('p1', ['p1', 'p2'])).toBe(true);
     expect(podeAdministrar('p3', ['p1', 'p2'])).toBe(false);
-    // Chave do grupo sem conta nunca é admin.
+    // Sem conta (só a chave do agente) nunca é admin.
     expect(podeAdministrar(null, ['p1'])).toBe(false);
   });
 });

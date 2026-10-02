@@ -161,8 +161,7 @@ export function PlayersPage() {
             </ul>
             {!podeAdministrar && (
               <p className="pt-3 text-xs text-ink-muted">
-                Quem cadastra e edita jogadores é o admin do grupo. Seu nome e Riot ID você muda na
-                sua conta.
+                Quem cadastra e edita jogadores é o admin do grupo.
               </p>
             )}
             {filtrarJogadores(players, filtro).length === 0 && (

@@ -258,6 +258,32 @@ describe('mapa e modo de jogo', () => {
 });
 
 /**
+ * Regressão de 01/10/2026: o saguão deu problema, os dez saíram aos 44s e
+ * refizeram. O cliente guardou a partida como qualquer outra, e a noite inteira
+ * teve de ser importada jogo a jogo, na mão, para ela não virar o jogo 1.
+ */
+describe('partida encerrada antes de virar jogo', () => {
+  it('recusa a de 44 segundos, dizendo que foi curta', () => {
+    try {
+      mapLcuGame(buildGame({ gameDuration: 44 }));
+      throw new Error('deveria ter lancado');
+    } catch (error) {
+      expect((error as LcuError).code).toBe('GAME_TOO_SHORT');
+    }
+  });
+
+  it('aceita a partir de cinco minutos', () => {
+    expect(() => mapLcuGame(buildGame({ gameDuration: 299 }))).toThrowError(LcuError);
+    expect(() => mapLcuGame(buildGame({ gameDuration: 300 }))).not.toThrow();
+  });
+
+  it('duração desconhecida não é duração curta (replay sem gameLength)', () => {
+    expect(() => mapLcuGame(buildGame({ gameDuration: 0 }))).not.toThrow();
+    expect(() => mapLcuGame(buildGame({ gameDuration: undefined }))).not.toThrow();
+  });
+});
+
+/**
  * Inferencia de role pelos SINAIS da partida.
  *
  * Regressao de um erro real reportado pelo grupo: o sistema gravou o Igor

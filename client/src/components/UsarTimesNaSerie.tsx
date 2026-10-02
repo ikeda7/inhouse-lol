@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Check } from 'lucide-react';
 import { seriesApi } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { useAction } from '../hooks/useAsync';
 import { nomeDaNoite } from '../lib/nomeDaNoite';
 import { Button, ErrorState } from './ui';
@@ -16,16 +17,28 @@ import { Button, ErrorState } from './ui';
  *
  * Um componente só nos três lugares, com o próprio estado: a lógica não se
  * repete e as páginas não precisam de hook novo.
+ *
+ * Abrir a MD3 é do admin. Para os outros o sorteio e o draft são de brincar:
+ * no lugar do botão fica o aviso de quem leva os times para a série.
  */
 export function UsarTimesNaSerie({ salvar }: { salvar: () => void }) {
   const navigate = useNavigate();
   const garantir = useAction(seriesApi.garantir);
   const [pronto, setPronto] = useState(false);
+  const { podeAdministrar } = useAuth();
+
+  if (!podeAdministrar) {
+    return (
+      <p className="text-center text-xs text-ink-muted">
+        Quem leva esses times para a série e abre a MD3 é o admin do grupo.
+      </p>
+    );
+  }
 
   const usar = async () => {
     salvar();
     const garantida = await garantir.run({ name: nomeDaNoite(), fearless: true });
-    // Sem a MD3 (faltou a chave do grupo, servidor fora), fica aqui mostrando
+    // Sem a MD3 (sessão caiu, servidor fora), fica aqui mostrando
     // o erro -- ir para a Série vazia seria esconder o problema.
     if (!garantida) return;
     setPronto(true);

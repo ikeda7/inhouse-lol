@@ -98,9 +98,9 @@ const roflIngestSchema = z.object({
 });
 
 /**
- * Importar e do grupo (o agente roda no PC de qualquer um, so com a chave), mas
- * `autoCreatePlayers` cadastra gente -- e cadastro e do admin. Sem isto a
- * importacao seria o atalho para criar jogador sem passar pela trava.
+ * A chave do agente basta para importar (ele nao tem navegador para logar), mas
+ * `autoCreatePlayers` cadastra gente -- e cadastro so com a conta do admin. A
+ * chave fica valendo para o minimo: vazada, nao cria jogador.
  *
  * Devolve `false` depois de responder 403; o preview (`dryRun`) nao grava e passa.
  */

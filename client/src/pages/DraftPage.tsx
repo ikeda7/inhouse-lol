@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dices, Users, RefreshCw, Check, Crown, Radio, Swords } from 'lucide-react';
 import { draftApi, playersApi } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { useAction, useAsync } from '../hooks/useAsync';
 import {
   Avatar,
@@ -42,6 +43,7 @@ const REQUIRED_PLAYERS = 10;
 export function DraftPage() {
   const navigate = useNavigate();
   const { data: players, loading, error, reload } = useAsync(() => playersApi.list());
+  const { podeAdministrar } = useAuth();
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [result, setResult] = useState<AutoBalanceResult | null>(null);
@@ -304,16 +306,19 @@ export function DraftPage() {
 
                   {/* Duas formas do mesmo draft: aqui só nesta tela, ou numa sala
                   com link para os dez acompanharem. A sala custa uma linha no
-                  banco, então não é o padrão -- é escolha explícita. */}
-                  <Button
-                    variant="ghost"
-                    onClick={handleAoVivo}
-                    disabled={!canDraw || !capitaesProntos}
-                    loading={abrirSala.loading}
-                  >
-                    <Radio size={16} />
-                    Draft ao vivo (com link)
-                  </Button>
+                  banco, então não é o padrão -- é escolha explícita, e de
+                  quem pode gravar: o admin abre e manda o link. */}
+                  {podeAdministrar && (
+                    <Button
+                      variant="ghost"
+                      onClick={handleAoVivo}
+                      disabled={!canDraw || !capitaesProntos}
+                      loading={abrirSala.loading}
+                    >
+                      <Radio size={16} />
+                      Draft ao vivo (com link)
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
