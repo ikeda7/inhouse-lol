@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { linkDaSerie } from '../lib/links';
 import {
   Award,
   ChevronLeft,
@@ -323,7 +324,10 @@ function CartaoDeRecorde({ recorde }: { recorde: RecordEntry }) {
 
   return (
     <Link
-      to={`/jogadores/${recorde.playerId}`}
+      // Recorde é um FEITO, num jogo: o cartão leva ao jogo em que aconteceu,
+      // aberto no Histórico. Dali o jogador tem o link do perfil dele.
+      to={linkDaSerie(recorde.seriesId, recorde.matchNumber)}
+      aria-label={`${meta.label}: ${recorde.playerName}, ${recorde.exibicao}. ${ondeFoi(recorde)}: ver o jogo`}
       // A faixa esquerda é o lado em que o recorde foi feito: os times trocam
       // de lado na MD3, então a cor é a daquele jogo. `min-w-0`: sem ele o item
       // da grade cresce até caber o nome inteiro e o `truncate` nunca corta.
@@ -510,7 +514,8 @@ function CartaoDeMomento({ momento, largo = false }: { momento: MomentEntry; lar
 
   return (
     <Link
-      to={`/jogadores/${momento.playerId}`}
+      // Como o recorde: o momento é de um jogo, e é para ele que o cartão leva.
+      to={linkDaSerie(momento.seriesId, momento.matchNumber)}
       className={`group flex min-w-0 items-center gap-3 rounded-lg border border-l-[3px] p-3 transition hover:bg-raised ${
         largo ? 'sm:col-span-2 xl:col-span-1' : ''
       } ${meta.destaque ? 'border-gold/30 bg-gold/[0.04]' : 'border-line/40 bg-raised/40'} ${

@@ -25,6 +25,7 @@ import type {
   Role,
   RoleInput,
   SeriesDetail,
+  SeriesListItem,
   SeriesSummary,
   TeamSide,
 } from '../types';
@@ -201,7 +202,7 @@ export interface RecordMatchPlayer {
 }
 
 export const seriesApi = {
-  list: (limit = 20) => request<SeriesSummary[]>(`/series?limit=${limit}`),
+  list: (limit = 20) => request<SeriesListItem[]>(`/series?limit=${limit}`),
 
   current: () => request<SeriesDetail | null>('/series/current'),
 

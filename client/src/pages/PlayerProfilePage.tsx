@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
-import { Crown, History, Swords } from 'lucide-react';
-import { playersApi } from '../api/client';
+import { ChevronRight, Crown, History, Swords } from 'lucide-react';
+import { playersApi, statsApi } from '../api/client';
+import { linkDaSerie } from '../lib/links';
 import { useAsync } from '../hooks/useAsync';
 import { Avatar, Card, CardTitle, ErrorState, LoadingState, EmptyState } from '../components/ui';
 import { ChampionIcon } from '../components/ChampionIcon';
@@ -22,14 +23,23 @@ import { ROLE_LABEL, type PlayerProfile, type RecentMatch } from '../types';
 export function PlayerProfilePage() {
   const { playerId = '' } = useParams();
   const { data, loading, error, reload } = useAsync(() => playersApi.profile(playerId), [playerId]);
+  // O lugar no ranking vem de outra rota e é só um enfeite do cabeçalho: se
+  // falhar, o perfil abre sem ele em vez de virar tela de erro.
+  const ranking = useAsync(() => statsApi.leaderboard('points'), []);
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (!data) return <EmptyState label="Jogador não encontrado." />;
 
+  const posicao = (ranking.data ?? []).findIndex((linha) => linha.playerId === data.playerId);
+  const noRanking =
+    posicao >= 0 && ranking.data
+      ? { lugar: posicao + 1, pontos: ranking.data[posicao].points, de: ranking.data.length }
+      : null;
+
   return (
     <div className="space-y-5">
-      <Cabecalho data={data} />
+      <Cabecalho data={data} noRanking={noRanking} />
 
       {/* `grid-cols-1` e não a coluna implícita: a implícita é `auto` e cresce
           até caber um nome de campeão ou de série inteiro, rolando a página. */}
@@ -46,10 +56,22 @@ export function PlayerProfilePage() {
   );
 }
 
-function Cabecalho({ data }: { data: PlayerProfile }) {
+interface NoRanking {
+  lugar: number;
+  pontos: number;
+  de: number;
+}
+
+/** Quantos resultados entram na "forma": a última noite e meia, mais ou menos. */
+const JOGOS_DA_FORMA = 5;
+
+function Cabecalho({ data, noRanking }: { data: PlayerProfile; noRanking: NoRanking | null }) {
   // Como o jogo escreve: 5/2/11. Com espaço, "100 / 60 / 133" quebrava em duas
   // linhas na caixinha do celular.
   const kda = `${data.totalKills}/${data.totalDeaths}/${data.totalAssists}`;
+  // `recentMatches` vem do mais novo para o mais velho; a forma se lê na ordem
+  // em que aconteceu, com o jogo mais recente por último.
+  const forma = data.recentMatches.slice(0, JOGOS_DA_FORMA).reverse();
 
   return (
     <Card>
@@ -77,6 +99,19 @@ function Cabecalho({ data }: { data: PlayerProfile }) {
                 </>
               )}
             </p>
+
+            {/* Onde a pessoa está e como vem: as duas perguntas que as médias de
+                baixo não respondem. O lugar leva ao ranking, de onde ele sai. */}
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px]">
+              {noRanking && (
+                <Link to="/" className="text-ink-muted hover:text-gold">
+                  <span className="tabular font-bold text-ink">{noRanking.lugar}º</span> de{' '}
+                  {noRanking.de} no ranking ·{' '}
+                  <span className="tabular font-semibold text-gold">{noRanking.pontos} pts</span>
+                </Link>
+              )}
+              {forma.length > 0 && <Forma partidas={forma} />}
+            </div>
           </div>
         </div>
 
@@ -102,6 +137,33 @@ function Cabecalho({ data }: { data: PlayerProfile }) {
         <Metric label="CS / min" value={String(data.avgCsPerMinute)} />
       </div>
     </Card>
+  );
+}
+
+/**
+ * Os últimos resultados, do mais antigo para o mais novo. A letra vai junto da
+ * cor: vitória e derrota não podem depender só de verde e vermelho.
+ */
+function Forma({ partidas }: { partidas: RecentMatch[] }) {
+  const lida = partidas.map((partida) => (partida.win ? 'vitória' : 'derrota')).join(', ');
+
+  return (
+    <span className="flex items-center gap-1.5" role="img" aria-label={`Forma recente: ${lida}`}>
+      <span className="text-ink-faint" aria-hidden="true">
+        Forma
+      </span>
+      {partidas.map((partida) => (
+        <span
+          key={partida.matchId}
+          aria-hidden="true"
+          className={`flex h-5 w-5 items-center justify-center rounded text-[11px] font-bold ${
+            partida.win ? 'bg-win/15 text-win' : 'bg-loss/15 text-loss'
+          }`}
+        >
+          {partida.win ? 'V' : 'D'}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -237,42 +299,58 @@ function LinhaDePartida({ partida }: { partida: RecentMatch }) {
     ? `${Math.round(partida.gameDurationSec / 60)} min`
     : null;
 
+  const noite = partida.seriesName ?? new Date(partida.playedAt).toLocaleDateString('pt-BR');
+
   return (
-    <li
-      // Faixa lateral na cor do resultado: dá para varrer a lista e ver a
-      // sequência de vitórias e derrotas sem ler nada.
-      className={`flex items-center gap-3 border-l-2 px-4 py-2.5 transition hover:bg-raised/40 ${
-        partida.win ? 'border-win/60 bg-win/[0.03]' : 'border-loss/50 bg-loss/[0.02]'
-      }`}
-    >
-      <ChampionIcon championName={partida.championName} size={38} />
+    <li>
+      {/* A linha inteira leva ao jogo, aberto no Histórico: era uma lista de
+          números sem saída, e a pergunta seguinte a "0/10/14 de Poppy" é
+          sempre "o que aconteceu nesse jogo?". */}
+      <Link
+        to={linkDaSerie(partida.seriesId, partida.matchNumber)}
+        aria-label={`${partida.championName}, ${noite}, jogo ${partida.matchNumber}: ver o jogo`}
+        // Faixa lateral na cor do resultado: dá para varrer a lista e ver a
+        // sequência de vitórias e derrotas sem ler nada.
+        className={`group flex items-center gap-3 border-l-2 px-4 py-2.5 transition hover:bg-raised/60 focus-visible:bg-raised/60 focus-visible:outline-none ${
+          partida.win ? 'border-win/60 bg-win/[0.03]' : 'border-loss/50 bg-loss/[0.02]'
+        }`}
+      >
+        <ChampionIcon championName={partida.championName} size={38} />
 
-      <div className="min-w-0 flex-1">
-        <p className="flex flex-wrap items-center gap-x-2">
-          <span className="truncate text-sm font-semibold text-ink">{partida.championName}</span>
-          <span className="text-[11px] uppercase tracking-wide text-ink-faint">
-            {ROLE_LABEL[partida.rolePlayed]}
-          </span>
-          <Highlights stat={partida} />
-        </p>
-        <p className="truncate text-[11px] text-ink-faint">
-          {partida.seriesName ?? new Date(partida.playedAt).toLocaleDateString('pt-BR')} · Jogo{' '}
-          {partida.matchNumber}
-          {duracao && ` · ${duracao}`}
-        </p>
-      </div>
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-x-2">
+            <span className="truncate text-sm font-semibold text-ink">{partida.championName}</span>
+            <span className="text-[11px] uppercase tracking-wide text-ink-faint">
+              {ROLE_LABEL[partida.rolePlayed]}
+            </span>
+            <Highlights stat={partida} />
+          </p>
+          <p className="truncate text-[11px] text-ink-faint">
+            {noite} · Jogo {partida.matchNumber}
+            {duracao && ` · ${duracao}`}
+          </p>
+        </div>
 
-      <div className="shrink-0 text-right">
-        <p className="tabular text-sm font-semibold text-ink">
-          {partida.kills}/{partida.deaths}/{partida.assists}
-        </p>
-        <p className="tabular text-[11px] text-ink-faint">{kda.toFixed(2)} KDA</p>
-      </div>
+        <div className="shrink-0 text-right">
+          <p className="tabular text-sm font-semibold text-ink">
+            {partida.kills}/{partida.deaths}/{partida.assists}
+          </p>
+          <p className="tabular text-[11px] text-ink-faint">{kda.toFixed(2)} KDA</p>
+        </div>
 
-      <div className="hidden shrink-0 text-right sm:block">
-        <p className="tabular text-xs text-ink-muted">{Math.round(partida.damage / 1000)}k dano</p>
-        <p className="tabular text-[11px] text-ink-faint">{partida.cs} cs</p>
-      </div>
+        <div className="hidden shrink-0 text-right sm:block">
+          <p className="tabular text-xs text-ink-muted">
+            {Math.round(partida.damage / 1000)}k dano
+          </p>
+          <p className="tabular text-[11px] text-ink-faint">{partida.cs} cs</p>
+        </div>
+
+        <ChevronRight
+          size={15}
+          aria-hidden="true"
+          className="shrink-0 text-ink-faint transition group-hover:text-gold"
+        />
+      </Link>
     </li>
   );
 }

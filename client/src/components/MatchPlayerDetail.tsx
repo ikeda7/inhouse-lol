@@ -1,5 +1,7 @@
+import { Link } from 'react-router-dom';
 import { ItemRow, RunePair, SpellPair } from './BuildIcons';
 import { ChampionIcon } from './ChampionIcon';
+import { linkDoJogador } from '../lib/links';
 import { ROLE_LABEL, type MatchStat } from '../types';
 
 /**
@@ -96,7 +98,15 @@ export function MatchPlayerDetail({ stat, gameDurationSec, maximos }: Props) {
           linha clicada -- então precisa se identificar sozinho. */}
       <div className="flex items-center gap-2.5">
         <ChampionIcon championName={stat.championName} size={28} />
-        <span className="text-[15px] font-semibold text-ink">{stat.player.name}</span>
+        {/* O nome leva ao perfil: recordes e momentos trazem a pessoa até este
+            jogo, e daqui é o caminho para "quem é esse cara no geral". */}
+        <Link
+          to={linkDoJogador(stat.player.id)}
+          title={`Ver o perfil de ${stat.player.name}`}
+          className="text-[15px] font-semibold text-ink underline decoration-line underline-offset-4 hover:text-gold hover:decoration-gold"
+        >
+          {stat.player.name}
+        </Link>
         <span className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">
           {ROLE_LABEL[stat.rolePlayed]} · {stat.championName}
         </span>
