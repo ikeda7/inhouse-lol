@@ -1,0 +1,11 @@
+# Dono de tudo: o mantenedor.
+#
+# Sozinho este arquivo não trava nada. Ele dá sentido à regra "Aprovação do
+# dono" (Settings → Rules): PR para `main` ou `develop` precisa da aprovação de
+# um code owner, e o papel de admin passa por cima dela -- o GitHub não deixa
+# ninguém aprovar o próprio PR, então sem essa exceção o mantenedor ficaria
+# travado. Na prática: quem tem escrita no repositório abre PR à vontade, mas
+# nada entra em `develop` nem vai para produção sem o @ikeda7 aprovar.
+#
+# Sem "code owner" na regra, bastaria UM colaborador aprovar o PR do outro.
+* @ikeda7
