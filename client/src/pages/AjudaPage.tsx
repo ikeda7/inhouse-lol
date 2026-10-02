@@ -119,8 +119,10 @@ export function AjudaPage() {
             jogarem.
           </Item>
           <Item titulo="A chave do grupo, para gravar">
-            Abrir MD3, cadastrar jogador ou registrar jogo pedem a chave do grupo (está no zap). O
-            site pede uma vez e guarda no navegador. Quem entrou na conta não precisa.
+            Abrir a MD3 da noite e importar os jogos pedem a chave do grupo (está no zap). O site
+            pede uma vez e guarda no navegador. Quem entrou na conta não precisa. Cadastrar e editar
+            jogador, registrar jogo na mão e encerrar a MD3 ficam com o admin do grupo, quando há
+            um.
           </Item>
           <Item titulo="Um PC com o LoL, para importar os jogos">
             A Riot não deixa ninguém puxar custom game pela internet: quem sabe dos jogos é o

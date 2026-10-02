@@ -149,6 +149,26 @@ export const env = {
    * log. O /api/health diz se a trava esta ligada.
    */
   groupKey: process.env.GROUP_KEY?.trim() || null,
+
+  /**
+   * Ids (Player.id) de quem administra, separados por vírgula. Com pelo menos
+   * um, mexer no cadastro e no que já foi jogado exige a conta de um deles --
+   * a chave do grupo e as outras contas ficam com a noite de jogo (ver
+   * lib/escritas.ts).
+   *
+   * Vazia = sem admin, o grupo inteiro pode tudo, como antes: mesmo motivo da
+   * GROUP_KEY, o deploy não pode trancar o site antes de a variável existir.
+   * É id e não e-mail porque o id já é público em /api/players e não muda
+   * quando a pessoa troca o e-mail da conta.
+   *
+   * Só nomeie quem JÁ tem conta: jogador nomeado não pode mais ser
+   * reivindicado (routes/auth.ts), senão qualquer um com a chave do grupo
+   * criava a conta do admin antes dele.
+   */
+  adminPlayerIds: (process.env.ADMIN_PLAYER_IDS ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => id !== ''),
 } as const;
 
 export const hasRiotApi = env.riotApiKey !== null;

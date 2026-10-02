@@ -440,6 +440,29 @@ the site before the variable exists; production logs a warning and
 localStorage and `ErrorState` asks for it on `GROUP_KEY_REQUIRED`; the
 companion reads `INHOUSE_CHAVE`.
 
+**Admin.** The key circulates in the group chat and every account counts as
+it, so "is from the group" is not enough to edit the roster. With
+`ADMIN_PLAYER_IDS` set (comma-separated `Player.id`s), a write is one of three
+levels (`nivelDaEscrita` in `lib/escritas.ts`): open, group, or **admin** —
+and admin is the default, so a new write route is born admin-only. The group
+keeps only game night and one's own account: `/auth/register`,
+`/accounts/me/*`, `/series/garantir`, `/ingest/lcu|rofl`, `POST /draft/rooms`.
+Everything else (players and their Riot accounts, opening/renaming/finishing/
+discarding a series by hand, the manual match form, Match-ID import) needs the
+**session** of an admin — the group key never grants it. `exigirAdmin` is
+mounted right after `exigirGrupo` and answers `ADMIN_REQUIRED` (403). Empty
+`ADMIN_PLAYER_IDS` means no admin and the old behavior (fail-open, same reason
+as the key); `/api/health` reports `adminProtegido`. The screen only hides
+what the server would refuse: `GET /auth/permissoes` (public, never 401)
+feeds `podeAdministrar` in `AuthContext`. Only name a player who **already
+has an account**: a named admin can no longer be claimed through
+`/auth/register` (`ADMIN_CLAIM_REFUSED`), otherwise whoever held the group key
+would create the admin's account first — so after `conta:liberar` on an admin,
+take the id out, re-claim, put it back. Known limit: `/ingest/lcu` stays at
+group level because the companion runs on anyone's PC with just the key, so a
+key holder can still POST a crafted game there or rewrite a scoreboard with
+`refreshStats`; only `autoCreatePlayers` is refused without an admin session.
+
 Sessions are bound to the password: the JWT carries
 `v = sha256(passwordHash)[:16]` and `validarSessao` checks it against the DB
 on every authenticated request. Changing the password — or releasing a
@@ -545,6 +568,9 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
 - **Set `GROUP_KEY` in production.** Without it every write is open to any
   visitor (see "Write protection" above). It is optional only so a deploy
   never locks the site before the variable exists.
+- **Set `ADMIN_PLAYER_IDS` in production.** Without it anyone with the group
+  key or an account edits the roster and the series. The ids are per database,
+  so Production and Preview/Development need different values.
 - **`JWT_SECRET` is required only when `NODE_ENV=production`.** Elsewhere it
   falls back to a constant, so CI and a fresh clone run with no `.env` at
   all. On Vercel `NODE_ENV` *is* production, so the variable must exist there

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { UserPlus, Save } from 'lucide-react';
 import { playersApi } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { useAction, useAsync } from '../hooks/useAsync';
 import { Button, Card, CardTitle, ErrorState, LoadingState } from '../components/ui';
 import { PlayerRow } from '../components/PlayerRow';
@@ -15,9 +16,13 @@ const SELECTABLE_ROLES: RoleInput[] = [...ROLES, 'FILL'];
  * A ordem em que as roles sao clicadas VIRA a ordem de preferencia (a primeira
  * e a main), porque e isso que o auto-balance usa para decidir quem sai da main.
  * Por isso o chip mostra a posicao escolhida.
+ *
+ * Cadastrar e editar e so do admin: para os outros a tela e a lista, sem o
+ * formulario e sem os botoes da linha.
  */
 export function PlayersPage() {
   const { data: players, loading, error, reload } = useAsync(() => playersApi.list(true));
+  const { podeAdministrar } = useAuth();
 
   const [name, setName] = useState('');
   const [riotId, setRiotId] = useState('');
@@ -55,69 +60,71 @@ export function PlayersPage() {
 
   return (
     <div className="space-y-6">
-      <Card title={<CardTitle icon={UserPlus}>Novo jogador</CardTitle>}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-xs text-ink-faint">
-            Nome
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Como a galera chama"
-              className="mt-1 w-full rounded-lg border border-line bg-raised px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
-            />
-          </label>
-          <label className="text-xs text-ink-faint">
-            Riot ID (opcional)
-            <input
-              value={riotId}
-              onChange={(event) => setRiotId(event.target.value)}
-              placeholder="Nick#BR1"
-              className="mt-1 w-full rounded-lg border border-line bg-raised px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
-            />
-          </label>
-        </div>
-
-        <fieldset className="mt-4">
-          <legend className="text-xs text-ink-faint">
-            Roles (clique na ordem de preferencia -- a primeira e a main)
-          </legend>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {SELECTABLE_ROLES.map((role) => {
-              const position = roles.indexOf(role);
-              const selected = position >= 0;
-              return (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => toggleRole(role)}
-                  aria-pressed={selected}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                    selected
-                      ? 'border-gold bg-gold/15 text-ink'
-                      : 'border-line text-ink-faint hover:border-gold/50'
-                  }`}
-                >
-                  {selected && <span className="mr-1 text-gold">{position + 1}.</span>}
-                  {ROLE_LABEL[role]}
-                </button>
-              );
-            })}
+      {podeAdministrar && (
+        <Card title={<CardTitle icon={UserPlus}>Novo jogador</CardTitle>}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-xs text-ink-faint">
+              Nome
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Como a galera chama"
+                className="mt-1 w-full rounded-lg border border-line bg-raised px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
+              />
+            </label>
+            <label className="text-xs text-ink-faint">
+              Riot ID (opcional)
+              <input
+                value={riotId}
+                onChange={(event) => setRiotId(event.target.value)}
+                placeholder="Nick#BR1"
+                className="mt-1 w-full rounded-lg border border-line bg-raised px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-gold focus:outline-none"
+              />
+            </label>
           </div>
-        </fieldset>
 
-        <div className="mt-4">
-          <Button onClick={handleCreate} disabled={!canSubmit} loading={create.loading}>
-            <Save size={16} />
-            Cadastrar
-          </Button>
-        </div>
+          <fieldset className="mt-4">
+            <legend className="text-xs text-ink-faint">
+              Roles (clique na ordem de preferencia -- a primeira e a main)
+            </legend>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {SELECTABLE_ROLES.map((role) => {
+                const position = roles.indexOf(role);
+                const selected = position >= 0;
+                return (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => toggleRole(role)}
+                    aria-pressed={selected}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                      selected
+                        ? 'border-gold bg-gold/15 text-ink'
+                        : 'border-line text-ink-faint hover:border-gold/50'
+                    }`}
+                  >
+                    {selected && <span className="mr-1 text-gold">{position + 1}.</span>}
+                    {ROLE_LABEL[role]}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
 
-        {create.error && (
-          <div className="mt-3">
-            <ErrorState error={create.error} />
+          <div className="mt-4">
+            <Button onClick={handleCreate} disabled={!canSubmit} loading={create.loading}>
+              <Save size={16} />
+              Cadastrar
+            </Button>
           </div>
-        )}
-      </Card>
+
+          {create.error && (
+            <div className="mt-3">
+              <ErrorState error={create.error} />
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card
         destaque
@@ -144,9 +151,20 @@ export function PlayersPage() {
             <FiltroDaLista players={players} filtro={filtro} onChange={setFiltro} />
             <ul className="divide-y divide-line/40">
               {filtrarJogadores(players, filtro).map((player) => (
-                <PlayerRow key={player.id} player={player} onChanged={reload} />
+                <PlayerRow
+                  key={player.id}
+                  player={player}
+                  podeEditar={podeAdministrar}
+                  onChanged={reload}
+                />
               ))}
             </ul>
+            {!podeAdministrar && (
+              <p className="pt-3 text-xs text-ink-muted">
+                Quem cadastra e edita jogadores é o admin do grupo. Seu nome e Riot ID você muda na
+                sua conta.
+              </p>
+            )}
             {filtrarJogadores(players, filtro).length === 0 && (
               <p className="py-3 text-center text-xs text-ink-muted">
                 Ninguém nessa lista: todo mundo em dia.

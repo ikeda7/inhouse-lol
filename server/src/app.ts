@@ -14,7 +14,7 @@ import { riotRouter } from './routes/riot.js';
 import { ingestRouter } from './routes/ingest.js';
 import { authRouter } from './routes/auth.js';
 import { accountsRouter } from './routes/accounts.js';
-import { exigirGrupo } from './middleware/auth.js';
+import { exigirAdmin, exigirGrupo } from './middleware/auth.js';
 
 /**
  * Monta o app SEM escutar porta.
@@ -47,6 +47,11 @@ export function createApp(): Express {
       '[seguranca] GROUP_KEY ausente: qualquer visitante consegue gravar e reivindicar conta.'
     );
   }
+  if (env.nodeEnv === 'production' && env.adminPlayerIds.length === 0) {
+    console.warn(
+      '[seguranca] ADMIN_PLAYER_IDS ausente: qualquer um do grupo edita o cadastro e as séries.'
+    );
+  }
 
   // credentials:true e o cookieParser sao o que fazem o cookie de sessao
   // (issue #3) ir e voltar entre o Vite (:5173) e a API (:3333) em dev --
@@ -61,14 +66,20 @@ export function createApp(): Express {
       success: true,
       // Dizer SE a trava esta ligada nao entrega nada; e o que permite
       // conferir, depois de configurar a GROUP_KEY, que ela pegou.
-      data: { status: 'ok', uptime: process.uptime(), grupoProtegido: env.groupKey !== null },
+      data: {
+        status: 'ok',
+        uptime: process.uptime(),
+        grupoProtegido: env.groupKey !== null,
+        adminProtegido: env.adminPlayerIds.length > 0,
+      },
     });
   });
 
   // Escrita so para quem e do grupo: conta logada ou chave do grupo. Fica
   // ANTES das rotas e vale para todas -- rota nova ja nasce protegida; as
-  // poucas excecoes estao listadas em lib/escritas.ts.
-  app.use('/api', exigirGrupo);
+  // poucas excecoes estao listadas em lib/escritas.ts. Em seguida, o que nao
+  // e da noite de jogo nem da propria conta exige a conta de um admin.
+  app.use('/api', exigirGrupo, exigirAdmin);
 
   app.use('/api/players', playersRouter);
   app.use('/api/draft', draftRouter);

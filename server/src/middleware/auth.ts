@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { env } from '../lib/env.js';
 import { chaveConfere } from '../lib/auth.js';
-import { dispensaChave } from '../lib/escritas.js';
+import { dispensaChave, nivelDaEscrita, podeAdministrar } from '../lib/escritas.js';
 import { criarLimitador } from '../lib/limite.js';
 import { validarSessao } from '../services/auth.js';
 
@@ -98,6 +98,42 @@ export async function exigirGrupo(req: Request, res: Response, next: NextFunctio
       success: false,
       error: 'Essa ação é só para quem é do grupo: entre na sua conta ou informe a chave do grupo.',
       code: 'GROUP_KEY_REQUIRED',
+    });
+  } catch (erro) {
+    next(erro);
+  }
+}
+
+/** Se o jogador está nomeado admin em ADMIN_PLAYER_IDS. */
+export function nomeadoAdmin(playerId: string): boolean {
+  return env.adminPlayerIds.includes(playerId);
+}
+
+/** Se quem fez o pedido pode administrar -- o mesmo critério que `exigirAdmin` aplica. */
+export async function pedidoPodeAdministrar(req: Request): Promise<boolean> {
+  if (env.adminPlayerIds.length === 0) return true;
+  return podeAdministrar(await jogadorDaSessao(req), env.adminPlayerIds);
+}
+
+/**
+ * Escrita de admin so com a conta de um admin.
+ *
+ * Fica depois do `exigirGrupo` (app.ts) e, como ele, vale para todas as rotas:
+ * o que nao esta na lista do grupo em lib/escritas.ts e do admin, entao rota
+ * nova nasce trancada. A chave do grupo NUNCA basta aqui -- ela circula; o
+ * admin prova quem e pela conta.
+ */
+export async function exigirAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (nivelDaEscrita(req.method, req.path) !== 'ADMIN' || (await pedidoPodeAdministrar(req))) {
+      next();
+      return;
+    }
+
+    res.status(403).json({
+      success: false,
+      error: 'Só o admin do grupo pode fazer isso. Peça para ele, ou entre com a conta dele.',
+      code: 'ADMIN_REQUIRED',
     });
   } catch (erro) {
     next(erro);
