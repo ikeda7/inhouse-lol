@@ -594,6 +594,11 @@ instances don't share memory. `trust proxy` is on only under Vercel, so
   moments point at the game (a feat happened in a game), not at the person.
   The Histórico list shows both rosters per series (`elencos` on the list
   payload, names only — photos can be `data:` URIs) and marks who won.
+  On a phone (below `md`) each game of an open series starts **collapsed** to
+  one line — kills per side and who won — except the game a link asked for; a
+  three-game MD3 used to be 4000+ px of scrolling. The toggle is a button
+  inside the game's `h3`, so a selector for player rows must be
+  `li > button[aria-expanded]`, not the card's first `aria-expanded` button.
 - The Série tab is never a dead end: with no ongoing MD3 it shows the last
   night played (`components/UltimaNoite.tsx`), score and per-player sums, with
   the link to its games.

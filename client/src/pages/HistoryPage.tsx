@@ -323,6 +323,17 @@ function MatchCard({
   // Um jogador aberto por vez na partida. Dois painéis abertos juntos empurram
   // o time de baixo para fora da tela e a comparação, que é o ponto, se perde.
   const [aberto, setAberto] = useState<string | null>(null);
+  // No celular o jogo abre RECOLHIDO: uma MD3 de três jogos eram mais de 4 mil
+  // pixels de rolagem para chegar no terceiro, e quem abre a série quer primeiro
+  // ver quais jogos existem e quem ganhou cada um. O jogo que um link pediu já
+  // vem aberto. No desktop a tela comporta os dois times lado a lado e tudo
+  // continua aberto, como sempre foi.
+  const [recolhido, setRecolhido] = useState(() => !emFoco && telaEstreita());
+  // Um link pode pedir este jogo com a série já na tela (do perfil para cá).
+  useEffect(() => {
+    if (emFoco) setRecolhido(false);
+  }, [emFoco]);
+
   const { manifest } = useChampions();
   // Selo compara os dez da partida, então sai daqui, onde os dez estão.
   const selos = selosDaPartida(match.stats);
@@ -338,11 +349,28 @@ function MatchCard({
         emFoco ? 'border-gold/60' : 'border-line/50'
       }`}
     >
-      <div className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-faint">
+      <div
+        className={`flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-faint ${
+          recolhido ? '' : 'mb-3'
+        }`}
+      >
         {/* Subtítulo do bloco, não rótulo miúdo: é o que separa um jogo do outro
-            numa MD3 aberta. */}
+            numa MD3 aberta. O botão fica DENTRO do título (o padrão de
+            sanfona), para o leitor de tela anunciar "Jogo 1, recolhido". */}
         <h3 className="font-display text-base font-bold tracking-[-0.01em] text-ink">
-          Jogo {match.matchNumber}
+          <button
+            type="button"
+            onClick={() => setRecolhido(!recolhido)}
+            aria-expanded={!recolhido}
+            className="-my-1.5 flex items-center gap-1 py-1.5 hover:text-gold"
+          >
+            {recolhido ? (
+              <ChevronRight size={15} aria-hidden="true" className="text-ink-faint" />
+            ) : (
+              <ChevronDown size={15} aria-hidden="true" className="text-ink-faint" />
+            )}
+            Jogo {match.matchNumber}
+          </button>
         </h3>
         {match.gameDurationSec && (
           <span className="tabular">{Math.round(match.gameDurationSec / 60)} min</span>
@@ -364,52 +392,68 @@ function MatchCard({
             rendição
           </span>
         )}
-        <div className="ml-auto">
-          <ExportarImagem
-            gerar={() =>
-              gerarImagemDaPartida(match, {
-                nomeDaSerie,
-                iconeDoCampeao: resolvedorDeIcone(manifest),
-              })
-            }
-            nomeDoArquivo={`inhouse-lol-jogo-${match.matchNumber}-${match.playedAt.slice(0, 10)}.png`}
-            titulo={`Jogo ${match.matchNumber} · InHouse LoL`}
-          />
-        </div>
+        {recolhido ? (
+          <PlacarDoJogo match={match} />
+        ) : (
+          <div className="ml-auto">
+            <ExportarImagem
+              gerar={() =>
+                gerarImagemDaPartida(match, {
+                  nomeDaSerie,
+                  iconeDoCampeao: resolvedorDeIcone(manifest),
+                })
+              }
+              nomeDoArquivo={`inhouse-lol-jogo-${match.matchNumber}-${match.playedAt.slice(0, 10)}.png`}
+              titulo={`Jogo ${match.matchNumber} · InHouse LoL`}
+            />
+          </div>
+        )}
       </div>
 
-      {/* `items-start` protege contra time desfalcado (4 contra 5): sem isso o
+      {!recolhido && corpoDoJogo()}
+    </div>
+  );
+
+  // Função comum, chamada, e NÃO um componente (<CorpoDoJogo />): declarado
+  // aqui dentro, um componente teria identidade nova a cada render e o React
+  // desmontaria os times e o painel do jogador a cada clique. Fica interna
+  // porque usa meia dúzia de valores deste escopo (selos, máximos, o jogador
+  // aberto).
+  function corpoDoJogo() {
+    return (
+      <>
+        {/* `items-start` protege contra time desfalcado (4 contra 5): sem isso o
           grid estica a coluna menor e a faixa verde do vencedor fica com um
           rabo de vazio embaixo. */}
-      <div className="grid items-start gap-3 md:grid-cols-2">
-        {(['BLUE', 'RED'] as const).map((side) => (
-          <TeamColumn
-            key={side}
-            side={side}
-            match={match}
-            selos={selos}
-            aberto={aberto}
-            onToggle={(id) => setAberto(aberto === id ? null : id)}
-          />
-        ))}
-      </div>
+        <div className="grid items-start gap-3 md:grid-cols-2">
+          {(['BLUE', 'RED'] as const).map((side) => (
+            <TeamColumn
+              key={side}
+              side={side}
+              match={match}
+              selos={selos}
+              aberto={aberto}
+              onToggle={(id) => setAberto(aberto === id ? null : id)}
+            />
+          ))}
+        </div>
 
-      <SelosDoJogo match={match} selos={selos} />
+        <SelosDoJogo match={match} selos={selos} />
 
-      {/* O detalhe do jogador vive AQUI, fora das colunas: em largura cheia ele
+        {/* O detalhe do jogador vive AQUI, fora das colunas: em largura cheia ele
           usa as quatro faixas de estatística sem espremer as barras, e abrir um
           jogador não mexe mais na altura de nenhum dos dois times. */}
-      {statAberto && (
-        <div className="mt-3">
-          <MatchPlayerDetail
-            stat={statAberto}
-            gameDurationSec={match.gameDurationSec}
-            maximos={maximos}
-          />
-        </div>
-      )}
+        {statAberto && (
+          <div className="mt-3">
+            <MatchPlayerDetail
+              stat={statAberto}
+              gameDurationSec={match.gameDurationSec}
+              maximos={maximos}
+            />
+          </div>
+        )}
 
-      {/* Aqui é o contrário das colunas de time: os dois blocos SE ESTICAM para
+        {/* Aqui é o contrário das colunas de time: os dois blocos SE ESTICAM para
           a mesma altura. Objetivos rende até 6 linhas e bans rende 2, e o
           `items-start` que estava aqui deixava meio painel de buraco ao lado de
           um card cheio.
@@ -419,13 +463,50 @@ function MatchCard({
           tamanho, e em metade de uma tela larga ela sobrava 130px de margem de
           cada lado. Estreitando essa coluna a fileira volta a preencher o card,
           e o painel de objetivos ganha o espaço que ele tem o que fazer. */}
-      {(match.teams?.length ?? 0) > 0 && (
-        <div className="mt-3 grid gap-3 md:grid-cols-[3fr_2fr]">
-          <MatchObjectives teams={match.teams} />
-          <MatchBans bans={match.bans ?? []} />
-        </div>
+        {(match.teams?.length ?? 0) > 0 && (
+          <div className="mt-3 grid gap-3 md:grid-cols-[3fr_2fr]">
+            <MatchObjectives teams={match.teams} />
+            <MatchBans bans={match.bans ?? []} />
+          </div>
+        )}
+      </>
+    );
+  }
+}
+
+/** Celular: abaixo do `md` do Tailwind. Sem `matchMedia` (testes), vale "larga". */
+function telaEstreita(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(max-width: 767px)').matches
+  );
+}
+
+/**
+ * O que um jogo recolhido diz de si: abates de cada lado e quem venceu. É o
+ * placar que a galera lembra ("28 a 19"), e basta para escolher qual abrir.
+ */
+function PlacarDoJogo({ match }: { match: Match }) {
+  const abates = (lado: TeamSide) =>
+    match.stats.filter((stat) => stat.teamSide === lado).reduce((soma, s) => soma + s.kills, 0);
+  if (match.stats.length === 0) return null;
+
+  const venceu = match.winner === 'BLUE' ? 'azul' : match.winner === 'RED' ? 'vermelho' : null;
+
+  return (
+    <span className="ml-auto flex items-center gap-2 text-[13px]">
+      <span className="tabular font-semibold">
+        <span className="text-blue">{abates('BLUE')}</span>
+        <span className="mx-1 font-normal text-ink-faint">x</span>
+        <span className="text-red">{abates('RED')}</span>
+      </span>
+      {venceu && (
+        <span className={`font-semibold ${match.winner === 'BLUE' ? 'text-blue' : 'text-red'}`}>
+          {venceu} venceu
+        </span>
       )}
-    </div>
+    </span>
   );
 }
 

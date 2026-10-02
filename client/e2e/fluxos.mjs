@@ -475,7 +475,9 @@ async function fluxoDosLinks(pagina) {
   const cartao = await chegouNoJogo(partida.seriesId, partida.matchNumber, 'perfil');
 
   // Jogo -> perfil: abre um jogador do jogo e segue o nome dele.
-  const linha = cartao.locator('button[aria-expanded]').first();
+  // `li >`: o primeiro botão com aria-expanded do cartão é o que recolhe o
+  // próprio jogo, e clicar nele some com os jogadores.
+  const linha = cartao.locator('li > button[aria-expanded]').first();
   await linha.click();
   const doPainel = cartao.locator('a[title^="Ver o perfil de"]');
   await doPainel.waitFor({ timeout: 10000 });
@@ -509,6 +511,29 @@ async function fluxoDosLinks(pagina) {
 
   // A faixa do ranking: para a Série se há MD3 em andamento, senão para os
   // jogos da última noite.
+  // No celular o jogo abre recolhido, menos o que o link pediu; tocar abre.
+  const comDoisJogos = (await api('GET', '/series?limit=30')).find((s) => s.matches.length >= 2);
+  if (comDoisJogos) {
+    await pagina.setViewportSize({ width: 390, height: 844 });
+    await pagina.goto(`${BASE}/historico?serie=${comDoisJogos.id}&jogo=2`, {
+      waitUntil: 'networkidle',
+    });
+    const sanfona = (jogo) => pagina.locator(`[data-jogo="${jogo}"] h3 > button`);
+    await sanfona(2).waitFor({ timeout: 20000 });
+    exigir(
+      (await sanfona(2).getAttribute('aria-expanded')) === 'true' &&
+        (await sanfona(1).getAttribute('aria-expanded')) === 'false',
+      'no celular, o jogo pedido não veio aberto ou o outro não veio recolhido'
+    );
+    await sanfona(1).click();
+    exigir(
+      (await sanfona(1).getAttribute('aria-expanded')) === 'true' &&
+        (await pagina.locator('[data-jogo="1"] li > button[aria-expanded]').count()) > 0,
+      'tocar no jogo recolhido não mostrou os jogadores'
+    );
+    await pagina.setViewportSize({ width: 1280, height: 900 });
+  }
+
   const series = await api('GET', '/series?limit=5');
   const aoVivo = series.find((s) => s.status === 'ONGOING');
   const ultima = aoVivo ?? series.find((s) => s.matches.length > 0);
