@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   CardTitle,
+  EmptyState,
   ErrorState,
   LoadingState,
   RoleBadge,
@@ -39,11 +40,13 @@ const REQUIRED_PLAYERS = 10;
  *
  * O botao so libera com exatamente 10 selecionados. O backend recusaria de
  * qualquer jeito, mas travar aqui evita uma ida ao servidor para ouvir "nao".
+ *
+ * Com admin nomeado a tela inteira e dele; quem nao e ve so o aviso.
  */
 export function DraftPage() {
   const navigate = useNavigate();
   const { data: players, loading, error, reload } = useAsync(() => playersApi.list());
-  const { podeAdministrar } = useAuth();
+  const { podeAdministrar, loading: carregandoPermissoes } = useAuth();
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [result, setResult] = useState<AutoBalanceResult | null>(null);
@@ -140,8 +143,19 @@ export function DraftPage() {
     setDraft(null);
   };
 
-  if (loading) return <LoadingState label="Carregando jogadores..." />;
+  if (loading || carregandoPermissoes) return <LoadingState label="Carregando jogadores..." />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
+
+  // Sortear e draftar são do admin: um segundo sorteio no celular de alguém
+  // vira "no meu deu outro time". Para os outros, o draft é o ao vivo, pelo
+  // link da sala que o admin manda.
+  if (!podeAdministrar) {
+    return (
+      <Card title={<CardTitle icon={Dices}>Sorteio e draft</CardTitle>}>
+        <EmptyState label="Quem sorteia os times e conduz o draft é o admin do grupo. Quando o draft for ao vivo, ele manda o link da sala: por lá os capitães escolhem e todo mundo acompanha." />
+      </Card>
+    );
+  }
 
   // Quem vai jogar sem Riot ID não é reconhecido na importação: a partida
   // chega e é recusada. Melhor saber aqui, antes do jogo, do que no fim dele.
