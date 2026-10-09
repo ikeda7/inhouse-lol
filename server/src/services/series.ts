@@ -539,8 +539,33 @@ export async function createSeries(input: { name?: string; fearless?: boolean })
  */
 export async function garantirSerieDaNoite(input: { name?: string; fearless?: boolean }) {
   const aberta = await serieEmAndamento();
-  if (aberta) return { serie: aberta, criada: false };
-  return { serie: await createSeries(input), criada: true };
+  if (!aberta) return { serie: await createSeries(input), criada: true };
+
+  const jogos = await prisma.match.count({ where: { seriesId: aberta.id } });
+  const nome = input.name?.trim();
+  if (!vaziaViraADaNoite(aberta.name, jogos, nome)) return { serie: aberta, criada: false };
+
+  // Uma MD3 aberta e esquecida noites atrás (a de 02/10 ficou assim uma
+  // semana) não tem jogo nenhum para preservar: vira a desta noite, com o
+  // nome e a data de hoje, em vez de engolir os jogos sob o nome velho.
+  const renomeada = await prisma.series.update({
+    where: { id: aberta.id },
+    data: { name: nome, date: new Date() },
+  });
+  return { serie: renomeada, criada: false };
+}
+
+/**
+ * Se a MD3 em andamento deve assumir o nome desta noite: só quando não tem
+ * jogo (nada a perder) e o nome pedido é outro. Com um jogo que seja, ela é a
+ * noite de alguém e fica como está.
+ */
+export function vaziaViraADaNoite(
+  nomeAtual: string | null,
+  quantidadeDeJogos: number,
+  nomeDaNoite: string | undefined
+): nomeDaNoite is string {
+  return quantidadeDeJogos === 0 && !!nomeDaNoite && nomeAtual !== nomeDaNoite;
 }
 
 /** Encerra a serie na mao (ex.: a galera foi dormir no 1-1). */
