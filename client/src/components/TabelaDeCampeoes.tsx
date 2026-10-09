@@ -130,7 +130,7 @@ function TabelaEmSi({ campeoes }: { campeoes: EstatisticaDeCampeao[] }) {
             </th>
             <th className="px-2 py-2 text-right font-medium">Jogos</th>
             <th className="px-2 py-2 text-right font-medium">Bans</th>
-            <th className="px-2 py-2 text-right font-medium">V–D</th>
+            <th className="whitespace-nowrap px-2 py-2 text-right font-medium">V–D</th>
             <th className="px-2 py-2 text-right font-medium">Vitórias</th>
             <th className="px-2 py-2 text-right font-medium">KDA</th>
             <th className="px-2 py-2 text-right font-medium" title="Dano por minuto">
@@ -153,7 +153,7 @@ function TabelaEmSi({ campeoes }: { campeoes: EstatisticaDeCampeao[] }) {
               </td>
               <td className="tabular px-2 py-2 text-right text-ink-muted">{campeao.partidas}</td>
               <td className="tabular px-2 py-2 text-right text-ink-muted">{campeao.bans}</td>
-              <td className="tabular px-2 py-2 text-right text-ink-muted">
+              <td className="tabular whitespace-nowrap px-2 py-2 text-right text-ink-muted">
                 {campeao.partidas === 0
                   ? '—'
                   : `${campeao.vitorias}–${campeao.partidas - campeao.vitorias}`}
