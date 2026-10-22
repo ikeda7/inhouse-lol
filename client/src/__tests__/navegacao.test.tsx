@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
@@ -136,7 +136,10 @@ describe('Histórico', () => {
     // Só o jogo pedido leva o fio dourado, e é para ele que a tela rola.
     expect(jogo2.className).toContain('border-gold');
     expect(jogo1?.className).not.toContain('border-gold');
-    expect(rolar.mock.contexts.at(-1)).toBe(jogo2);
+    // A rolagem vem de um useEffect, que roda depois da pintura: o título pode
+    // estar na tela antes dele. Conferir na hora falhou no CI do develop
+    // (22/10), com a máquina carregada.
+    await waitFor(() => expect(rolar.mock.contexts.at(-1)).toBe(jogo2));
   });
 });
 
