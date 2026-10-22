@@ -20,9 +20,11 @@ inhouse-lol/
 │     ├─ lib/              ← lógica pura, sem framework
 │     ├─ db/               o cliente Prisma
 │     ├─ services/         regras de negócio
+│     ├─ middleware/       sessão, chave do grupo, admin
 │     └─ routes/           HTTP
 └─ client/src/
    ├─ pages/  components/  hooks/  api/
+   └─ lib/                 regras de tela (selos, MD3 por elenco, imagens)
 ```
 
 ## A divisão que mais importa
@@ -50,9 +52,16 @@ reescrever:
 | `lcu.ts` | Parser do histórico do cliente do LoL |
 | `rofl.ts` | Parser de replay (formato descoberto por engenharia reversa) |
 | `captainsDraft.ts` | Snake draft 1-2-2-2-1 |
+| `estatisticasDeCampeao.ts` | O campeão no grupo, nunca "de alguém": pick, ban, presença, winrate, e os recordes por categoria |
+| `duplas.ts` | Duplas do perfil (mínimo de 3 jogos juntos; 50% exato não entra em nenhum lado) |
+| `escritas.ts` | Quem pode gravar o quê — os níveis de escrita (ver "Quem pode gravar") |
+| `auth.ts` | Hash de senha e JWT da sessão |
+| `limite.ts` | Freio de tentativas por IP, em memória |
+| `riot.ts` | API pública da Riot: importar por Match-ID e ícone de invocador |
 | `ddragonBuild.ts` | Itens, feiticos e runas |
 | `roles.ts` | Roles canônicas e normalização |
 | `ddragon.ts` | Assets oficiais |
+| `env.ts` | Variáveis de ambiente e o caminho absoluto do banco |
 
 Nada disso importa framework. **Numa eventual migração para Nest, esses
 arquivos vão inteiros, sem alteração.** Uma migração que os preserve é barata;
@@ -122,6 +131,13 @@ uso, ele é caminho de primeira classe.
 - **A posição quase nunca vem preenchida** em custom game. Quando falta, as
   roles restantes são distribuídas pelo **pool declarado** dos jogadores, e a
   resposta sinaliza `rolesFullyInferred: false` para a tela pedir conferência.
+- **`playedAt` é o `gameCreation` do LoL, não a hora da importação.** Antes da
+  #86 toda importação gravava `now()`, e uma noite importada no dia seguinte
+  caía no dia errado. `--refresh-all` reescreve a data das que ainda estão no
+  histórico do cliente.
+- **Jogo com menos de 5 minutos é recusado** (`GAME_TOO_SHORT`): é lobby que
+  deu errado e foi refeito. O agente aplica o mesmo corte antes de mandar, senão
+  a recusa pararia a noite antes do jogo 1 de verdade.
 
 ---
 
@@ -144,6 +160,24 @@ entre jogos. Contar por BLUE/RED transformava um 2-0 em 1-1. A identidade de um
 time é o conjunto de jogadores, ancorado no jogo 1, com maioria de 5 —
 tolera uma substituição. Os campos `blueScore`/`redScore` guardam Time A / Time
 B; mantive os nomes das colunas para não migrar um banco com dados reais dentro.
+
+**A regra do "time A" mora em três lugares, e eles têm que andar juntos.** O
+placar (`computeSeriesStanding` em `services/series.ts`), os elencos da lista
+do Histórico (`elencosDaSerie`, no mesmo arquivo) e as somas da MD3 no cliente
+(`client/src/lib/timeDaSerie.ts`). Com cinco de cada lado as três dão o mesmo
+time; só a do placar exige sobreposição mínima e sinaliza `rostersUnstable`
+quando o elenco embaralha demais. Mexeu numa, confira as outras duas.
+
+**Uma pessoa, mais de uma conta da Riot.** `Player.riotId`/`puuid` são a conta
+principal e são `@unique`; o smurf mora em `RiotAccount`, uma linha por conta
+extra. A importação indexa as duas por PUUID e por Riot ID, então a partida
+jogada no smurf cai na mesma pessoa em vez de virar uma segunda linha no
+ranking. Isso não tem nada a ver com a conta de login (`email`/`passwordHash`).
+
+**No máximo uma MD3 em andamento.** Com duas abertas, a importação do LCU caía
+na mais nova e os jogos se espalhavam entre elas. `POST /series` recusa a
+segunda (`SERIES_ONGOING`), e `POST /series/garantir` devolve a que está aberta
+ou abre uma — é o que o botão "Usar esses times na série" e o agente chamam.
 
 **Objetivos em `MatchTeamStat`, não em `Match`.** Dragão, barão e torre são dado
 de **time**, não de jogador — dragão não pertence a quem deu o last hit. Poderiam
@@ -257,6 +291,64 @@ atualizar a scoreboard dela não faz sentido.
 
 ---
 
+## Quem pode gravar
+
+O site e o repositório são públicos, e ler não exige nada. Escrever passou por
+três desenhos, e cada um caiu por um motivo concreto:
+
+1. **Tudo aberto.** Qualquer visitante podia gravar.
+2. **Chave do grupo** (`GROUP_KEY`, header `x-chave-do-grupo`) **ou uma conta.**
+   A chave circulou no grupo do zap, e com ela dava para reivindicar o jogador de
+   um amigo que ainda não tinha conta e mandar partida forjada pela importação.
+3. **Admin** (`ADMIN_PLAYER_IDS`). É como a produção roda: o site é de leitura
+   para todo mundo menos o admin.
+
+Com admin nomeado, cada escrita cai num de quatro níveis (`nivelDaEscrita` em
+`lib/escritas.ts`):
+
+| Nível | O quê | Quem |
+|---|---|---|
+| aberta | login/logout, e o que acontece dentro de uma sala ao vivo | qualquer um |
+| conta | `/accounts/me/*` — o próprio perfil, senha e foto | o dono da conta |
+| agente | `POST /series/garantir`, `POST /ingest/lcu\|rofl` | sessão do admin **ou** a chave |
+| admin | todo o resto, inclusive sorteio e draft de capitães | só a sessão do admin |
+
+**O padrão é admin.** As listas em `escritas.ts` são de exceções: uma rota nova
+nasce só do admin, e abri-la exige escrever o motivo do lado. Listar o que
+proteger, em vez do que abrir, é o jeito clássico de uma rota nova sair aberta.
+
+**A chave virou do agente.** O companion não tem navegador para fazer login,
+então prova que é do admin pela chave, que fica só no PC dele
+(`companion/chave.txt`). Vazada, o estrago é uma partida importada, não o
+cadastro — criar jogador desconhecido ainda exige a sessão.
+
+**O sorteio é do admin mesmo sem gravar nada.** Uma pessoa tira os times da
+noite; um segundo sorteio no celular de alguém vira "mas no meu deu outro time".
+
+**Sem a variável, a trava não existe** (fail-open), tanto para a chave quanto
+para o admin: um deploy não pode trancar o site antes de a variável existir.
+`/api/health` diz `grupoProtegido` e `adminProtegido`, e a produção avisa no log.
+
+**A tela só esconde o que o servidor recusaria.** `GET /auth/permissoes`
+(público, nunca 401) alimenta o `AuthContext`; a verdade continua no servidor.
+
+**A sessão está presa à senha.** O JWT leva `v = sha256(passwordHash)[:16]`, e
+cada requisição autenticada confere com o banco: trocar a senha derruba todas
+as sessões abertas. Login e cadastro têm freio por IP em memória — freio contra
+rajada, não cofre, porque instâncias serverless não dividem memória.
+
+**Conta não é usuário novo.** É a reivindicação de um `Player` que já existe:
+nasce presa ao histórico da pessoa, e o cadastro de jogadores continua curado na
+aba Jogadores. Com admin nomeado o cadastro de contas fecha
+(`REGISTRATION_CLOSED`), então a conta do admin precisa existir **antes** de o id
+entrar na variável.
+
+O preço: o admin é o ponto único da noite. Sem ele, ninguém abre a MD3, e o LCU
+só lista os jogos de quem jogou. Uma noite sem ele precisa de um segundo id na
+variável e da chave no PC dessa pessoa.
+
+---
+
 ## Draft ao vivo: consulta, não evento
 
 O modo Capitães normal guarda o estado no **cliente** — cada escolha manda o
@@ -274,6 +366,10 @@ Três coisas tornam isso barato o bastante: a consulta manda a versão que já t
 e recebe `{ unchanged: true }` quando nada mudou; para quando a aba sai da
 frente; e para quando o draft fecha.
 
+Pegar ou liberar um lado também sobe a `version`. Antes só a escolha subia, e a
+consulta do outro capitão respondia "não mudou" até o próximo pick — ninguém via
+o lado ocupado (achado pelo fluxo com dois navegadores).
+
 **A coluna `version` faz dois trabalhos.** Além de dizer ao cliente se mudou
 algo, ela impede escolha dupla. Os dois capitães podem clicar no mesmo segundo,
 e sem isso a segunda gravação sobrescreveria a primeira — o jogador escolhido
@@ -281,8 +377,11 @@ pelo primeiro voltaria para o pote sem ninguém entender por quê. A escolha man
 a versão que viu, e a gravação **repete essa condição no `updateMany`**: entre
 ler e escrever ainda cabe outra requisição, então quem decide a ordem é o banco.
 
-**A trava de capitão é contra acidente, não contra gente.** Não há login: cada
-capitão clica "Sou o capitão" e recebe um segredo que fica no navegador dele.
+**A trava de capitão é contra acidente, não contra gente.** A sala ignora as
+contas de propósito: cada capitão clica "Sou o capitão" e recebe um segredo que
+fica no navegador dele. Ligar a identidade real ao draft é decisão pendente, não
+esquecimento — e criar a sala é do admin, mas o que acontece dentro dela é aberto
+a quem tem o link.
 Isso impede que quem está assistindo clique num jogador sem querer — e nada
 além disso. Daí duas decisões que parecem frouxas e são deliberadas:
 
@@ -383,8 +482,9 @@ erra em fundo escuro. Foi assim que o bronze do pódio (`amber-700`, 3.40:1)
 apareceu como problema junto.
 
 Duas coisas repetem esses valores e precisam andar juntas: os tokens em
-`index.css` e as constantes em `lib/rankingImage.ts` — canvas não lê custom
-property do CSS.
+`index.css` e as constantes em `lib/imagem/canvas.ts` — canvas não lê custom
+property do CSS. Esse módulo é a base de todas as imagens exportadas (ranking,
+partida, série, recordes, momentos).
 
 **`Select` próprio** porque o nativo não aceita estilo no menu — no Windows abre
 a lista branca do sistema no meio de uma interface escura. O componente
@@ -419,7 +519,8 @@ aparecem. Ícone faltando é melhor que scoreboard vazia.
 
 ## Testes
 
-131 (101 no back, 30 no front), concentrados onde o custo de errar é alto:
+Os números mudam a cada PR; em 02/10/2026 eram 372 (183 no back, 189 no front).
+Concentrados onde o custo de errar é alto:
 
 | Suíte | Cobre |
 |---|---|
@@ -427,11 +528,17 @@ aparecem. Ícone faltando é melhor que scoreboard vazia.
 | `lcu` | formato real do cliente, mapa/modo, resolução de posição |
 | `rofl` | header binário, statsJson, integração com o mapper |
 | `seriesStanding` | troca de lado entre jogos (o bug real) |
+| `camadas` | `lib/` sem framework, rota sem banco |
+| `seguranca` | níveis de escrita, chave, admin, sessão presa à senha |
+| `companionNoite` | a noite importada na ordem, contra um servidor falso |
+| `tokens` (front) | nome de token que colide com utility, contraste AA medido |
 
 Testes que nasceram de bug real levam o caso no nome. `seriesStanding.test.ts`
 descreve a MD3 de 07/09/2026 que quebrou.
 
-O front tem testes de componente desde a #10, mas cobrem 7 de ~20 componentes.
+O que teste de unidade não vê fica nos três scripts do job "Telas no navegador"
+(`client/e2e/`): o ensaio da noite pela API, a medição das telas em cinco
+larguras e os fluxos clicados. O CLAUDE.md descreve cada um.
 
 ---
 
@@ -439,7 +546,7 @@ O front tem testes de componente desde a #10, mas cobrem 7 de ~20 componentes.
 
 | Tarefa | Arquivo |
 |---|---|
-| Mudar o sorteio | `lib/autoBalance.ts` |
+| Mudar o sorteio | `lib/autoBalance.ts` (algoritmo), `services/draft.ts` (força e capitães) |
 | Mudar a pontuação | `services/stats.ts` |
 | Mudar regra da MD3 | `services/series.ts` |
 | Novo endpoint | `routes/` + registrar em `app.ts` |
@@ -447,7 +554,9 @@ O front tem testes de componente desde a #10, mas cobrem 7 de ~20 componentes.
 | Cor, espaçamento, fonte | `client/src/index.css` (tokens) |
 | Comando do agente | `companion/inhouse-companion.mjs` |
 | Regra do draft ao vivo | `services/draftRooms.ts` |
-| Cor, contraste | `client/src/index.css` **e** `lib/rankingImage.ts` |
+| Quem pode gravar uma rota | `lib/escritas.ts` |
+| Regra do "time A" da MD3 | `services/series.ts` **e** `client/src/lib/timeDaSerie.ts` |
+| Cor, contraste | `client/src/index.css` **e** `client/src/lib/imagem/canvas.ts` |
 | Novo destaque ou recorde | `services/highlights.ts` (tabela `CATEGORIAS`) |
 | Novo campo no scoreboard | `lib/lcu.ts` → `colunasDeScoreboard` em `services/series.ts` → schema |
 | Levar coluna nova pro Turso | `npm run db:turso -- --schema-only` |

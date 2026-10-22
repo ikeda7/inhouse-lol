@@ -285,6 +285,7 @@ migration unmodified. Never add a framework import to it.
 | `services/ingest.ts` | Match import rules shared by LCU, replay and Match-ID: PUUID auto-link, unknown-player creation, LoL icon, idempotency, target MD3. `routes/ingest.ts` only validates and responds |
 | `services/stats.ts` | Leaderboard, player profile |
 | `services/highlights.ts` | Records/highlights (`CATEGORIAS` table) |
+| `services/draft.ts` | What the draw and the captains start compute: each player's strength (history + manual offset) and the captains. `routes/draft.ts` only validates and responds |
 | `services/draftRooms.ts` | Live-draft room state machine |
 | `services/auth.ts` | Account claim, login, photo (LoL icon or upload) |
 | `middleware/auth.ts` | `requireAuth` and the session-cookie options |
