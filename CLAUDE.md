@@ -253,6 +253,11 @@ to date and production would be permanently unmergeable.
 
 Merging is the maintainer's call: open PRs, don't merge them unless asked.
 
+Merged branches are deleted by `.github/workflows/limpar-branches.yml` on every
+push to `develop`/`main` (and on demand, with a dry-run input). A cloud session
+cannot delete any branch but its own, so don't try: the workflow only deletes a
+branch whose tip is a merged PR's head and is already in `develop` or `main`.
+
 ## Architecture
 
 ### Layering (the rule that matters most)
@@ -285,6 +290,7 @@ migration unmodified. Never add a framework import to it.
 | `services/ingest.ts` | Match import rules shared by LCU, replay and Match-ID: PUUID auto-link, unknown-player creation, LoL icon, idempotency, target MD3. `routes/ingest.ts` only validates and responds |
 | `services/stats.ts` | Leaderboard, player profile |
 | `services/highlights.ts` | Records/highlights (`CATEGORIAS` table) |
+| `services/draft.ts` | What the draw and the captains start compute: each player's strength (history + manual offset) and the captains. `routes/draft.ts` only validates and responds |
 | `services/draftRooms.ts` | Live-draft room state machine |
 | `services/auth.ts` | Account claim, login, photo (LoL icon or upload) |
 | `middleware/auth.ts` | `requireAuth` and the session-cookie options |

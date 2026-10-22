@@ -1,18 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { autoBalanceTeams, DraftError, NEUTRAL_RATING } from '../lib/autoBalance.js';
-import { historicoConsiderado, ratingPorHistorico } from '../lib/forca.js';
-import {
-  applyPick,
-  buildPickOrder,
-  finalizeCaptainsDraft,
-  selectCaptains,
-  startCaptainsDraft,
-  type CaptainCandidate,
-} from '../lib/captainsDraft.js';
-import { findPlayersByIds, toDraftablePlayer } from '../services/players.js';
-import { getLastGameLosers } from '../services/series.js';
-import { getHistoricoDoSorteio, getWinRates } from '../services/stats.js';
+import { applyPick, buildPickOrder, finalizeCaptainsDraft } from '../lib/captainsDraft.js';
+import { iniciarDraftDeCapitaes, sortearTimes } from '../services/draft.js';
 import {
   buscarSala,
   criarSala,
@@ -25,24 +14,6 @@ import { asyncHandler } from './helpers.js';
 export const draftRouter = Router();
 
 const rosterSchema = z.array(z.string().min(1)).length(10, 'Selecione exatamente 10 jogadores');
-
-/**
- * Carrega os 10 jogadores e garante que todos os ids existem -- senao o draft
- * rodaria com 9 e daria um erro confuso la na frente.
- */
-async function loadRoster(playerIds: string[]) {
-  const players = await findPlayersByIds(playerIds);
-  if (players.length !== playerIds.length) {
-    const found = new Set(players.map((p) => p.id));
-    const missing = playerIds.filter((id) => !found.has(id));
-    throw new DraftError(
-      `Jogador(es) não encontrado(s): ${missing.join(', ')}.`,
-      'PLAYER_NOT_FOUND',
-      { missing }
-    );
-  }
-  return players;
-}
 
 const autoBalanceSchema = z.object({
   playerIds: rosterSchema,
@@ -64,46 +35,8 @@ const autoBalanceSchema = z.object({
 draftRouter.post(
   '/auto-balance',
   asyncHandler(async (req, res) => {
-    const { playerIds, seed, ignoreRating, evitar } = autoBalanceSchema.parse(req.body);
-    const [roster, { kdaDoGrupo, porJogador }] = await Promise.all([
-      loadRoster(playerIds),
-      getHistoricoDoSorteio(),
-    ]);
-
-    // Força pelo histórico (lib/forca). O internalRating do cadastro vira um
-    // ajuste manual por cima -- 1000 é "sem ajuste" -- para ainda dar para
-    // dizer "o novato é bom" antes de ele ter jogo aqui.
-    const result = autoBalanceTeams(
-      roster.map((player) => ({
-        ...toDraftablePlayer(player),
-        rating:
-          ratingPorHistorico(porJogador.get(player.id), kdaDoGrupo) +
-          (player.internalRating - NEUTRAL_RATING),
-      })),
-      { seed, avoidSplits: evitar, ...(ignoreRating ? { ratingWeight: 0 } : {}) }
-    );
-
-    // O histórico de cada um volta junto: o KDA do ranking para cada linha, e o
-    // que o sorteio considerou para a média do time -- é assim que o grupo
-    // confere se ficou parelho sem um KDA absurdo distorcer a média.
-    const historico = Object.fromEntries(
-      playerIds.map((id) => {
-        const doJogador = porJogador.get(id);
-        const considerado = historicoConsiderado(doJogador, kdaDoGrupo);
-        return [
-          id,
-          {
-            jogos: doJogador?.jogos ?? 0,
-            kda: doJogador?.kda ?? 0,
-            winRate: doJogador?.winRate ?? 0,
-            kdaConsiderado: Math.round(considerado.kda * 100) / 100,
-            winRateConsiderado: Math.round(considerado.vitorias * 1000) / 10,
-          },
-        ];
-      })
-    );
-
-    res.json({ success: true, data: { ...result, historico } });
+    const data = await sortearTimes(autoBalanceSchema.parse(req.body));
+    res.json({ success: true, data });
   })
 );
 
@@ -124,30 +57,7 @@ const captainsSchema = z.object({
 draftRouter.post(
   '/captains/start',
   asyncHandler(async (req, res) => {
-    const { playerIds, mode, seriesId, seed, captainIds } = captainsSchema.parse(req.body);
-    const roster = await loadRoster(playerIds);
-    const winRates = await getWinRates();
-
-    const candidates: CaptainCandidate[] = roster.map((player) => {
-      const stats = winRates.get(player.id);
-      return {
-        ...toDraftablePlayer(player),
-        winRate: stats?.winRate ?? 0,
-        gamesPlayed: stats?.games ?? 0,
-      };
-    });
-
-    const lastGameLosers =
-      mode === 'LAST_LOSERS' && seriesId ? await getLastGameLosers(seriesId) : [];
-
-    const captains = selectCaptains({
-      roster: candidates,
-      mode,
-      lastGameLosers,
-      seed,
-      captainIds,
-    });
-    const state = startCaptainsDraft(candidates, captains);
+    const state = await iniciarDraftDeCapitaes(captainsSchema.parse(req.body));
 
     res.json({
       success: true,
@@ -198,9 +108,10 @@ draftRouter.post(
 // estado mora no banco sob um codigo curto, e quem abre o link ve o mesmo
 // draft.
 //
-// Nao ha login: quem tem o link escolhe. E o mesmo nivel de confianca do grupo
-// no proprio saguao do jogo, e o servidor ainda garante o que importa -- a
-// escolha entra no time da VEZ, nunca no outro.
+// A sala ignora as contas de proposito: quem tem o link escolhe. E o mesmo
+// nivel de confianca do grupo no proprio saguao do jogo, e o servidor ainda
+// garante o que importa -- a escolha entra no time da VEZ, nunca no outro.
+// Criar a sala e do admin; o que acontece dentro dela e aberto (lib/escritas).
 // ---------------------------------------------------------------------------
 
 /** GET /api/draft/rooms/:code?since=<versao> */
@@ -236,30 +147,7 @@ draftRouter.get(
 draftRouter.post(
   '/rooms',
   asyncHandler(async (req, res) => {
-    const { playerIds, mode, seriesId, seed, captainIds } = captainsSchema.parse(req.body);
-    const roster = await loadRoster(playerIds);
-    const winRates = await getWinRates();
-
-    const candidates: CaptainCandidate[] = roster.map((player) => {
-      const stats = winRates.get(player.id);
-      return {
-        ...toDraftablePlayer(player),
-        winRate: stats?.winRate ?? 0,
-        gamesPlayed: stats?.games ?? 0,
-      };
-    });
-
-    const lastGameLosers =
-      mode === 'LAST_LOSERS' && seriesId ? await getLastGameLosers(seriesId) : [];
-
-    const captains = selectCaptains({
-      roster: candidates,
-      mode,
-      lastGameLosers,
-      seed,
-      captainIds,
-    });
-    const sala = await criarSala(startCaptainsDraft(candidates, captains));
+    const sala = await criarSala(await iniciarDraftDeCapitaes(captainsSchema.parse(req.body)));
 
     res.status(201).json({
       success: true,

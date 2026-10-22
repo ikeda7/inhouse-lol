@@ -1,0 +1,74 @@
+name: Limpar branches mergeadas
+
+# Apaga as branches de trabalho que já entraram. Sem isso elas se acumulam:
+# em 22/10 eram 14, todas já mergeadas, e a sessão do Claude na nuvem não
+# consegue apagar branch nenhuma além da própria.
+#
+# Só apaga quando as duas coisas valem, para nunca levar trabalho junto:
+#   1. a ponta da branch é exatamente a ponta de um PR já mergeado;
+#   2. essa ponta já está dentro do develop ou do main.
+# Uma branch que recebeu commit depois do merge, ou que nunca virou PR, fica,
+# e aparece no log como "mantida" com o motivo.
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+    inputs:
+      simular:
+        description: 'Só listar o que seria apagado, sem apagar'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  limpar:
+    name: Apagar branches mergeadas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apagar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SIMULAR: ${{ inputs.simular || 'false' }}
+        run: |
+          set -euo pipefail
+
+          # "branch sha" de cada PR mergeado que veio deste repositório.
+          gh api --paginate "repos/$REPO/pulls?state=closed&per_page=100" \
+            --jq ".[] | select(.merged_at != null and .head.repo.full_name == \"$REPO\") | \"\(.head.ref) \(.head.sha)\"" \
+            > mergeados.txt
+
+          git for-each-ref --format='%(refname:lstrip=3) %(objectname)' refs/remotes/origin |
+          while read -r branch ponta; do
+            case "$branch" in
+              HEAD|main|develop) continue ;;
+            esac
+
+            if ! grep -qx "$branch $ponta" mergeados.txt; then
+              echo "mantida: $branch (a ponta não é a de um PR mergeado)"
+              continue
+            fi
+            if ! git merge-base --is-ancestor "$ponta" origin/develop &&
+               ! git merge-base --is-ancestor "$ponta" origin/main; then
+              echo "mantida: $branch (ainda não está no develop nem no main)"
+              continue
+            fi
+
+            if [ "$SIMULAR" = "true" ]; then
+              echo "apagaria: $branch"
+            else
+              gh api -X DELETE "repos/$REPO/git/refs/heads/$branch" --silent
+              echo "apagada: $branch"
+            fi
+          done
