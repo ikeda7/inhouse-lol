@@ -313,8 +313,12 @@ function LinhaTabela({ entry, posicao }: { entry: LeaderboardEntry; posicao: num
         {entry.avgKda.toFixed(2)}
       </td>
       <td className="tabular py-2.5 pr-2 text-right text-ink-muted">{entry.avgDamagePerMinute}</td>
-      <td className="tabular py-2.5 pr-2 text-right text-ink-muted">{entry.avgCsPerMinute}</td>
-      <td className="tabular py-2.5 pr-2 text-right text-ink-muted">{entry.avgVisionScore}</td>
+      <td className="tabular py-2.5 pr-2 text-right text-ink-muted">
+        {entry.avgCsPerMinute.toFixed(1)}
+      </td>
+      <td className="tabular py-2.5 pr-2 text-right text-ink-muted">
+        {entry.avgVisionScore.toFixed(1)}
+      </td>
       <td className="tabular py-2.5 pr-2 text-right text-ink-muted">
         {entry.seriesWon > 0 ? entry.seriesWon : '--'}
       </td>

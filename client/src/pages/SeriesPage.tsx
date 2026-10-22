@@ -24,6 +24,7 @@ import {
 import { BurnedChampions } from '../components/BurnedChampions';
 import { MatchForm, type PrefilledSlot } from '../components/MatchForm';
 import { clearActiveDraft, loadActiveDraft } from '../lib/activeDraft';
+import { nomeDaNoite } from '../lib/nomeDaNoite';
 import { elencoDoTimeA, ladoDoTimeA } from '../lib/timeDaSerie';
 import { NaSerie } from '../components/NaSerie';
 import { UltimaNoite } from '../components/UltimaNoite';
@@ -73,7 +74,10 @@ export function SeriesPage() {
             {podeAdministrar && (
               <Button
                 onClick={async () => {
-                  if (await createSeries.run({ fearless: true })) series.reload();
+                  // Com o nome da noite, como o "Usar esses times": sem ele a
+                  // série ficava sem nome e o Histórico mostrava a data crua.
+                  const nova = await createSeries.run({ name: nomeDaNoite(), fearless: true });
+                  if (nova) series.reload();
                 }}
                 loading={createSeries.loading}
               >

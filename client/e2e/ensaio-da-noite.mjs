@@ -742,6 +742,12 @@ await passo('"usar os times" garante a MD3: abre se não há, reusa se há, nunc
     segunda.criada === false && segunda.serie.id === primeira.serie.id,
     'abriu outra MD3 em vez de usar a que estava em andamento'
   );
+  // Vazia, ela vira a da noite: a de 02/10 ficou aberta uma semana sem nome
+  // e engoliria os jogos da noite seguinte com o rótulo velho.
+  exigir(
+    segunda.serie.name === `Outra ${rodada}`,
+    `a MD3 vazia reaproveitada ficou com o nome "${segunda.serie.name}"`
+  );
   recusa(
     await api('POST', '/series', { name: `Duplicada ${rodada}` }),
     'SERIES_ONGOING',

@@ -245,6 +245,41 @@ async function marcarDez(pagina) {
 }
 
 /** O perfil não tem rota fixa: entra pelo primeiro jogador da lista. */
+/**
+ * Espera a tela parar de mudar antes de medir: nenhum pedido à API em voo por
+ * meio segundo seguido, e nenhuma animação de entrada (`.surgir`) rodando.
+ *
+ * Era `waitForLoadState('networkidle')` + 600ms fixos. Só que o "rede ociosa"
+ * do navegador é da PÁGINA e acontece uma vez: depois de um clique que troca de
+ * tela sem recarregar (abrir o perfil a partir da lista), ele já tinha
+ * acontecido e voltava na hora. A medição saía 600ms depois do clique, e numa
+ * produção mais lenta pegava cards no meio da entrada -- o "Feitos", que chega
+ * por último, medido a 1.3:1 num frame que ninguém vê parado. Falhava uma
+ * largura diferente a cada rodada.
+ */
+async function assentar(pagina, emVoo) {
+  const limite = Date.now() + 15000;
+  let quietoDesde = null;
+  while (Date.now() < limite) {
+    if (emVoo.size === 0) {
+      quietoDesde ??= Date.now();
+      if (Date.now() - quietoDesde >= 500) break;
+    } else {
+      quietoDesde = null;
+    }
+    await pagina.waitForTimeout(100);
+  }
+  await pagina
+    .waitForFunction(
+      () => document.getAnimations().every((animacao) => animacao.playState !== 'running'),
+      null,
+      { timeout: 5000 }
+    )
+    .catch(() => {});
+  // Um quadro a mais para o último estilo da animação valer na medição.
+  await pagina.waitForTimeout(100);
+}
+
 async function abrirPrimeiroPerfil(pagina) {
   const link = pagina.locator('a[href^="/jogadores/"]').first();
   if ((await link.count()) === 0) return;
@@ -511,7 +546,14 @@ async function main() {
         const { pathname } = new URL(url);
         return pathname.includes('/api/') ? pathname : null;
       };
+      // Pedidos à API ainda sem resposta: é por eles que `assentar` espera.
+      const emVoo = new Set();
+      pagina.on('request', (req) => {
+        if (rotaDaApi(req.url())) emVoo.add(req);
+      });
+      pagina.on('requestfinished', (req) => emVoo.delete(req));
       pagina.on('requestfailed', (req) => {
+        emVoo.delete(req);
         const rota = rotaDaApi(req.url());
         if (rota) apiSemResposta.push(`${req.method()} ${rota} (sem resposta)`);
       });
@@ -522,13 +564,8 @@ async function main() {
 
       try {
         await pagina.goto(BASE + tela.rota, { waitUntil: 'networkidle', timeout: 30000 });
-        if (tela.antes) {
-          await tela.antes(pagina);
-          await pagina.waitForLoadState('networkidle').catch(() => {});
-        }
-        // Espera a animação de entrada dos cards (`.surgir`, 220ms) acabar:
-        // medir no meio dela daria contraste de um frame que ninguém vê parado.
-        await pagina.waitForTimeout(600);
+        if (tela.antes) await tela.antes(pagina);
+        await assentar(pagina, emVoo);
 
         const medida = await pagina.evaluate(medirNaPagina);
         const { reprovados, alertas } = medida;
