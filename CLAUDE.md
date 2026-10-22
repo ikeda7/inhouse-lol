@@ -253,6 +253,11 @@ to date and production would be permanently unmergeable.
 
 Merging is the maintainer's call: open PRs, don't merge them unless asked.
 
+Merged branches are deleted by `.github/workflows/limpar-branches.yml` on every
+push to `develop`/`main` (and on demand, with a dry-run input). A cloud session
+cannot delete any branch but its own, so don't try: the workflow only deletes a
+branch whose tip is a merged PR's head and is already in `develop` or `main`.
+
 ## Architecture
 
 ### Layering (the rule that matters most)
